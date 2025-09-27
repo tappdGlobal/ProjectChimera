@@ -1,20 +1,18 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+// TAPPDAAPP/App.tsx
+import { NavigationContainer } from "@react-navigation/native";
+import AppNavigator from "./src/navigation/AppNavigator";
+import { StatusBar } from "expo-status-bar";
+import React from "react";
+
+// NOTE: The main logic from the Figma output App.tsx will move to AppNavigator.tsx
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <NavigationContainer>
+      {/* We are placing the primary navigation logic here */}
+      <AppNavigator />
+      <StatusBar style="light" />
+      {/* Assuming the app uses a dark/black theme based on Figma background color */}
+    </NavigationContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
