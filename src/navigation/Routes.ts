@@ -4,8 +4,10 @@ export const SCREEN_NAMES = {
   EXPLORE: "Explore",
   ENGAGE: "Engage",
   HOST: "Host",
-  NOTIFICATIONS: "Notifications",
   PROFILE: "Profile",
+  NOTIFICATIONS: "Notifications",
+  PUBLISHED_EVENTS: "PublishedEvents",
+  DRAFT_EVENTS: "DraftEvents",
 } as const;
 
 export type RootTabParamList = {

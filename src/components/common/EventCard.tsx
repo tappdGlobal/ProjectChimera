@@ -7,7 +7,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ViewStyle,
-  TextStyle,
   Image,
   ImageStyle,
 } from "react-native";
@@ -67,7 +66,7 @@ export function EventCard({
   if (layout === "grid") {
     // Grid layout focuses on width
     if (size === "small") {
-      cardStyle.width = 160; // w-64 equivalent (adjust to RN density, 64*0.25=16)
+      cardStyle.width = 248; // w-64 equivalent (adjust to RN density, 64*0.25=16)
       imageStyle.height = 128; // h-32
     } else if (size === "large") {
       cardStyle.width = "100%"; // w-full

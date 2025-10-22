@@ -58,10 +58,10 @@ export function Header({
             style={styles.searchIcon}
           />
           {/* Replaced Input with a standard RN TextInput for temporary fix */}
-          <TextInput
+          <Input
             placeholder="Search events..."
-            placeholderTextColor={Theme.colors.mutedForeground}
-            style={styles.searchInput}
+            // The text color will be handled by the Input's base styles
+            style={styles.headerSearchInput}
           />
         </View>
 

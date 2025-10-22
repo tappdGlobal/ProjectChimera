@@ -1,12 +1,15 @@
 // src/screens/ExploreScreen.tsx
 
 import React, { useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ExploreAllScreen } from "./ExploreAllScreen"; // The detailed list view
 import { EventCategories } from "../components/common/EventCategories"; // The initial category list
 import { Header } from "../components/common/Header";
 import { Theme } from "../styles/Theme";
+import { RecommendedEvents } from "../components/common/RecommendedEvents"; // <<< NEW IMPORT
+import { TrendingEvents } from "../components/common/TrendingEvents"; // <<< NEW IMPORT
+import { WishlistedEvents } from "../components/common/WishlistedEvents"; // <<< NEW IMPORT
 
 // This component acts as the root for the 'Explore' tab in the Bottom Navigator.
 export function ExploreScreen() {
@@ -48,37 +51,41 @@ export function ExploreScreen() {
   // If we are in the initial main view (placeholder for other content)
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={styles.container}>
-        {/* Top Header Placeholder (will be replaced by the Figma Header component later) */}
-        {/* 1. HEADER (Now part of the scrollable content, matching the screenshot) */}
+      {/* Use a single ScrollView to contain all primary elements (Header, Categories, etc.) */}
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+        {/* 1. HEADER (The Welcome Message, Logo, Search Bar) */}
         <Header
-          // These onClicks should navigate to the respective tabs/screens
           onProfileClick={() => console.log("Navigate to Profile")}
           onSettingsClick={() => console.log("Navigate to Settings")}
           onNotificationClick={() => console.log("Navigate to Notifications")}
         />
 
-        {/* Primary category listing component */}
+        {/* 2. EVENT CATEGORIES (Horizontal scroll list) */}
         <EventCategories
-          onCategorySelect={handleCategorySelect}
+          onCategorySelect={handleCategorySelect} // Will need to handle actual navigation later
           onExploreAllClick={handleExploreAllClick}
         />
 
-        {/* Placeholder for other components on the Explore tab (e.g., RecommendedEvents.tsx) */}
-        <View style={styles.contentPlaceholder}>
-          <Text style={styles.placeholderText}>
-            {/* Show selected category status */}
-            Status:{" "}
-            {selectedCategory
-              ? `Viewing "${selectedCategory}"`
-              : "Main Explore View"}
-          </Text>
-          <Text style={styles.subPlaceholderText}>
-            *The main content (Recommended Events, Trending Events) will go
-            below this line.*
-          </Text>
-        </View>
-      </View>
+        {/* 3. RECOMMENDED EVENTS (Horizontal scroll list) */}
+        <RecommendedEvents
+          onEventSelect={handleCategorySelect} // Use generic select handler for now
+          onExploreAllClick={handleExploreAllClick}
+        />
+
+        {/* 4. TRENDING EVENTS (Horizontal scroll list) */}
+        <TrendingEvents
+          onEventSelect={handleCategorySelect}
+          onExploreAllClick={handleExploreAllClick}
+        />
+
+        {/* 5. WISHLISTED EVENTS (Horizontal scroll list) */}
+        <WishlistedEvents
+          onEventSelect={handleCategorySelect}
+          onExploreAllClick={handleExploreAllClick}
+        />
+
+        {/* Removed generic contentPlaceholder */}
+      </ScrollView>
     </SafeAreaView>
   );
 }
