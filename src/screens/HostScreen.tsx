@@ -10,6 +10,8 @@ import {
   Alert,
   Platform,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { useCameraPermissions } from "expo-camera";
 import {
   ArrowLeft,
   Plus,
@@ -22,6 +24,12 @@ import {
   X,
   Lock,
   FileText,
+  QrCode,
+  Settings,
+  BarChart3,
+  UserCheck,
+  Camera,
+  LayoutDashboard
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Toast from "react-native-toast-message"; // For toast messages
@@ -39,10 +47,13 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/Card";
-import { Badge } from "../components/ui/Badge";
 import { Separator } from "../components/ui/Separator";
 import { Theme } from "../styles/Theme";
 import { useNavigation } from "@react-navigation/native";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
+
+
+
 
 import { createStackNavigator } from "@react-navigation/stack";
 // import { HostScreen } from "../screens/HostScreen"; // Removed to fix naming conflict
@@ -83,8 +94,8 @@ interface HostProps {
   onShowPublished?: () => void;
   onBack?: () => void;
   editingDraft?:
-    | (EventForm & { id: string; createdAt: string; lastModified: string })
-    | null;
+  | (EventForm & { id: string; createdAt: string; lastModified: string })
+  | null;
 }
 
 const eventGenres = [
@@ -186,6 +197,23 @@ export function HostScreen({
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showEventControlPopup, setShowEventControlPopup] = useState(false);
+  const [popupActiveTab, setPopupActiveTab] = useState("analytics");
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
+
+  const localDateObj = localFormData.date
+    ? new Date(localFormData.date)
+    : new Date();
+
+  const timeObj = new Date();
+  if (localFormData.time) {
+    const [hh, mm] = localFormData.time.split(":");
+    timeObj.setHours(Number(hh));
+    timeObj.setMinutes(Number(mm));
+  }
   // Effect to load editing draft if provided
   useEffect(() => {
     if (editingDraft) {
@@ -203,6 +231,7 @@ export function HostScreen({
     },
     [errors]
   );
+
 
   // Handler for ticket changes
   const handleLocalTicketChange = useCallback(
@@ -351,10 +380,11 @@ export function HostScreen({
   };
 
   const handlePublishedTabClick = () => {
-    if (onShowPublished) {
-      onShowPublished();
-      navigation.navigate(SCREEN_NAMES.PUBLISHED_EVENTS as never);
-    }
+    navigation.navigate(SCREEN_NAMES.PUBLISHED_EVENTS as never);
+    // if (onShowPublished) {
+    //   onShowPublished();
+    //   navigation.navigate(SCREEN_NAMES.PUBLISHED_EVENTS as never);
+    // }
     // Note: We need a navigation hook here to switch to the PublishedEventsScreen
   };
 
@@ -458,6 +488,7 @@ export function HostScreen({
     </View>
   );
 
+
   const EventFormContent = () => (
     <View style={styles.formContentContainer}>
       <View style={styles.formSection}>
@@ -478,7 +509,6 @@ export function HostScreen({
                 <Text style={styles.errorText}>{errors.name}</Text>
               )}
             </View>
-
             <View style={styles.grid2Col}>
               <View style={[styles.formGroup, { flex: 1 }]}>
                 <Text style={styles.label}>Genre</Text>
@@ -537,12 +567,36 @@ export function HostScreen({
                   </View>
                 </Text>
                 {/* Note: RN TextInput type="date" is not directly supported, requires external DatePicker */}
-                <Input
-                  value={localFormData.date}
-                  onChangeText={(value) =>
-                    handleLocalFieldChange("date", value)
-                  }
-                  placeholder="YYYY-MM-DD"
+                <TouchableOpacity
+                  onPress={() => setShowDatePicker(true)}
+                  style={styles.dateBoxWrapper}
+                >
+                  <Text style={styles.dateText}>
+                    {localFormData.date ? localFormData.date : "dd-mm-yyyy"}
+                  </Text>
+
+                  <Calendar
+                    size={20}
+                    color={Theme.colors.foreground}
+                    style={{ marginLeft: 8 }}
+                  />
+                </TouchableOpacity>
+
+                <DateTimePickerModal
+                  isVisible={showDatePicker}
+                  mode="date"
+                  display="inline"
+                  themeVariant="dark"
+                  onConfirm={(selectedDate) => {
+                    setShowDatePicker(false);
+
+                    const dd = String(selectedDate.getDate()).padStart(2, "0");
+                    const mm = String(selectedDate.getMonth() + 1).padStart(2, "0");
+                    const yyyy = selectedDate.getFullYear();
+
+                    handleLocalFieldChange("date", `${dd}-${mm}-${yyyy}`);
+                  }}
+                  onCancel={() => setShowDatePicker(false)}
                 />
                 {errors.date && (
                   <Text style={styles.errorText}>{errors.date}</Text>
@@ -558,13 +612,37 @@ export function HostScreen({
                   />{" "}
                   Time
                 </Text>
-                <Input
-                  value={localFormData.time}
-                  onChangeText={(value) =>
-                    handleLocalFieldChange("time", value)
-                  }
-                  placeholder="HH:MM"
+                <TouchableOpacity
+                  onPress={() => setShowTimePicker(true)}
+                  style={styles.timeBoxWrapper}
+                >
+                  <Text style={styles.timeText}>
+                    {localFormData.time ? localFormData.time : "--:--"}
+                  </Text>
+
+                  <Clock
+                    size={20}
+                    color={Theme.colors.foreground}
+                    style={{ marginLeft: 8 }}
+                  />
+                </TouchableOpacity>
+
+                <DateTimePickerModal
+                  isVisible={showTimePicker}
+                  mode="time"
+                  display="spinner"     // 👈 THIS MAKES IT A WHEEL PICKER
+                  themeVariant="dark"
+                  onConfirm={(selectedTime) => {
+                    setShowTimePicker(false);
+                    const hh = String(selectedTime.getHours()).padStart(2, "0");
+                    const mm = String(selectedTime.getMinutes()).padStart(2, "0");
+                    handleLocalFieldChange("time", `${hh}:${mm}`);
+                  }}
+                  onCancel={() => setShowTimePicker(false)}
                 />
+
+
+
                 {errors.time && (
                   <Text style={styles.errorText}>{errors.time}</Text>
                 )}
@@ -886,6 +964,502 @@ export function HostScreen({
     </View>
   );
 
+  // CLICK HANDLERS FOR POPUP BUTTONS
+  const handleAnalytics = () => {
+    setPopupActiveTab("analytics");
+  };
+
+  const handleScan = () => {
+    setPopupActiveTab("scan");
+  };
+
+  const handleGuests = () => {
+    setPopupActiveTab("guests");
+  };
+
+
+  const EventControlPopup = () => (
+    <View style={styles.popupOverallContainer}>
+      <View style={styles.popupOverlay}>
+        <View style={styles.popupContainer}>
+
+          {/* Header */}
+          <View style={styles.popupHeaderRow}>
+            <Text style={styles.popupTitle}>Summer Jazz Festival</Text>
+
+            <TouchableOpacity onPress={() => setShowEventControlPopup(false)}>
+              <X size={22} color={Theme.colors.foreground} />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.popupSubtitle}>
+            Manage your event, scan tickets, and view real-time analytics
+          </Text>
+
+          {/* Tabs */}
+          <View style={styles.popupTabs}>
+            {/* (keep your existing tab buttons here) */}
+            {/* Analytics */}
+            <TouchableOpacity onPress={handleAnalytics} style={[styles.popupTab, popupActiveTab === "analytics" && styles.popupTabActive]}>
+              <View style={styles.popupTabInner}>
+                <BarChart3 size={18} color={popupActiveTab === "analytics" ? Theme.colors.primaryForeground : Theme.colors.mutedForeground} />
+                <Text style={popupActiveTab === "analytics" ? styles.popupTabActiveText : styles.popupTabText}>Analytics</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Scan */}
+            <TouchableOpacity onPress={handleScan} style={[styles.popupTab, popupActiveTab === "scan" && styles.popupTabActive]}>
+              <View style={styles.popupTabInner}>
+                <QrCode size={18} color={popupActiveTab === "scan" ? Theme.colors.primaryForeground : Theme.colors.mutedForeground} />
+                <Text style={popupActiveTab === "scan" ? styles.popupTabActiveText : styles.popupTabText}>Scan</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Guests */}
+            <TouchableOpacity onPress={handleGuests} style={[styles.popupTab, popupActiveTab === "guests" && styles.popupTabActive]}>
+              <View style={styles.popupTabInner}>
+                <Users size={18} color={popupActiveTab === "guests" ? Theme.colors.primaryForeground : Theme.colors.mutedForeground} />
+                <Text style={popupActiveTab === "guests" ? styles.popupTabActiveText : styles.popupTabText}>Guests</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Body: KEEP header/tabs outside, body fills remaining popup area */}
+          <View style={{ flex: 1, marginTop: 8 }}>
+            {popupActiveTab === "guests" && <GuestsContent />}
+            {popupActiveTab === "scan" && <ScanContent />}
+            {popupActiveTab === "analytics" && (
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 12 }} showsVerticalScrollIndicator={false}>
+                <Text style={{ color: Theme.colors.mutedForeground }}>Analytics UI placeholder</Text>
+              </ScrollView>
+            )}
+          </View>
+
+        </View>
+      </View>
+    </View>
+  );
+
+
+
+
+
+
+  const GuestsContent = () => {
+    const guestList = [
+      {
+        id: 1,
+        name: "Sarah Johnson",
+        email: "sarah.j@email.com",
+        ticketType: "VIP",
+        ticketId: "VIP-001",
+        time: "7:30 PM",
+        status: "checked",
+      },
+      {
+        id: 2,
+        name: "Michael Chen",
+        email: "m.chen@email.com",
+        ticketType: "Standard",
+        ticketId: "STD-045",
+        time: "7:45 PM",
+        status: "checked",
+      },
+      {
+        id: 3,
+        name: "Emma Wilson",
+        email: "emma.w@email.com",
+        ticketType: "Standard",
+        ticketId: "STD-022",
+        time: "8:00 PM",
+        status: "pending",
+      },
+      {
+        id: 4,
+        name: "David Patel",
+        email: "d.patel@email.com",
+        ticketType: "VIP",
+        ticketId: "VIP-014",
+        time: "6:50 PM",
+        status: "checked",
+      },
+      {
+        id: 5,
+        name: "Olivia Martinez",
+        email: "olivia.m@email.com",
+        ticketType: "Premium",
+        ticketId: "PRE-010",
+        time: "7:10 PM",
+        status: "pending",
+      },
+      {
+        id: 6,
+        name: "James Anderson",
+        email: "j.anderson@email.com",
+        ticketType: "Standard",
+        ticketId: "STD-089",
+        time: "8:15 PM",
+        status: "checked",
+      },
+      {
+        id: 7,
+        name: "Priya Sharma",
+        email: "priya.s@email.com",
+        ticketType: "Premium",
+        ticketId: "PRE-023",
+        time: "7:55 PM",
+        status: "pending",
+      },
+      {
+        id: 8,
+        name: "William Brown",
+        email: "will.b@email.com",
+        ticketType: "VIP",
+        ticketId: "VIP-009",
+        time: "6:40 PM",
+        status: "checked",
+      },
+      {
+        id: 9,
+        name: "Ava Thompson",
+        email: "ava.t@email.com",
+        ticketType: "Standard",
+        ticketId: "STD-031",
+        time: "8:20 PM",
+        status: "pending",
+      },
+      {
+        id: 10,
+        name: "Daniel Kim",
+        email: "daniel.k@email.com",
+        ticketType: "VIP",
+        ticketId: "VIP-017",
+        time: "7:20 PM",
+        status: "checked",
+      },
+      {
+        id: 11,
+        name: "Sophia Lee",
+        email: "sophia.l@email.com",
+        ticketType: "Premium",
+        ticketId: "PRE-032",
+        time: "7:05 PM",
+        status: "checked",
+      },
+      {
+        id: 12,
+        name: "Henry Walker",
+        email: "henry.w@email.com",
+        ticketType: "Standard",
+        ticketId: "STD-099",
+        time: "8:30 PM",
+        status: "pending",
+      },
+      {
+        id: 13,
+        name: "Meera Gupta",
+        email: "meera.g@email.com",
+        ticketType: "VIP",
+        ticketId: "VIP-025",
+        time: "6:55 PM",
+        status: "checked",
+      },
+      {
+        id: 14,
+        name: "Robert Davis",
+        email: "rob.d@email.com",
+        ticketType: "Standard",
+        ticketId: "STD-052",
+        time: "7:40 PM",
+        status: "checked",
+      },
+      {
+        id: 15,
+        name: "Isabella Harris",
+        email: "isabella.h@email.com",
+        ticketType: "Premium",
+        ticketId: "PRE-044",
+        time: "8:05 PM",
+        status: "pending",
+      },
+      {
+        id: 16,
+        name: "Noah Smith",
+        email: "noah.s@email.com",
+        ticketType: "Standard",
+        ticketId: "STD-061",
+        time: "6:45 PM",
+        status: "checked",
+      },
+      {
+        id: 17,
+        name: "Zara Khan",
+        email: "zara.k@email.com",
+        ticketType: "VIP",
+        ticketId: "VIP-033",
+        time: "7:15 PM",
+        status: "pending",
+      },
+      {
+        id: 18,
+        name: "Ethan Wright",
+        email: "ethan.w@email.com",
+        ticketType: "Standard",
+        ticketId: "STD-074",
+        time: "7:50 PM",
+        status: "checked",
+      },
+      {
+        id: 19,
+        name: "Maya Rodriguez",
+        email: "maya.r@email.com",
+        ticketType: "Premium",
+        ticketId: "PRE-056",
+        time: "7:00 PM",
+        status: "checked",
+      },
+      {
+        id: 20,
+        name: "Lucas Green",
+        email: "lucas.g@email.com",
+        ticketType: "VIP",
+        ticketId: "VIP-045",
+        time: "8:25 PM",
+        status: "pending",
+      },
+    ];
+
+
+    return (
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 24, paddingTop: 8 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Summary Row */}
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryText}>
+            Total Guests: <Text style={styles.summaryBold}>{guestList.length}</Text>
+          </Text>
+
+          <Text style={styles.summaryText}>
+            Checked In:{" "}
+            <Text style={[styles.summaryBold, { color: "#22c55e" }]}>
+              {guestList.filter(g => g.status === "checked").length}
+            </Text>
+          </Text>
+        </View>
+
+        {/* Search */}
+        <View style={styles.searchBox}>
+          <Text style={styles.searchPlaceholder}>Search guests...</Text>
+        </View>
+
+        {/* Guests list */}
+        <View style={{ paddingTop: 6 }}>
+          {guestList.map((g) => (
+            <View key={g.id} style={styles.guestCard}>
+              <View style={styles.guestIndexCircle}>
+                <Text style={styles.guestIndexText}>#{g.id}</Text>
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
+                  <Text style={styles.guestName}>{g.name}</Text>
+
+                  {g.status === "checked" ? (
+                    <View style={[styles.checkedBadge, { marginLeft: 8 }]}>
+                      <Text style={styles.checkedBadgeText}>Checked In</Text>
+                    </View>
+                  ) : (
+                    <View style={[styles.pendingBadge, { marginLeft: 8 }]}>
+                      <Text style={styles.pendingBadgeText}>Pending</Text>
+                    </View>
+                  )}
+                </View>
+
+                <Text style={styles.guestEmail}>{g.email}</Text>
+
+                <View style={styles.guestMetaRow}>
+                  <Text style={styles.guestMeta}>{g.ticketType}</Text>
+                  <Text style={styles.dot}>•</Text>
+                  <Text style={styles.guestMeta}>{g.ticketId}</Text>
+                  <Text style={styles.dot}>•</Text>
+                  <Text style={[styles.guestMeta, { color: g.status === "checked" ? "#4ade80" : Theme.colors.mutedForeground }]}>
+                    {g.time}
+                  </Text>
+                </View>
+              </View>
+
+              {g.status === "checked" ? (
+                <UserCheck size={26} color="#4ade80" />
+              ) : (
+                <TouchableOpacity>
+                  <LinearGradient colors={["#D11A87", "#7F1AB2"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.checkInButton}>
+                    <Text style={styles.checkInButtonText}>Check In</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
+            </View>
+          ))}
+        </View>
+
+        {/* bottom spacer so last item isn't hidden */}
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    );
+  };
+
+  const ScanContent = () => {
+    return (
+      <ScrollView
+        style={{ flex: 1, marginTop: 20 }}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+      >
+
+        {/* ---------- CAMERA CARD ---------- */}
+        <View
+          style={{
+            backgroundColor: "#18122F",
+            borderRadius: Theme.radius.xl,
+            padding: Theme.spacing.l,
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.08)",
+            minHeight: 380,
+            marginBottom: 20,
+          }}
+        >
+          {/* QR Icon */}
+          <View style={{ alignItems: "center", marginBottom: 20 }}>
+            <View
+              style={{
+                padding: 30,
+                borderRadius: 20,
+                borderWidth: 2,
+                borderColor: "#C84BFF",
+              }}
+            >
+              <QrCode size={80} color="#C84BFF" />
+            </View>
+
+            <Text
+              style={{
+                color: Theme.colors.mutedForeground,
+                marginTop: 14,
+                fontSize: 14,
+                textAlign: "center",
+              }}
+            >
+              Scan QR code or enter ticket number manually
+            </Text>
+          </View>
+
+          {/* Camera Scan Button */}
+          <TouchableOpacity activeOpacity={0.8}>
+            <LinearGradient
+              colors={["#D11A87", "#7F1AB2"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{
+                paddingVertical: 14,
+                borderRadius: 10,
+                alignItems: "center",
+                marginBottom: 16,
+                flexDirection: "row",
+                justifyContent: "center",
+                gap: 8,
+              }}
+            >
+              <Camera size={18} color="#fff" />
+              <Text
+                style={{
+                  color: "#fff",
+                  fontSize: 15,
+                  fontWeight: "600",
+                }}
+              >
+                Open Camera to Scan QR Code
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          {/* Manual Check-in Input */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 10,
+              marginBottom: 10,
+            }}
+          >
+            <Input
+              placeholder="Enter Ticket Number"
+              style={{ flex: 1 }}
+            />
+
+            <LinearGradient
+              colors={["#D11A87", "#7F1AB2"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{
+                paddingHorizontal: 18,
+                paddingVertical: 10,
+                borderRadius: 10,
+              }}
+            >
+              <Text
+                style={{
+                  color: "#fff",
+                  fontSize: 14,
+                  fontWeight: "700",
+                }}
+              >
+                Check In
+              </Text>
+            </LinearGradient>
+          </View>
+        </View>
+
+        {/* ---------- STATS SECTION (NO CARD WRAPPER) ---------- */}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            marginBottom: 40,
+          }}
+        >
+          <View style={styles.scanStatBox}>
+            <Text style={[styles.scanStatNumber, { color: "#C84BFF" }]}>15</Text>
+            <Text style={styles.scanStatLabel}>Total</Text>
+          </View>
+
+          <View style={styles.scanStatBox}>
+            <Text style={[styles.scanStatNumber, { color: "#22c55e" }]}>7</Text>
+            <Text style={styles.scanStatLabel}>In</Text>
+          </View>
+
+          <View style={styles.scanStatBox}>
+            <Text style={[styles.scanStatNumber, { color: "#facc15" }]}>8</Text>
+            <Text style={styles.scanStatLabel}>Pending</Text>
+          </View>
+        </View>
+
+      </ScrollView>
+    );
+  };
+
+
+
+
+
+
+
+
+
+
+
   if (onShowPublished && activeTab === "published") {
     // Parent component (AppNavigator or HostScreen wrapper) will handle the navigation to PublishedEventsScreen
     return null;
@@ -895,44 +1469,35 @@ export function HostScreen({
   return (
     <SafeAreaView style={styles.flex1} edges={["top"]}>
       <View style={styles.mainContainer}>
-        {/* Header */}
-        <View style={styles.mainHeader}>
-          <View style={styles.backButtonContainer}>
-            <TouchableOpacity
-              onPress={handlePublishedTabClick}
-              style={styles.backButton}
-            >
-              <ArrowLeft size={24} color={Theme.colors.foreground} />
-            </TouchableOpacity>
-            {onShowDrafts && (
-              <TouchableOpacity
-                onPress={onShowDrafts}
-                style={styles.backButton}
-              >
-                <FileText size={20} color={Theme.colors.mutedForeground} />
-              </TouchableOpacity>
-            )}
-          </View>
-          <Text style={styles.mainHeaderTitle}>Welcome Host</Text>
-        </View>
 
-        {/* Menu Tabs */}
+        {/* HEADER */}
+        <View style={styles.mainHeader}>
+          <TouchableOpacity onPress={handlePublishedTabClick} style={styles.headerIconLeft}>
+            <ArrowLeft size={22} color={Theme.colors.foreground} />
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={onShowDrafts} style={styles.draftIconWrapper}>
+            <FileText size={20} color={Theme.colors.primaryForeground} />
+          </TouchableOpacity>
+
+          <Text style={styles.mainHeaderTitle}>Welcome Host</Text>
+
+          <TouchableOpacity
+            onPress={() => setShowEventControlPopup(true)}
+            style={styles.headerIconRight}
+          >
+            <LayoutDashboard size={22} color={Theme.colors.foreground} />
+          </TouchableOpacity>
+
+        </View>
+        {showEventControlPopup && <EventControlPopup />}
+        {/* MENU TABS */}
         <View style={styles.tabMenu}>
           <TouchableOpacity
             onPress={() => setActiveTab("private")}
-            style={[
-              styles.tabButton,
-              activeTab === "private" && styles.tabButtonActive,
-            ]}
+            style={[styles.tabButton, activeTab === "private" && styles.tabButtonActive]}
           >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === "private" && styles.tabTextActive,
-              ]}
-            >
-              Private Event
-            </Text>
+            <Text style={[styles.tabText, activeTab === "private" && styles.tabTextActive]}>Private Event</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -944,67 +1509,44 @@ export function HostScreen({
 
           <TouchableOpacity
             onPress={handlePublicTabClick}
-            style={[
-              styles.tabButton,
-              activeTab === "public" && styles.tabButtonActive,
-              styles.tabButtonRelative,
-            ]}
+            style={[styles.tabButton, activeTab === "public" && styles.tabButtonActive]}
           >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === "public" && styles.tabTextActive,
-              ]}
-            >
-              Public Event
-            </Text>
-            {isVerified && (
-              <Badge
-                style={styles.verifiedBadge}
-                textStyle={styles.verifiedBadgeText}
-              >
-                Verified
-              </Badge>
-            )}
+            <Text style={[styles.tabText, activeTab === "public" && styles.tabTextActive]}>Public Event</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Content */}
+        {/* CONTENT */}
         {showPublicVerification ? (
           <PublicVerificationForm />
         ) : (
-          <ScrollView
-            style={styles.flex1}
-            contentContainerStyle={styles.scrollPadding}
-          >
+          <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPadding}>
             <EventFormContent />
           </ScrollView>
         )}
 
-        {/* Bottom Action Buttons (Fixed Footer) */}
+        {/* BOTTOM ACTION BAR */}
         {!showPublicVerification && activeTab !== "published" && (
           <View style={styles.bottomActionBar}>
+
+
             <View style={styles.bottomActionBarInner}>
-              <Button
-                onClick={handleSaveDraft}
-                variant="outline"
-                style={styles.bottomButtonOutline}
-              >
+              <Button onClick={handleSaveDraft} variant="outline" style={styles.bottomButtonOutline}>
                 Save as Draft
               </Button>
-              <Button
-                onClick={handlePublishEvent}
-                style={styles.bottomButtonPrimary}
-              >
+
+              <Button onClick={handlePublishEvent} style={styles.bottomButtonPrimary}>
                 Publish Event
               </Button>
             </View>
           </View>
         )}
+
       </View>
+
       <Toast />
     </SafeAreaView>
   );
+
 }
 
 // --- STYLESHEET ---
@@ -1029,16 +1571,26 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
   },
-  backButtonContainer: {
+  headerIconLeft: {
     position: "absolute",
     left: 16,
-    flexDirection: "row",
-    gap: 12,
+    padding: 6,
   },
-  backButton: {
-    padding: 8,
-    borderRadius: 9999,
+
+  headerIconRight: {
+    position: "absolute",
+    right: 16,
+    padding: 6,
   },
+
+  draftIconWrapper: {
+    position: "absolute",
+    left: 60,
+    backgroundColor: "#2A2344",   // same faint circle as screenshot
+    padding: 10,
+    borderRadius: 30,
+  },
+
   // --- Tab Menu ---
   tabMenu: {
     flexDirection: "row",
@@ -1068,19 +1620,293 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     // The gradient background for active tab is complex; we rely on the underline/text color for now.
   },
-  verifiedBadge: {
+  // for date-time dropdown
+
+
+  dateBoxWrapper: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+    borderRadius: Theme.radius.md,
+    backgroundColor: Theme.colors.muted,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  dateText: {
+    color: Theme.colors.foreground,
+    fontSize: 14,
+  },
+  timeBoxWrapper: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+    borderRadius: Theme.radius.md,
+    backgroundColor: Theme.colors.muted,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  timeText: {
+    color: Theme.colors.foreground,
+    fontSize: 14,
+  },
+
+  // popup styles
+  popupOverlay: {
+    backgroundColor: "rgba(0,0,0,0.5)",
+    width: "100%",
+    height: "100%",
+    paddingTop: 0,
+  },
+  popupOverallContainer: {
     position: "absolute",
-    top: -4,
-    right: 4,
-    backgroundColor: "green",
-    paddingHorizontal: 4,
-    paddingVertical: 1,
+    top: 70,              // keep it below the header
+    left: 0,
+    right: 0,
+    bottom: 0,            // <-- allow full overlay height so children can size with percentages
+    zIndex: 9999,
+    elevation: 20,
+    alignItems: "center",
+    justifyContent: "flex-start",
+  },
+
+  popupContainer: {
+    backgroundColor: Theme.colors.card,
+    borderRadius: Theme.radius.xl,
+    padding: Theme.spacing.l,
+    marginHorizontal: 16,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+
+    // Give the popup a concrete size so inner scrollables can measure.
+    height: "94%",    // concrete height (adjust if you want taller/shorter)
+    width: "92%",     // fixed width percent
+    overflow: "hidden",
+  },
+
+  popupTabInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    justifyContent: "center",
+  },
+
+
+  popupHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  popupTitle: {
+    color: Theme.colors.foreground,
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+
+  popupSubtitle: {
+    color: Theme.colors.mutedForeground,
+    marginTop: 6,
+    marginBottom: 20,
+    fontSize: 14,
+  },
+
+  popupTabs: {
+    flexDirection: "row",
+    backgroundColor: Theme.colors.secondary,
+    borderRadius: 50,
+    padding: 6,
+    justifyContent: "space-between",
+  },
+
+  popupTab: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 12,
+    borderRadius: 40,
+  },
+
+  popupTabActive: {
+    backgroundColor: Theme.colors.primary,
+  },
+
+  popupTabText: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+
+  popupTabActiveText: {
+    color: Theme.colors.primaryForeground,
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginVertical: 12,
+  },
+
+  summaryText: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 14,
+  },
+
+  summaryBold: {
+    color: Theme.colors.foreground,
+    fontWeight: "bold",
+  },
+
+  searchBox: {
+    backgroundColor: Theme.colors.inputBackground,
+    padding: 14,
+    borderRadius: Theme.radius.lg,
+    marginBottom: 16,
+  },
+
+  searchPlaceholder: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 14,
+  },
+
+  guestCard: {
+    backgroundColor: Theme.colors.muted,
+    borderRadius: Theme.radius.lg,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+  },
+
+  guestIndexCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#30144eff",   // darker, deeper purple
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+
+
+  guestIndexText: {
+    color: "#C84BFF",             // neon pink-purple from screenshot
+    fontWeight: "700",
+    fontSize: 14,
+  },
+
+
+  guestName: {
+    color: Theme.colors.foreground,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+
+  guestEmail: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 13,
+    marginBottom: 8,
+  },
+
+  guestMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+
+  guestMeta: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 12,
+  },
+
+  dot: {
+    color: Theme.colors.mutedForeground,
+    marginHorizontal: 4,
+  },
+
+
+
+
+  checkedBadge: {
+    backgroundColor: "rgba(34, 197, 94, 0.12)",   // light green bg
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: Theme.radius.md,
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.4)",        // light green border
+  },
+
+  checkedBadgeText: {
+    color: "#22c55e",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+
+  pendingBadge: {
+    backgroundColor: "rgba(234, 179, 8, 0.12)",   // light amber bg
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: Theme.radius.md,
+    borderWidth: 1,
+    borderColor: "rgba(234, 179, 8, 0.4)",        // light amber border
+  },
+
+  pendingBadgeText: {
+    color: "#facc15",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+  checkInButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 8,
-    borderWidth: 0,
+    minWidth: 60,
+    alignItems: "center",
+    justifyContent: "center",
+
+    // Make height fixed so it stays compact
+    height: 28,
   },
-  verifiedBadgeText: {
-    fontSize: 10,
+
+  checkInButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 12,
   },
+
+  // scan styling
+  scanStatBox: {
+    width: "30%",
+    backgroundColor: Theme.colors.muted,
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+
+  scanStatNumber: {
+    fontSize: 22,
+    fontWeight: "700",
+  },
+
+  scanStatLabel: {
+    fontSize: 12,
+    marginTop: 4,
+    color: Theme.colors.mutedForeground,
+  },
+
+
+
   // --- Verification Form ---
   verificationContainer: {
     flex: 1,
@@ -1312,4 +2138,5 @@ const styles = StyleSheet.create({
   bottomSpacer: {
     height: 100, // Spacer at the bottom of the ScrollView
   },
+
 });
