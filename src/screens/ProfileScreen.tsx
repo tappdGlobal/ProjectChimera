@@ -41,6 +41,7 @@ import {
 import { Switch } from "react-native";
 import { Avatar, AvatarImage, AvatarFallback } from "../components/ui/Avatar";
 import { Theme } from "../styles/Theme";
+import { SCREEN_NAMES } from "../navigation/Routes";
 
 const { width } = Dimensions.get("window");
 
@@ -93,15 +94,25 @@ const harshPhotos = [
   "https://images.unsplash.com/photo-1518002170354-949e25be36f8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5YWNodCUyMG1hbnxlbnwxfHx8fDE3NTgzMjEzMTZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
 ];
 
+import { useAuthStore } from "../store/authStore";
+
 export function ProfileScreen() {
   const navigation = useNavigation();
+  const { user, logout, toggleSettings } = useAuthStore();
   const [activeTab, setActiveTab] = useState("about");
   const [showSettings, setShowSettings] = useState(false);
   const [connectionFilter, setConnectionFilter] = useState<
     "all" | "friends" | "matches" | "business"
   >("all");
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
-  const [profileImage, setProfileImage] = useState(harshPhotos[0]);
+  const [profileImage, setProfileImage] = useState(user?.avatar || harshPhotos[0]);
+
+  // Update profile image if user avatar changes
+  React.useEffect(() => {
+    if (user?.avatar) {
+      setProfileImage(user.avatar);
+    }
+  }, [user?.avatar]);
 
   // Permissions check for Image Picker (required for newer Expo SDKs)
   React.useEffect(() => {
@@ -168,7 +179,10 @@ export function ProfileScreen() {
               <Button
                 variant="ghost"
                 style={styles.settingsButton}
-                onClick={() => console.log("Edit Profile")}
+                onClick={() => {
+                  setShowSettings(false);
+                  navigation.navigate(SCREEN_NAMES.EDIT_PROFILE as never);
+                }}
               >
                 <Edit
                   size={20}
@@ -229,10 +243,12 @@ export function ProfileScreen() {
                 <View style={styles.avatarBorder}>
                   <Avatar style={styles.avatarStyle}>
                     {/* FIX: AvatarImage uses profileImage state */}
-                    <AvatarImage src={profileImage} alt="Harsh Arora Profile" />
+                    <AvatarImage src={profileImage} alt={user?.name || "User Profile"} />
                     {/* FIX: AvatarFallback children should be simple text */}
                     <AvatarFallback>
-                      <Text style={{ color: Theme.colors.foreground }}>HA</Text>
+                      <Text style={{ color: Theme.colors.foreground }}>
+                        {user?.name ? user.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() : "HA"}
+                      </Text>
                     </AvatarFallback>
                   </Avatar>
                 </View>
@@ -246,10 +262,12 @@ export function ProfileScreen() {
               </View>
 
               {/* Name & Info */}
-              <Text style={styles.userName}>Harsh Arora, 22</Text>
-              <Text style={styles.tagline}>
-                Exploring every day like its theist ✨
-              </Text>
+              <Text style={styles.userName}>{user?.name || "Guest User"}</Text>
+              {user?.bio && (
+                <Text style={styles.tagline} numberOfLines={2}>
+                  {user.bio}
+                </Text>
+              )}
               <View style={styles.infoRow}>
                 {["Male", "New Delhi", "Founder"].map((item) => (
                   <View key={item} style={styles.infoPill}>
@@ -289,11 +307,7 @@ export function ProfileScreen() {
                 <View style={styles.tabContent}>
                   <Text style={styles.sectionTitle}>About Me</Text>
                   <Text style={styles.bioText}>
-                    Entrepreneurial growth strategist with 5+ years of
-                    experience scaling ventures across consumer tech,
-                    hospitality, and consulting. Proven expertise in performance
-                    marketing, organic growth, and 0-to-1 GTM execution... (Full
-                    bio text omitted)
+                    {user?.bio || "No bio available."}
                   </Text>
                   <View style={styles.detailsGrid}>
                     {/* Occupation / Education */}
@@ -384,15 +398,33 @@ export function ProfileScreen() {
                         </Text>
                       </View>
                       <Switch
-                        value={true}
+                        value={user?.settings?.notifications ?? true}
+                        onValueChange={() => toggleSettings('notifications')}
                         trackColor={{ true: Theme.colors.primary }}
                         thumbColor={Theme.colors.foreground}
                       />
                     </View>
-                    {/* ... (Other settings rows omitted) ... */}
+                    <View style={styles.settingRow}>
+                      <View style={styles.flexRowCenter}>
+                        <Shield
+                          size={16}
+                          color={Theme.colors.mutedForeground}
+                          style={styles.mr3}
+                        />
+                        <Text style={styles.settingLabel}>
+                          Privacy Mode
+                        </Text>
+                      </View>
+                      <Switch
+                        value={user?.settings?.privacy ?? false}
+                        onValueChange={() => toggleSettings('privacy')}
+                        trackColor={{ true: Theme.colors.primary }}
+                        thumbColor={Theme.colors.foreground}
+                      />
+                    </View>
                   </View>
                   <View style={styles.logoutWrapper}>
-                    <Button style={styles.logoutButton}>
+                    <Button style={styles.logoutButton} onClick={logout}>
                       <LogOut
                         size={16}
                         color={Theme.colors.foreground}
