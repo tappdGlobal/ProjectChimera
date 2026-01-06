@@ -103,13 +103,19 @@ export function EventCard({
       <Card style={{ ...styles.baseCardList, ...cardStyle }} onClick={onClick}>
         <View style={styles.listFlex}>
           {/* Image */}
-          <Image
-            source={{ uri: image }} // Use { uri: src } format
-            alt={title}
-            style={styles.listImage}
-            resizeMode="cover"
-            // Error handling is managed by the native Image component itself now
-          />
+          {image ? (
+            <Image
+              source={{ uri: image }} // Use { uri: src } format
+              alt={title}
+              style={styles.listImage}
+              resizeMode="cover"
+              // Error handling is managed by the native Image component itself now
+            />
+          ) : (
+            <View style={[styles.listImage, styles.placeholderImage]}>
+              <Text style={styles.placeholderText}>No Image</Text>
+            </View>
+          )}
           <View style={styles.listImageContainer}>
             {showWishlist && (
               <TouchableOpacity style={styles.wishlistButtonSmall}>
@@ -157,12 +163,18 @@ export function EventCard({
   const iconSize = 16; // w-4 h-4
   return (
     <Card style={{ ...styles.baseCardGrid, ...cardStyle }} onClick={onClick}>
-      <Image
-        source={{ uri: image }} // Use { uri: src } format
-        alt={title}
-        style={[styles.imageBase, imageStyle]}
-        resizeMode="cover"
-      />
+      {image ? (
+        <Image
+          source={{ uri: image }} // Use { uri: src } format
+          alt={title}
+          style={[styles.imageBase, imageStyle]}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={[styles.imageBase, imageStyle, styles.placeholderImage]}>
+          <Text style={styles.placeholderText}>No Image</Text>
+        </View>
+      )}
       <View style={styles.relative}>
         {showWishlist && (
           <TouchableOpacity style={styles.wishlistButtonLarge}>
@@ -284,5 +296,14 @@ const styles = StyleSheet.create({
     padding: 4, // p-1
     backgroundColor: "rgba(0, 0, 0, 0.5)", // bg-black/50
     borderRadius: 9999,
+  },
+  placeholderImage: {
+    backgroundColor: Theme.colors.muted,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  placeholderText: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 12,
   },
 });

@@ -25,7 +25,7 @@ interface ButtonProps {
   variant?: ButtonVariant;
   size?: ButtonSize;
   onClick?: (event: GestureResponderEvent) => void;
-  style?: ViewStyle;
+  style?: ViewStyle | ViewStyle[];
   textStyle?: TextStyle;
   // We'll map the `className` logic to specific style props if needed
 }

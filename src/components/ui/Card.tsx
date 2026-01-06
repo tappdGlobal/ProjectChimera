@@ -14,7 +14,7 @@ import { Theme } from "../../styles/Theme";
 
 interface RNCardProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: ViewStyle | ViewStyle[];
   onClick?: (event: GestureResponderEvent) => void;
 }
 interface RNBaseProps {

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
   StyleSheet,
+  Platform,
 } from "react-native";
 // Note: Badge is not actually used in this Figma code, but imported. We will keep the import for structure.
 // import { Badge } from '../ui/Badge'; // Keeping import structure ready
@@ -116,11 +117,18 @@ const styles = StyleSheet.create({
     // TEMPORARY: using solid primary color for gradient placeholder
     backgroundColor: GRADIENT_COLORS.primary[1],
     // RN doesn't have built-in shadow-lg like CSS, using a simple shadow
-    shadowColor: Theme.colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
-    elevation: 5,
+    ...(Platform.OS === 'web'
+      ? {
+          boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.8)',
+        }
+      : {
+          shadowColor: Theme.colors.primary,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.8,
+          shadowRadius: 4,
+          elevation: 5,
+        }
+    ),
   },
   // else: bg-white/10 hover:gradient-primary-hover border border-white/20
   secondaryCategory: {

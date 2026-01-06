@@ -25,7 +25,7 @@ export const RootNavigator = () => {
   }
 
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer>
       {isAuthenticated ? <AppNavigator /> : <AuthStack />}
 
     </NavigationContainer>

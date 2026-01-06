@@ -1,20 +1,32 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/authStore';
 
 export const LoginScreen = ({ navigation }: any) => {
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const login = useAuthStore((state) => state.login);
-  const isLoading = useAuthStore((state) => state.isLoading);
+  const { login, isLoading, error, clearError } = useAuthStore();
 
-  const handleLogin = () => {
-    // Mock login
-    login({
-      id: '1',
-      name: 'Test User',
-      phone: phone || '1234567890',
-    });
+  useEffect(() => {
+    if (error) {
+      Alert.alert('Error', error);
+      clearError();
+    }
+  }, [error, clearError]);
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    try {
+      await login({ email, password });
+      // Navigation will be handled by auth state change in navigation
+    } catch (error) {
+      // Error already handled in store
+    }
   };
 
   return (
@@ -26,12 +38,12 @@ export const LoginScreen = ({ navigation }: any) => {
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
-            placeholder="Phone Number"
+            placeholder="Email"
             placeholderTextColor="#666"
-            value={phone}
-            onChangeText={setPhone}
+            value={email}
+            onChangeText={setEmail}
             autoCapitalize="none"
-            keyboardType="phone-pad"
+            keyboardType="email-address"
           />
           <TextInput
             style={styles.input}
@@ -44,7 +56,7 @@ export const LoginScreen = ({ navigation }: any) => {
         </View>
 
         <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={isLoading}>
-          <Text style={styles.buttonText}>{isLoading ? 'Loading...' : 'Sign In'}</Text>
+          <Text style={styles.buttonText}>{isLoading ? 'Signing In...' : 'Sign In'}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 

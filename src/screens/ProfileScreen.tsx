@@ -10,6 +10,7 @@ import {
   Image,
   Dimensions,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import {
   ArrowLeft,
@@ -95,6 +96,7 @@ const harshPhotos = [
 ];
 
 import { useAuthStore } from "../store/authStore";
+import { userApi } from "../api/userApi";
 
 export function ProfileScreen() {
   const navigation = useNavigation();
@@ -106,6 +108,8 @@ export function ProfileScreen() {
   >("all");
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [profileImage, setProfileImage] = useState(user?.avatar || harshPhotos[0]);
+  const [connections, setConnections] = useState<any[]>([]);
+  const [isLoadingConnections, setIsLoadingConnections] = useState(false);
 
   // Update profile image if user avatar changes
   React.useEffect(() => {
@@ -113,6 +117,25 @@ export function ProfileScreen() {
       setProfileImage(user.avatar);
     }
   }, [user?.avatar]);
+
+  // Fetch connections on mount
+  React.useEffect(() => {
+    const fetchConnections = async () => {
+      setIsLoadingConnections(true);
+      try {
+        const data = await userApi.getConnections();
+        setConnections(data);
+      } catch (error) {
+        console.error('Failed to fetch connections:', error);
+        // Fallback to mock data if API fails
+        setConnections(mockConnections);
+      } finally {
+        setIsLoadingConnections(false);
+      }
+    };
+
+    fetchConnections();
+  }, []);
 
   // Permissions check for Image Picker (required for newer Expo SDKs)
   React.useEffect(() => {
@@ -127,15 +150,7 @@ export function ProfileScreen() {
     })();
   }, []);
 
-  const filteredConnections =
-    connectionFilter === "all"
-      ? mockConnections
-      : mockConnections.filter((conn) => {
-          if (connectionFilter === "friends") return conn.type === "friend";
-          if (connectionFilter === "matches") return conn.type === "match";
-          if (connectionFilter === "business") return conn.type === "business";
-          return true;
-        });
+  const filteredConnections = connections;
 
   const pickImage = async (isProfile: boolean = false) => {
     try {
@@ -269,7 +284,11 @@ export function ProfileScreen() {
                 </Text>
               )}
               <View style={styles.infoRow}>
-                {["Male", "New Delhi", "Founder"].map((item) => (
+                {[
+                  user?.gender && `${user.gender.charAt(0).toUpperCase()}${user.gender.slice(1).toLowerCase()}`,
+                  user?.location,
+                  user?.occupation,
+                ].filter(Boolean).map((item) => (
                   <View key={item} style={styles.infoPill}>
                     <View style={styles.infoDot} />
                     <Text style={styles.infoText}>{item}</Text>
@@ -310,7 +329,30 @@ export function ProfileScreen() {
                     {user?.bio || "No bio available."}
                   </Text>
                   <View style={styles.detailsGrid}>
-                    {/* Occupation / Education */}
+                    {user?.education && (
+                      <View style={styles.detailItem}>
+                        <Text style={styles.detailLabel}>Education</Text>
+                        <Text style={styles.detailValue}>{user.education}</Text>
+                      </View>
+                    )}
+                    {user?.occupation && (
+                      <View style={styles.detailItem}>
+                        <Text style={styles.detailLabel}>Occupation</Text>
+                        <Text style={styles.detailValue}>{user.occupation}</Text>
+                      </View>
+                    )}
+                    {user?.lookingFor && (
+                      <View style={styles.detailItem}>
+                        <Text style={styles.detailLabel}>Looking For</Text>
+                        <Text style={styles.detailValue}>{user.lookingFor}</Text>
+                      </View>
+                    )}
+                    {user?.age && (
+                      <View style={styles.detailItem}>
+                        <Text style={styles.detailLabel}>Age</Text>
+                        <Text style={styles.detailValue}>{user.age} years old</Text>
+                      </View>
+                    )}
                   </View>
                 </View>
               )}
@@ -324,7 +366,7 @@ export function ProfileScreen() {
                     >
                       <Plus size={24} color={Theme.colors.mutedForeground} />
                     </TouchableOpacity>
-                    {harshPhotos.map((photo, index) => (
+                    {(user?.photos || []).map((photo, index) => (
                       <TouchableOpacity
                         key={index}
                         style={styles.photoItem}
@@ -343,42 +385,48 @@ export function ProfileScreen() {
 
               {activeTab === "connections" && (
                 <View style={styles.tabContent}>
-                  <View style={styles.filterBar}>
-                    {["all", "friends", "matches", "business"].map((key) => (
-                      <Button
-                        key={key}
-                        size="sm"
-                        variant={
-                          connectionFilter === key ? "default" : "outline"
-                        }
-                        onClick={() => setConnectionFilter(key as any)}
-                      >
-                        {key.charAt(0).toUpperCase() + key.slice(1)}
-                      </Button>
-                    ))}
-                  </View>
-                  <View style={styles.connectionsGrid}>
-                    {filteredConnections.map((connection) => (
-                      <Card key={connection.id} style={styles.connectionCard}>
-                        {/* FIX: Use Avatar components here */}
-                        <Avatar style={styles.connectionAvatarWrapper}>
-                          <AvatarImage
-                            src={connection.photo}
-                            alt={connection.name}
-                          />
-                          <AvatarFallback>
-                            <Text>{connection.name.charAt(0)}</Text>
-                          </AvatarFallback>
-                        </Avatar>
-                        <Text style={styles.connectionName}>
-                          {connection.name}
-                        </Text>
-                        <Text style={styles.connectionAge}>
-                          {connection.age} years old
-                        </Text>
-                      </Card>
-                    ))}
-                  </View>
+                  {isLoadingConnections ? (
+                    <ActivityIndicator size="large" color={Theme.colors.primary} />
+                  ) : (
+                    <>
+                      <View style={styles.filterBar}>
+                        {["all"].map((key) => (
+                          <Button
+                            key={key}
+                            size="sm"
+                            variant={
+                              connectionFilter === key ? "default" : "outline"
+                            }
+                            onClick={() => setConnectionFilter(key as any)}
+                          >
+                            {key.charAt(0).toUpperCase() + key.slice(1)}
+                          </Button>
+                        ))}
+                      </View>
+                      <View style={styles.connectionsGrid}>
+                        {filteredConnections.map((connection) => (
+                          <Card key={connection.id} style={styles.connectionCard}>
+                            {/* FIX: Use Avatar components here */}
+                            <Avatar style={styles.connectionAvatarWrapper}>
+                              <AvatarImage
+                                src={connection.profilePicUrl || connection.photo}
+                                alt={connection.name}
+                              />
+                              <AvatarFallback>
+                                <Text>{connection.name.charAt(0)}</Text>
+                              </AvatarFallback>
+                            </Avatar>
+                            <Text style={styles.connectionName}>
+                              {connection.name}
+                            </Text>
+                            <Text style={styles.connectionAge}>
+                              {connection.age ? `${connection.age} years old` : ""}
+                            </Text>
+                          </Card>
+                        ))}
+                      </View>
+                    </>
+                  )}
                 </View>
               )}
 
@@ -630,6 +678,24 @@ const styles = StyleSheet.create({
   },
   photoModal: { padding: 0, backgroundColor: "black", width: "95%" },
   fullSizePhoto: { width: "100%", height: "100%", borderRadius: 8 },
+  // Details
+  detailItem: {
+    width: (width - 48) / 2 - 8,
+    backgroundColor: Theme.colors.muted,
+    padding: 12,
+    borderRadius: Theme.radius.md,
+  },
+  detailLabel: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 12,
+    fontWeight: "500",
+    marginBottom: 4,
+  },
+  detailValue: {
+    color: Theme.colors.foreground,
+    fontSize: 14,
+    fontWeight: "600",
+  },
   // Utilities
   safeBottom: { paddingBottom: 100 },
   mr3: { marginRight: 12 },

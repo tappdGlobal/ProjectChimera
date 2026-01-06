@@ -258,7 +258,7 @@ export function NotificationsScreen() {
     <Card
       style={[
         styles.notificationCardBase,
-        !read && styles.notificationCardUnread,
+        !read ? styles.notificationCardUnread : {},
       ]}
       onClick={onClick}
     >

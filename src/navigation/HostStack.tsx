@@ -13,7 +13,7 @@ export function HostStackScreen() {
   return (
     <HostStack.Navigator screenOptions={{ headerShown: false }}>
       {/* HostScreen is the main entry point for the tab */}
-      <HostStack.Screen name={SCREEN_NAMES.HOST} component={HostScreen} />
+      <HostStack.Screen name="HostMain" component={HostScreen} />
 
       {/* Secondary screens accessible from the HostScreen header/tabs */}
       <HostStack.Screen
