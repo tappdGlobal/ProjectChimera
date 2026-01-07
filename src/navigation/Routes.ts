@@ -2,6 +2,7 @@
 
 export const SCREEN_NAMES = {
   // Auth
+  WELCOME: "Welcome",
   LOGIN: "Login",
   PROFILE_CREATION: "ProfileCreation",
 
@@ -22,6 +23,7 @@ export const SCREEN_NAMES = {
 } as const;
 
 export type AuthStackParamList = {
+  [SCREEN_NAMES.WELCOME]: undefined;
   [SCREEN_NAMES.LOGIN]: undefined;
   [SCREEN_NAMES.PROFILE_CREATION]: undefined;
 };
