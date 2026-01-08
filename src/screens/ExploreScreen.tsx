@@ -10,6 +10,10 @@ import { Theme } from "../styles/Theme";
 import { RecommendedEvents } from "../components/common/RecommendedEvents"; // <<< NEW IMPORT
 import { TrendingEvents } from "../components/common/TrendingEvents"; // <<< NEW IMPORT
 import { WishlistedEvents } from "../components/common/WishlistedEvents"; // <<< NEW IMPORT
+import { ExploreTab } from "../components/explore/ExploreTabs";
+import { ExploreTabContent } from "../components/explore/ExploreTabContent";
+import { MapTabContent } from "../components/explore/MapTabContent";
+import { BookingTabContent } from "../components/explore/BookingTabContent";
 
 // This component acts as the root for the 'Explore' tab in the Bottom Navigator.
 export function ExploreScreen() {
@@ -17,6 +21,9 @@ export function ExploreScreen() {
   const [showExploreAll, setShowExploreAll] = useState(false);
   // State to hold the currently selected category from EventCategories or ExploreAll.
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  type ExploreTabKey = "explore" | "map" | "bookings";
+
+  const [activeTab, setActiveTab] = useState<ExploreTabKey>("explore");
 
   // Function to transition from the main view to the detailed ExploreAll view.
   const handleExploreAllClick = () => {
@@ -59,30 +66,18 @@ export function ExploreScreen() {
           onSettingsClick={() => console.log("Navigate to Settings")}
           onNotificationClick={() => console.log("Navigate to Notifications")}
         />
+        <View style={{ paddingHorizontal: Theme.spacing.m }}>
+          <ExploreTab activeTab={activeTab} onChange={setActiveTab} />
+        </View>
+        <View style={{ flex: 1 }}>
+          {activeTab === "explore" && <ExploreTabContent />}
 
-        {/* 2. EVENT CATEGORIES (Horizontal scroll list) */}
-        <EventCategories
-          onCategorySelect={handleCategorySelect} // Will need to handle actual navigation later
-          onExploreAllClick={handleExploreAllClick}
-        />
+          {activeTab === "map" && <MapTabContent />}
 
-        {/* 3. RECOMMENDED EVENTS (Horizontal scroll list) */}
-        <RecommendedEvents
-          onEventSelect={handleCategorySelect} // Use generic select handler for now
-          onExploreAllClick={handleExploreAllClick}
-        />
+          {activeTab === "bookings" && <BookingTabContent />}
+        </View>
 
-        {/* 4. TRENDING EVENTS (Horizontal scroll list) */}
-        <TrendingEvents
-          onEventSelect={handleCategorySelect}
-          onExploreAllClick={handleExploreAllClick}
-        />
-
-        {/* 5. WISHLISTED EVENTS (Horizontal scroll list) */}
-        <WishlistedEvents
-          onEventSelect={handleCategorySelect}
-          onExploreAllClick={handleExploreAllClick}
-        />
+        
 
         {/* Removed generic contentPlaceholder */}
       </ScrollView>
