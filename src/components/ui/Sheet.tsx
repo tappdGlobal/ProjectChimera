@@ -10,6 +10,7 @@ import {
   ViewStyle,
   TextStyle,
   GestureResponderEvent,
+  Platform,
 } from "react-native";
 import Modal from "react-native-modal";
 import { X } from "lucide-react-native"; // XIcon equivalent
@@ -221,11 +222,18 @@ function SheetDescription({
 const styles = StyleSheet.create({
   contentBase: {
     backgroundColor: Theme.colors.background,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
-    elevation: 5,
+    ...(Platform.OS === 'web'
+      ? {
+          boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.8)',
+        }
+      : {
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.8,
+          shadowRadius: 4,
+          elevation: 5,
+        }
+    ),
     padding: 16, // Default padding for content
   },
   contentRight: {

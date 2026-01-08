@@ -226,14 +226,12 @@ export function EmojiPicker({ onEmojiSelect, trigger }: EmojiPickerProps) {
               variant={selectedCategory === category ? "default" : "ghost"}
               size="sm"
               onClick={() => setSelectedCategory(category)}
-              style={
-                [
-                  styles.categoryButtonBase,
-                  selectedCategory === category
-                    ? styles.categoryButtonActive
-                    : styles.categoryButtonInactive,
-                ] as const
-              }
+              style={[
+                styles.categoryButtonBase,
+                selectedCategory === category
+                  ? styles.categoryButtonActive
+                  : styles.categoryButtonInactive,
+              ]}
             >
               {category}
             </Button>

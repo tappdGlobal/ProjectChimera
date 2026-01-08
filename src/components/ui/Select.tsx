@@ -41,7 +41,7 @@ export function Select({ children, value, onValueChange, style }: SelectProps) {
       {/* Custom Chevron Down Ircon (to match ShadCN style, visible only on Android) */}
       {/* iOS uses a default arrow, Android's is often weak, so we overlay/replace */}
       {Platform.OS === "android" && (
-        <View style={styles.dropdownIcon}>
+        <View style={[styles.dropdownIcon]} pointerEvents="none">
           <ChevronDown size={20} color={Theme.colors.mutedForeground} />
         </View>
       )}
@@ -98,7 +98,6 @@ const styles = StyleSheet.create({
   dropdownIcon: {
     position: "absolute",
     right: 8,
-    pointerEvents: "none",
   },
   itemText: {
     color: Theme.colors.foreground,

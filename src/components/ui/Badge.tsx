@@ -9,7 +9,7 @@ type BadgeVariant = "default" | "secondary" | "destructive" | "outline";
 interface BadgeProps {
   children: React.ReactNode;
   variant?: BadgeVariant;
-  style?: ViewStyle;
+  style?: ViewStyle | ViewStyle[];
   textStyle?: TextStyle;
 }
 

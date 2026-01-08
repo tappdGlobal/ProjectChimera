@@ -8,6 +8,7 @@ import {
   ViewStyle,
   TextStyle,
   Dimensions,
+  Platform,
 } from "react-native";
 import Modal from "react-native-modal";
 import { Theme } from "../../styles/Theme";
@@ -31,7 +32,8 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
       animationOut="fadeOut"
       backdropOpacity={0.7}
       style={styles.modal}
-      useNativeDriverForBackdrop={true}
+      useNativeDriver={Platform.OS !== 'web'}
+      useNativeDriverForBackdrop={Platform.OS !== 'web'}
       // Note: We cannot wrap children in a View here, Modal requires children to be the content
     >
       {children}

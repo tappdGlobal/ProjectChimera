@@ -77,7 +77,7 @@ export function EngageScreen() {
                   onClick={() => setActiveSection(item.id)}
                   style={[
                     styles.menuButton,
-                    activeSection === item.id && styles.menuButtonActive,
+                    activeSection === item.id ? styles.menuButtonActive : {},
                   ]}
                   textStyle={
                     activeSection === item.id

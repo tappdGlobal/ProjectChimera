@@ -32,6 +32,14 @@ interface AvatarImageProps {
 
 export function AvatarImage({ src, alt, style }: AvatarImageProps) {
   // aspect-square size-full
+  if (!src || src.trim() === "") {
+    return (
+      <View style={[styles.imageBase, styles.placeholderImage, style]}>
+        <Text style={styles.placeholderText}>{alt.charAt(0).toUpperCase()}</Text>
+      </View>
+    );
+  }
+
   return (
     <Image
       source={{ uri: src } as ImageSourcePropType}
@@ -88,5 +96,15 @@ const styles = StyleSheet.create({
     color: Theme.colors.mutedForeground,
     fontSize: 14,
     fontWeight: "500",
+  },
+  placeholderImage: {
+    backgroundColor: Theme.colors.muted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  placeholderText: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });

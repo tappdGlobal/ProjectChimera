@@ -2,42 +2,30 @@
 
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { createStackNavigator } from "@react-navigation/stack";
 import { View, Text, StyleSheet } from "react-native";
-import { SCREEN_NAMES, RootTabParamList } from "./Routes";
+import { SCREEN_NAMES, RootTabParamList, AppStackParamList } from "./Routes";
 import Icon from "react-native-vector-icons/Ionicons"; // Example icon library
 import { ExploreScreen } from "../screens/ExploreScreen";
 import { HostStackScreen } from "./HostStack";
 import { ProfileScreen } from "../screens/ProfileScreen";
-import { EngageScreen } from "../screens/EngageScreen"; // <<< NEW IMPORT
-import { NotificationsScreen } from "../screens/NotificationsScreen"; // <<< NEW IMPORT
+import { EngageScreen } from "../screens/EngageScreen";
+import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { ReconnectScreen } from "../screens/ReconnectScreen";
 import { BottomNavigation } from "./BottomNavigation";
-
-// --- TEMPORARY SCREEN PLACEHOLDERS ---
-// These will be replaced with the actual components from src/screens/ later.
-
-const PlaceholderScreen = ({ name }: { name: string }) => (
-  <View style={styles.screenContainer}>
-    <Text style={styles.screenText}>Welcome to the {name} Screen</Text>
-    <Text style={styles.screenSubText}>
-      (Content from Figma Make's {name}.tsx will go here)
-    </Text>
-  </View>
-);
+import { EditProfileScreen } from "../screens/EditProfileScreen";
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
+const Stack = createStackNavigator<AppStackParamList>();
 
-const AppNavigator: React.FC = () => {
+const MainTabs = () => {
   return (
     <Tab.Navigator
       initialRouteName={SCREEN_NAMES.EXPLORE}
-      // FIX: Apply custom tab bar component
       tabBar={(props) => <BottomNavigation {...props} />}
       screenOptions={{
         headerShown: false,
-        // We will remove the custom styles for the default tab bar here
-        // since we are using a custom component.
-        tabBarStyle: { height: 0, display: "none" }, // Hide the default bar
+        tabBarStyle: { height: 0, display: "none" },
       }}
     >
       <Tab.Screen
@@ -58,15 +46,6 @@ const AppNavigator: React.FC = () => {
           ),
         }}
       />
-      {/* <Tab.Screen
-        name={SCREEN_NAMES.RECONNECT} // Assuming you used RECONNECT as a screen name
-        component={ReconnectScreen} // <<< USE THE REAL SCREEN
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="people-outline" color={color} size={size} />
-          ),
-        }}
-      /> */}
       <Tab.Screen
         name={SCREEN_NAMES.HOST}
         component={HostStackScreen}
@@ -77,8 +56,8 @@ const AppNavigator: React.FC = () => {
         }}
       />
       <Tab.Screen
-        name={SCREEN_NAMES.NOTIFICATIONS} // Use NOTIFICATIONS tab ID for now, as it corresponds to the position
-        component={ReconnectScreen} // <<< USE REAL RECONNECT SCREEN
+        name={SCREEN_NAMES.NOTIFICATIONS}
+        component={ReconnectScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
             <Icon name="people-outline" color={color} size={size} />
@@ -98,15 +77,23 @@ const AppNavigator: React.FC = () => {
   );
 };
 
+const AppNavigator = () => {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name={SCREEN_NAMES.MAIN_TABS} component={MainTabs} />
+      <Stack.Screen name={SCREEN_NAMES.EDIT_PROFILE} component={EditProfileScreen} />
+    </Stack.Navigator>
+  );
+};
+
 export default AppNavigator;
 
-// Basic styles for placehoder and Tab Bar (will be refined with actual theme later)
 const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#1E1E1E", // Dark background to match assumption in root App.tsx
+    backgroundColor: "#1E1E1E",
   },
   screenText: {
     fontSize: 24,
@@ -117,11 +104,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#AAA",
     marginTop: 10,
-  },
-  tabBar: {
-    backgroundColor: "#1E1E1E",
-    borderTopColor: "#333",
-    height: 90, // Increased height for safe area context padding
-    paddingBottom: 25,
   },
 });
