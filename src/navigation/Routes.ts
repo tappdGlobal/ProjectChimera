@@ -16,11 +16,16 @@ export const SCREEN_NAMES = {
   HOST: "Host",
   PROFILE: "Profile",
   NOTIFICATIONS: "Notifications",
-  
+
+  // Explore Stack
+  EVENT_DISCOVERY: "EventDiscovery",
+  EVENT_DETAIL: "EventDetail", // ✅ ADD THIS
+
   // Host Stack
   PUBLISHED_EVENTS: "PublishedEvents",
   DRAFT_EVENTS: "DraftEvents",
 } as const;
+
 
 export type AuthStackParamList = {
   [SCREEN_NAMES.WELCOME]: undefined;
@@ -40,3 +45,16 @@ export type AppStackParamList = {
   [SCREEN_NAMES.MAIN_TABS]: undefined;
   [SCREEN_NAMES.EDIT_PROFILE]: undefined;
 };
+
+export type ExploreStackParamList = {
+  ExploreScreen: undefined;
+
+  [SCREEN_NAMES.EVENT_DISCOVERY]: {
+    category: string;
+  };
+
+  [SCREEN_NAMES.EVENT_DETAIL]: {
+    event: any; 
+  };
+};
+
