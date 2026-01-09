@@ -8,33 +8,35 @@ import { Theme } from "../../styles/Theme";
 
 interface ExploreTabContentProps {
   onCategorySelect?: (category: string) => void;
+  onEventSelect?: (event: any) => void;
   onExploreAllClick?: () => void;
 }
 
 export function ExploreTabContent({
   onCategorySelect,
+  onEventSelect,
   onExploreAllClick,
 }: ExploreTabContentProps) {
   return (
     <View style={styles.container}>
       <EventCategories
-        onCategorySelect={onCategorySelect ?? (() => {})}
-        onExploreAllClick={onExploreAllClick ?? (() => {})}
+        onCategorySelect={onCategorySelect}
+        onExploreAllClick={onExploreAllClick}
       />
 
       <RecommendedEvents
-        onEventSelect={onCategorySelect ?? (() => {})}
-        onExploreAllClick={onExploreAllClick ?? (() => {})}
+        onEventSelect={onEventSelect}        
+        onExploreAllClick={onExploreAllClick}
       />
 
       <TrendingEvents
-        onEventSelect={onCategorySelect ?? (() => {})}
-        onExploreAllClick={onExploreAllClick ?? (() => {})}
+        onEventSelect={onEventSelect}        
+        onExploreAllClick={onExploreAllClick}
       />
 
       <WishlistedEvents
-        onEventSelect={onCategorySelect ?? (() => {})}
-        onExploreAllClick={onExploreAllClick ?? (() => {})}
+        onEventSelect={onEventSelect}        
+        onExploreAllClick={onExploreAllClick}
       />
     </View>
   );

@@ -14,6 +14,8 @@ import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { ReconnectScreen } from "../screens/ReconnectScreen";
 import { BottomNavigation } from "./BottomNavigation";
 import { EditProfileScreen } from "../screens/EditProfileScreen";
+import ExploreStack from "./ExploreStack";
+
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const Stack = createStackNavigator<AppStackParamList>();
@@ -30,13 +32,14 @@ const MainTabs = () => {
     >
       <Tab.Screen
         name={SCREEN_NAMES.EXPLORE}
-        component={ExploreScreen}
+        component={ExploreStack} 
         options={{
           tabBarIcon: ({ color, size }) => (
             <Icon name="compass-outline" color={color} size={size} />
           ),
         }}
       />
+
       <Tab.Screen
         name={SCREEN_NAMES.ENGAGE}
         component={EngageScreen}
