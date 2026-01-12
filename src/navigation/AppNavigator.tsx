@@ -15,6 +15,7 @@ import { ReconnectScreen } from "../screens/ReconnectScreen";
 import { BottomNavigation } from "./BottomNavigation";
 import { EditProfileScreen } from "../screens/EditProfileScreen";
 import ExploreStack from "./ExploreStack";
+import { ChatDetailScreen } from "../components/engage/ChatDetailScreen";
 
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -85,6 +86,7 @@ const AppNavigator = () => {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name={SCREEN_NAMES.MAIN_TABS} component={MainTabs} />
       <Stack.Screen name={SCREEN_NAMES.EDIT_PROFILE} component={EditProfileScreen} />
+      <Stack.Screen name={SCREEN_NAMES.CHAT_DETAIL} component={ChatDetailScreen} />
     </Stack.Navigator>
   );
 };

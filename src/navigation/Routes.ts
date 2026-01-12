@@ -9,6 +9,7 @@ export const SCREEN_NAMES = {
   // App Stack
   MAIN_TABS: "MainTabs",
   EDIT_PROFILE: "EditProfile",
+  CHAT_DETAIL: "ChatDetail", // ✅ Added
 
   // Tabs
   EXPLORE: "Explore",
@@ -44,6 +45,11 @@ export type RootTabParamList = {
 export type AppStackParamList = {
   [SCREEN_NAMES.MAIN_TABS]: undefined;
   [SCREEN_NAMES.EDIT_PROFILE]: undefined;
+  [SCREEN_NAMES.CHAT_DETAIL]: {
+    chatId: string;
+    name: string;
+    avatar: string;
+  };
 };
 
 export type ExploreStackParamList = {
