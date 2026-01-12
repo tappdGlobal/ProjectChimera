@@ -1,5 +1,3 @@
-// src/components/common/EventCard.tsx
-
 import React from "react";
 import {
   View,
@@ -10,9 +8,8 @@ import {
   Image,
   ImageStyle,
 } from "react-native";
-// ... (ensure Image is imported from react-native)
 import { Calendar, MapPin, Heart, Users } from "lucide-react-native";
-import { Card, CardContent } from "../ui/Card"; // Our migrated card
+import { Card, CardContent } from "../ui/Card";
 import { Theme } from "../../styles/Theme";
 
 interface EventCardProps {
@@ -59,63 +56,54 @@ export function EventCard({
   const image = propImage || event?.image || "";
   const isWishlisted = propIsWishlisted || event?.isWishlisted || false;
 
-  // Width and Height logic translation:
   const cardStyle: ViewStyle = {};
   const imageStyle: ImageStyle = {};
 
   if (layout === "grid") {
-    // Grid layout focuses on width
     if (size === "small") {
-      cardStyle.width = 248; // w-64 equivalent (adjust to RN density, 64*0.25=16)
-      imageStyle.height = 128; // h-32
+      cardStyle.width = 248;
+      imageStyle.height = 128;
     } else if (size === "large") {
-      cardStyle.width = "100%"; // w-full
-      imageStyle.height = 192; // h-48
+      cardStyle.width = "100%";
+      imageStyle.height = 192;
     } else {
-      // medium (default)
-      cardStyle.width = 288; // w-72
-      imageStyle.height = 160; // h-40
+      cardStyle.width = 288;
+      imageStyle.height = 160;
     }
-    cardStyle.flexShrink = 0; // flex-shrink-0
+    cardStyle.flexShrink = 0;
   } else if (layout === "list") {
-    // List layout is always full width and has a fixed image size
-    cardStyle.width = "100%"; // w-full
+    cardStyle.width = "100%";
   }
 
-  // --- Inner Info Block Component ---
   const InfoBlock: React.FC<{
     icon: React.ReactNode;
     text: string;
     iconSize: number;
   }> = ({ icon, text, iconSize }) => (
     <View style={styles.infoRow}>
-      <View style={{ width: iconSize, height: iconSize }}>{icon}</View>
+      <View style={[styles.iconWrapper, { width: iconSize, height: iconSize }]}>
+        {icon}
+      </View>
       <Text style={[styles.infoText, { fontSize: iconSize * 0.75 }]}>
         {text}
       </Text>
     </View>
   );
 
-  // --- List Layout ---
+  // ---------------- LIST LAYOUT ----------------
   if (layout === "list") {
-    const iconSize = 12; // w-3 h-3
+    const iconSize = 12;
     return (
       <Card style={{ ...styles.baseCardList, ...cardStyle }} onClick={onClick}>
         <View style={styles.listFlex}>
-          {/* Image */}
           {image ? (
-            <Image
-              source={{ uri: image }} // Use { uri: src } format
-              alt={title}
-              style={styles.listImage}
-              resizeMode="cover"
-              // Error handling is managed by the native Image component itself now
-            />
+            <Image source={{ uri: image }} style={styles.listImage} />
           ) : (
             <View style={[styles.listImage, styles.placeholderImage]}>
               <Text style={styles.placeholderText}>No Image</Text>
             </View>
           )}
+
           <View style={styles.listImageContainer}>
             {showWishlist && (
               <TouchableOpacity style={styles.wishlistButtonSmall}>
@@ -159,37 +147,34 @@ export function EventCard({
     );
   }
 
-  // --- Grid Layout (Default) ---
-  const iconSize = 16; // w-4 h-4
+  // ---------------- GRID LAYOUT ----------------
+  const iconSize = 16;
+
   return (
     <Card style={{ ...styles.baseCardGrid, ...cardStyle }} onClick={onClick}>
-      {image ? (
-        <Image
-          source={{ uri: image }} // Use { uri: src } format
-          alt={title}
-          style={[styles.imageBase, imageStyle]}
-          resizeMode="cover"
-        />
-      ) : (
-        <View style={[styles.imageBase, imageStyle, styles.placeholderImage]}>
-          <Text style={styles.placeholderText}>No Image</Text>
-        </View>
-      )}
-      <View style={styles.relative}>
+      <View style={styles.imageWrapper}>
+        {image ? (
+          <Image source={{ uri: image }} style={[styles.imageBase, imageStyle]} />
+        ) : (
+          <View style={[styles.imageBase, imageStyle, styles.placeholderImage]}>
+            <Text style={styles.placeholderText}>No Image</Text>
+          </View>
+        )}
+
         {showWishlist && (
           <TouchableOpacity style={styles.wishlistButtonLarge}>
             <Heart
-              size={20} // w-5 h-5 (slightly larger)
-              color={
-                isWishlisted ? Theme.colors.primary : Theme.colors.foreground
-              }
+              size={20}
+              color={isWishlisted ? Theme.colors.primary : Theme.colors.foreground}
               fill={isWishlisted ? Theme.colors.primary : "none"}
             />
           </TouchableOpacity>
         )}
       </View>
+
       <CardContent>
         <Text style={styles.gridTitle}>{title}</Text>
+
         <View style={styles.infoSpaceY1}>
           <InfoBlock
             icon={<Calendar color={Theme.colors.primary} />}
@@ -209,80 +194,75 @@ export function EventCard({
             />
           )}
         </View>
+
+        <View style={styles.addWishlistWrapper}>
+          <TouchableOpacity style={styles.addWishlistButton}>
+            <Heart size={16} color={Theme.colors.primary} />
+            <Text style={styles.addWishlistText}>Add to Wishlist</Text>
+          </TouchableOpacity>
+        </View>
       </CardContent>
     </Card>
   );
 }
 
-// --- STYLESHEET ---
+// ---------------- STYLES ----------------
 const styles = StyleSheet.create({
-  // Shared
   infoSpaceY1: {
-    gap: 4, // space-y-1 equivalent
+    marginTop: 6,
   },
+
+  // 🔥 THIS is what creates the spacing between Calendar & Location
   infoRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8, // gap-2
-  },
-  infoText: {
-    color: Theme.colors.mutedForeground, // text-white/70
-    // text-xs for list, text-sm for grid/medium
-    flexShrink: 1,
-  },
-  relative: {
-    position: "relative",
-  },
-  imageBase: {
-    width: "100%",
-    // Height is set via imageStyle prop
-    // Do not set overflow here; handled in container if needed
+    marginBottom: 10,   // ← increased from 6
   },
 
-  // Grid Layout
-  baseCardGrid: {
-    // Use default styles from Card.tsx
+  iconWrapper: {
+    marginRight: 8,
   },
+
+  infoText: {
+    color: Theme.colors.mutedForeground,
+    flexShrink: 1,
+  },
+
+  imageWrapper: {
+    position: "relative",
+    width: "100%",
+  },
+
+  imageBase: { width: "100%" },
+
   gridTitle: {
-    color: Theme.colors.foreground, // text-white
+    color: Theme.colors.foreground,
     fontSize: 16,
-    fontWeight: "bold", // Assuming h4 is bold
-    marginBottom: 8, // mb-2
-    // line-clamp-2 achieved by using numberOfLines={2} in the component (not available in this simple Text component)
+    fontWeight: "bold",
+    marginBottom: 8,
   },
+
   wishlistButtonLarge: {
     position: "absolute",
-    top: 12, // top-3
-    right: 12, // right-3
-    padding: 8, // p-2
-    backgroundColor: "rgba(0, 0, 0, 0.5)", // bg-black/50
+    top: 12,
+    right: 12,
+    padding: 8,
+    backgroundColor: "rgba(0,0,0,0.5)",
     borderRadius: 9999,
   },
 
-  // List Layout
-  baseCardList: {
-    // border-0 is implicitly handled if Card doesn't apply a border
-  },
-  listFlex: {
-    flexDirection: "row",
-  },
+  baseCardList: {},
+  listFlex: { flexDirection: "row" },
   listImageContainer: {
     position: "relative",
-    width: 96, // w-24
-    height: 96, // h-24
+    width: 96,
+    height: 96,
     flexShrink: 0,
-    // overflow: "hidden", // Remove this line to avoid passing to ImageStyle
     borderTopLeftRadius: Theme.radius.lg,
     borderBottomLeftRadius: Theme.radius.lg,
   },
-  listImage: {
-    width: "100%",
-    height: "100%",
-  },
-  listContent: {
-    flex: 1, // flex-1
-    padding: 16, // p-4
-  },
+  listImage: { width: "100%", height: "100%" },
+  listContent: { flex: 1, padding: 16 },
   listTitle: {
     color: Theme.colors.foreground,
     fontSize: 16,
@@ -291,12 +271,13 @@ const styles = StyleSheet.create({
   },
   wishlistButtonSmall: {
     position: "absolute",
-    top: 4, // top-1
-    right: 4, // right-1
-    padding: 4, // p-1
-    backgroundColor: "rgba(0, 0, 0, 0.5)", // bg-black/50
+    top: 4,
+    right: 4,
+    padding: 4,
+    backgroundColor: "rgba(0,0,0,0.5)",
     borderRadius: 9999,
   },
+
   placeholderImage: {
     backgroundColor: Theme.colors.muted,
     justifyContent: "center",
@@ -305,5 +286,27 @@ const styles = StyleSheet.create({
   placeholderText: {
     color: Theme.colors.mutedForeground,
     fontSize: 12,
+  },
+
+  addWishlistWrapper: {
+    marginTop: 12,
+    alignItems: "center",
+  },
+  addWishlistButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: Theme.colors.primary,
+    borderRadius: 9999,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    width: "100%",
+  },
+  addWishlistText: {
+    color: Theme.colors.primary,
+    fontSize: 14,
+    fontWeight: "500",
   },
 });

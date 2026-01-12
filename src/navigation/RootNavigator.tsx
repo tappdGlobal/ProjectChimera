@@ -43,8 +43,7 @@ export const RootNavigator = () => {
 
   return (
     <NavigationContainer>
-      {isAuthenticated ? <AppNavigator /> : <AuthStack />}
-
+      {!isAuthenticated ? <AppNavigator /> : <AuthStack />}
     </NavigationContainer>
   );
 };
