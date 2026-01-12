@@ -1,4 +1,4 @@
-import { apiClient } from './apiClient';
+import { apiClient } from '../services/api';
 import { User } from './authApi';
 
 export interface UpdateProfileData {

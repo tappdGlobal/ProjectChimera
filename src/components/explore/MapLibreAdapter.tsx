@@ -5,8 +5,9 @@ import { CameraSettings, MapAdapterProps } from './types';
 
 import { MAP_STYLE_URL } from './constants';
 
-// Set access token if needed, or null
-MapLibreGL.setAccessToken(null);
+// MapLibre does not use Mapbox access tokens in the same way.
+// Avoid calling MapLibreGL.setAccessToken() (it doesn't exist) to prevent runtime crashes.
+// If you switch to an SDK that requires a token, set it there conditionally.
 
 export const MapLibreAdapter = React.forwardRef<any, MapAdapterProps>(
   ({ style, cameraSettings, children, ...props }, ref) => {
