@@ -4,23 +4,31 @@ import * as Device from 'expo-device';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Configuration
-const PORT = 3000; // Backend port
+const USE_PRODUCTION = true; // Set to false for local development
+const PRODUCTION_URL = 'https://tappd-backend.onrender.com/api/v1';
+const PORT = 3000; // Backend port for local development
 const LOCAL_MACHINE_IP = '192.168.1.100'; // Replace with your machine's IP for real device testing
 
 // Detect environment and set base URL
 const getBaseURL = (): string => {
+  // Use production URL if enabled
+  if (USE_PRODUCTION) {
+    return PRODUCTION_URL;
+  }
+
+  // Local development configuration
   const isDevice = Device.isDevice ?? true; // Fallback to true if undefined
 
   if (Platform.OS === 'android' && !isDevice) {
     // Android Emulator
-    return `http://10.0.2.2:${PORT}/api`;
+    return `http://10.0.2.2:${PORT}/api/v1`;
   } else if (Platform.OS === 'ios' && !isDevice) {
     // iOS Simulator
-    return `http://localhost:${PORT}/api`;
+    return `http://localhost:${PORT}/api/v1`;
   } else {
     // Real device (Android or iOS)
     // For real devices, connect to the machine's IP on the local network
-    return `http://${LOCAL_MACHINE_IP}:${PORT}/api`;
+    return `http://${LOCAL_MACHINE_IP}:${PORT}/api/v1`;
   }
 };
 
