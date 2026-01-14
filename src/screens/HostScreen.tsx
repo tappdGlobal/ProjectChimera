@@ -48,6 +48,7 @@ import {
   CardTitle,
 } from "../components/ui/Card";
 import { Separator } from "../components/ui/Separator";
+import { Badge } from "../components/ui/Badge";
 import { Theme } from "../styles/Theme";
 import { useNavigation } from "@react-navigation/native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
@@ -372,10 +373,11 @@ export function HostScreen({
   };
 
   const handlePublicTabClick = () => {
+    setActiveTab("public"); // Set active tab first
     if (!isVerified) {
       setShowPublicVerification(true);
     } else {
-      setActiveTab("public");
+      setShowPublicVerification(false);
     }
   };
 
@@ -481,7 +483,7 @@ export function HostScreen({
             variant="outline"
             style={styles.fullWidthButtonOutline}
           >
-            Cancel
+            <Text style={{ color: Theme.colors.foreground }}>Cancel</Text>
           </Button>
         </View>
       </View>
@@ -1494,10 +1496,68 @@ export function HostScreen({
         {/* MENU TABS */}
         <View style={styles.tabMenu}>
           <TouchableOpacity
-            onPress={() => setActiveTab("private")}
+            onPress={() => {
+              setActiveTab("private");
+              setShowPublicVerification(false);
+            }}
             style={[styles.tabButton, activeTab === "private" && styles.tabButtonActive]}
           >
-            <Text style={[styles.tabText, activeTab === "private" && styles.tabTextActive]}>Private Event</Text>
+            {activeTab === "private" ? (
+              <LinearGradient
+                colors={["#D11A87", "#7F1AB2"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.tabButtonGradient}
+              >
+                <Text style={styles.tabTextActive}>Private Event</Text>
+              </LinearGradient>
+            ) : (
+              <Text style={styles.tabText}>Private Event</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={handlePublicTabClick}
+            style={[styles.tabButton, activeTab === "public" && styles.tabButtonActive]}
+          >
+            {activeTab === "public" ? (
+              <LinearGradient
+                colors={["#D11A87", "#7F1AB2"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.tabButtonGradient}
+              >
+                <View style={styles.tabButtonContent}>
+                  <Text style={styles.tabTextActive}>Public Event</Text>
+                  {isVerified && (
+                    <View style={styles.verifiedBadgeContainer}>
+                      <Badge
+                        variant="default"
+                        style={styles.verifiedBadge}
+                        textStyle={styles.verifiedBadgeText}
+                      >
+                        Verified
+                      </Badge>
+                    </View>
+                  )}
+                </View>
+              </LinearGradient>
+            ) : (
+              <View style={styles.tabButtonContent}>
+                <Text style={styles.tabText}>Public Event</Text>
+                {isVerified && (
+                  <View style={styles.verifiedBadgeContainer}>
+                    <Badge
+                      variant="default"
+                      style={styles.verifiedBadge}
+                      textStyle={styles.verifiedBadgeText}
+                    >
+                      Verified
+                    </Badge>
+                  </View>
+                )}
+              </View>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -1506,20 +1566,23 @@ export function HostScreen({
           >
             <Text style={styles.tabText}>Published Events</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={handlePublicTabClick}
-            style={[styles.tabButton, activeTab === "public" && styles.tabButtonActive]}
-          >
-            <Text style={[styles.tabText, activeTab === "public" && styles.tabTextActive]}>Public Event</Text>
-          </TouchableOpacity>
         </View>
 
         {/* CONTENT */}
         {showPublicVerification ? (
-          <PublicVerificationForm />
+          <ScrollView 
+            style={styles.flex1} 
+            contentContainerStyle={styles.verificationScrollContainer}
+            showsVerticalScrollIndicator={false}
+          >
+            <PublicVerificationForm />
+          </ScrollView>
         ) : (
-          <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPadding}>
+          <ScrollView 
+            style={styles.flex1} 
+            contentContainerStyle={styles.scrollPadding}
+            showsVerticalScrollIndicator={false}
+          >
             <EventFormContent />
           </ScrollView>
         )}
@@ -1596,17 +1659,54 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     borderBottomWidth: 1,
     borderColor: Theme.colors.border,
+    backgroundColor: Theme.colors.background,
   },
   tabButton: {
     flex: 1,
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
     alignItems: "center",
     justifyContent: "center",
+    minHeight: 48,
+    position: "relative",
   },
   tabButtonActive: {
     borderBottomWidth: 2,
     borderColor: Theme.colors.primary,
+  },
+  tabButtonGradient: {
+    width: "100%",
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    position: "relative",
+  },
+  tabButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+    width: "100%",
+  },
+  verifiedBadgeContainer: {
+    position: "absolute",
+    top: -8,
+    right: -4,
+    zIndex: 10,
+  },
+  verifiedBadge: {
+    backgroundColor: "#22c55e", // Green color for verified badge
+    borderColor: "transparent",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  verifiedBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "bold",
   },
   tabButtonRelative: {
     position: "relative",
@@ -1614,11 +1714,13 @@ const styles = StyleSheet.create({
   tabText: {
     color: Theme.colors.mutedForeground,
     fontSize: 14,
+    textAlign: "center",
+    fontWeight: "500",
   },
   tabTextActive: {
-    color: Theme.colors.foreground,
+    color: "#FFFFFF",
     fontWeight: "bold",
-    // The gradient background for active tab is complex; we rely on the underline/text color for now.
+    fontSize: 14,
   },
   // for date-time dropdown
 
@@ -1909,11 +2011,17 @@ const styles = StyleSheet.create({
 
   // --- Verification Form ---
   verificationContainer: {
-    flex: 1,
+    width: "100%",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 32,
     paddingVertical: 40,
+    minHeight: 400,
+  },
+  verificationScrollContainer: {
+    flexGrow: 1,
+    justifyContent: "center",
+    paddingVertical: 20,
   },
   verificationTextCenter: {
     alignItems: "center",
