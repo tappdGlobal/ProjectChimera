@@ -35,7 +35,7 @@ const getBaseURL = (): string => {
 // Create axios instance
 const api: AxiosInstance = axios.create({
   baseURL: getBaseURL(),
-  timeout: 10000, // 10 seconds timeout
+  timeout: 60000, // 60 seconds timeout (for cold starts on free hosting)
   headers: {
     'Content-Type': 'application/json',
   },
@@ -74,7 +74,15 @@ api.interceptors.response.use(
     } else if (error.request) {
       // Network error
       console.error('Network Error:', error.message);
-      throw new Error('Network connection failed. Please check your internet connection and backend server.');
+      console.error('Request URL:', error.config?.url);
+      console.error('Base URL:', error.config?.baseURL);
+      
+      // Check if it's a timeout
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('Request timeout. The server is taking too long to respond. It may be starting up (can take 30-60s on free hosting).');
+      }
+      
+      throw new Error(`Cannot connect to ${error.config?.baseURL}. Please check:\n1. Your internet connection\n2. Backend server is running\n3. If using Render free tier, server may be waking up (wait 30-60s)`);
     } else {
       // Other error
       console.error('Request Error:', error.message);

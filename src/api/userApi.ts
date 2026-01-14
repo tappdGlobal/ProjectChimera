@@ -20,17 +20,17 @@ export interface UpdateProfileData {
 
 export const userApi = {
   updateProfile: async (userId: string, data: UpdateProfileData): Promise<User> => {
-    const response = await apiClient.put(`/v1/users/${userId}`, data);
+    const response = await apiClient.put(`/users/${userId}`, data);
     return response.data;
   },
 
   getProfile: async (userId: string): Promise<User> => {
-    const response = await apiClient.get(`/v1/users/${userId}`);
+    const response = await apiClient.get(`/users/${userId}`);
     return response.data;
   },
 
   getConnections: async (): Promise<any[]> => {
-    const response = await apiClient.get('/v1/connections/accepted');
+    const response = await apiClient.get('/connections/accepted');
     return response.data;
   },
 

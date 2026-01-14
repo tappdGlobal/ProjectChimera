@@ -64,22 +64,22 @@ export interface ResetPasswordData {
 
 export const authApi = {
   signup: async (data: SignupData): Promise<AuthResponse> => {
-    const response = await apiClient.post('/v1/auth/signup', data, false);
+    const response = await apiClient.post('/auth/signup', data, false);
     return response.data;
   },
 
   signin: async (data: SigninData): Promise<AuthResponse> => {
-    const response = await apiClient.post('/v1/auth/signin', data, false);
+    const response = await apiClient.post('/auth/signin', data, false);
     return response.data;
   },
 
   forgotPassword: async (data: ForgotPasswordData): Promise<any> => {
-    const response = await apiClient.post('/v1/auth/forgot-password', data, false);
+    const response = await apiClient.post('/auth/forgot-password', data, false);
     return response.data;
   },
 
   resetPassword: async (data: ResetPasswordData): Promise<any> => {
-    const response = await apiClient.post('/v1/auth/reset-password', data, false);
+    const response = await apiClient.post('/auth/reset-password', data, false);
     return response.data;
   },
 
