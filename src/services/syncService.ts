@@ -4,17 +4,7 @@ import { userApi } from '../api/userApi';
 export const syncService = {
   queueAction: async (actionType: string, payload: any) => {
     try {
-      const db = databaseService.getDatabase();
-      const jsonPayload = JSON.stringify(payload);
-      const createdAt = Date.now();
-      
-      await db.runAsync(
-        'INSERT INTO offline_actions (action_type, payload, created_at) VALUES (?, ?, ?)',
-        actionType,
-        jsonPayload,
-        createdAt
-      );
-      
+      await databaseService.queueOfflineAction(actionType, payload);
       console.log(`Action queued: ${actionType}`);
     } catch (error) {
       console.error('Failed to queue action:', error);
@@ -23,12 +13,10 @@ export const syncService = {
 
   syncActions: async () => {
     try {
-      const db = databaseService.getDatabase();
-      
-      // Fetch unsynced actions
-      const actions = await db.getAllAsync('SELECT * FROM offline_actions WHERE synced = 0');
-      
-      if (actions.length === 0) {
+      // Fetch unsynced actions via the databaseService abstraction
+      const actions = await databaseService.getUnsyncedActions();
+
+      if (!actions || actions.length === 0) {
         console.log('No actions to sync');
         return;
       }
@@ -63,7 +51,7 @@ export const syncService = {
           }
 
           // Mark as synced
-          await db.runAsync('UPDATE offline_actions SET synced = 1 WHERE id = ?', id);
+          await databaseService.markActionSynced(id);
         } catch (error) {
           console.error(`Failed to process action ${id}: ${action_type}`, error);
           // Optionally, mark as failed or retry later

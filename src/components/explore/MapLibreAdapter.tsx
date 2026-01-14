@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Text } from 'react-native';
 import MapLibreGL from '@maplibre/maplibre-react-native';
 import { CameraSettings, MapAdapterProps } from './types';
 
@@ -11,6 +11,18 @@ import { MAP_STYLE_URL } from './constants';
 
 export const MapLibreAdapter = React.forwardRef<any, MapAdapterProps>(
   ({ style, cameraSettings, children, ...props }, ref) => {
+    const hasCameraModes = !!(MapLibreGL as any).CameraModes;
+    const isMapRegistered = !!(MapLibreGL as any)?.MapView;
+
+    if (!isMapRegistered) {
+      console.warn('MapLibre native module not registered. Map will render fallback. See https://github.com/maplibre/maplibre-react-native');
+      return (
+        <View style={[style, styles.fallback]}>
+          <Text style={styles.fallbackText}>Map unavailable — native module not registered. Use a development build or follow docs.</Text>
+        </View>
+      );
+    }
+
     return (
       <MapLibreGL.MapView
         ref={ref}
@@ -22,12 +34,13 @@ export const MapLibreAdapter = React.forwardRef<any, MapAdapterProps>(
         attributionPosition={{ bottom: 8, left: 8 }}
         {...props}
       >
-        <MapLibreGL.Camera
-          zoomLevel={cameraSettings?.zoomLevel}
-          centerCoordinate={cameraSettings?.centerCoordinate}
-          animationMode="flyTo"
-          animationDuration={2000}
-        />
+        { (MapLibreGL as any).Camera ? (
+          <MapLibreGL.Camera
+            zoomLevel={cameraSettings?.zoomLevel}
+            centerCoordinate={cameraSettings?.centerCoordinate}
+            {...(hasCameraModes ? { animationMode: 'flyTo', animationDuration: 2000 } : {})}
+          />
+        ) : null }
         {/* User Location Puck */}
         <MapLibreGL.UserLocation visible={true} showsUserHeadingIndicator={true} />
         {children}
@@ -45,3 +58,17 @@ export const MapMarker = ({ coordinate, children }: { coordinate: number[]; chil
         </MapLibreGL.PointAnnotation>
     );
 };
+
+const styles = StyleSheet.create({
+  fallback: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0A0A1F',
+  },
+  fallbackText: {
+    color: '#FFFFFF',
+    opacity: 0.85,
+    textAlign: 'center',
+    padding: 12,
+  },
+});
