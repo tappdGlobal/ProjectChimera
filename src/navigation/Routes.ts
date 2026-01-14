@@ -13,6 +13,7 @@ export const SCREEN_NAMES = {
 
   // Tabs
   EXPLORE: "Explore",
+  EXPLORE_HOME: "ExploreHome",
   ENGAGE: "Engage",
   HOST: "Host",
   PROFILE: "Profile",

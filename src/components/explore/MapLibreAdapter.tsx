@@ -1,6 +1,7 @@
-import React from 'react';
-import { StyleSheet, View, Text } from 'react-native';
+import React, { useEffect } from 'react';
+import { StyleSheet, View, Text, Platform } from 'react-native';
 import MapLibreGL from '@maplibre/maplibre-react-native';
+import * as Location from 'expo-location';
 import { CameraSettings, MapAdapterProps } from './types';
 
 import { MAP_STYLE_URL } from './constants';
@@ -13,6 +14,31 @@ export const MapLibreAdapter = React.forwardRef<any, MapAdapterProps>(
   ({ style, cameraSettings, children, ...props }, ref) => {
     const hasCameraModes = !!(MapLibreGL as any).CameraModes;
     const isMapRegistered = !!(MapLibreGL as any)?.MapView;
+
+    useEffect(() => {
+      // Request location permissions on mount
+      (async () => {
+        try {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status !== 'granted') {
+            console.warn('Location permission denied');
+          }
+        } catch (err) {
+          console.warn('Failed to request location permission:', err);
+        }
+      })();
+
+      // Validate style URL is reachable
+      fetch(MAP_STYLE_URL, { method: 'HEAD' })
+        .then((res) => {
+          if (!res.ok) {
+            console.warn(`Map style URL returned status ${res.status}: ${MAP_STYLE_URL}`);
+          }
+        })
+        .catch((err) => {
+          console.error('Map style URL not reachable from device:', MAP_STYLE_URL, err);
+        });
+    }, []);
 
     if (!isMapRegistered) {
       console.warn('MapLibre native module not registered. Map will render fallback. See https://github.com/maplibre/maplibre-react-native');
@@ -32,6 +58,9 @@ export const MapLibreAdapter = React.forwardRef<any, MapAdapterProps>(
         logoEnabled={false}
         attributionEnabled={true}
         attributionPosition={{ bottom: 8, left: 8 }}
+        onDidFailLoadingMap={() => console.warn('MapLibre: Map failed to load')}
+        // @ts-ignore - onMapError may not be in type definitions but exists at runtime
+        onMapError={() => console.warn('MapLibre: Map error')}
         {...props}
       >
         { (MapLibreGL as any).Camera ? (
@@ -54,7 +83,7 @@ export const MapLibreAdapter = React.forwardRef<any, MapAdapterProps>(
 export const MapMarker = ({ coordinate, children }: { coordinate: number[]; children: React.ReactNode }) => {
     return (
         <MapLibreGL.PointAnnotation id={`marker-${coordinate.join(',')}`} coordinate={coordinate}>
-            {children}
+            {children as any}
         </MapLibreGL.PointAnnotation>
     );
 };

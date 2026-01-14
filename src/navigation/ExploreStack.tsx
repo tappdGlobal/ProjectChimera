@@ -12,7 +12,7 @@ export default function ExploreStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen
-        name={SCREEN_NAMES.EXPLORE}
+        name={SCREEN_NAMES.EXPLORE_HOME}
         component={ExploreScreen}
       />
 
