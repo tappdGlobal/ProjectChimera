@@ -11,6 +11,7 @@ import {
   Dimensions,
   Platform,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import {
   ArrowLeft,
@@ -25,6 +26,11 @@ import {
   HelpCircle,
   Eye,
   Camera,
+  Smartphone,
+  CreditCard,
+  Trash2,
+  ChevronRight,
+  KeyRound,
 } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -103,6 +109,7 @@ export function ProfileScreen() {
   const { user, logout, toggleSettings } = useAuthStore();
   const [activeTab, setActiveTab] = useState("about");
   const [showSettings, setShowSettings] = useState(false);
+  const [showOnlineStatus, setShowOnlineStatus] = useState(false);
   const [connectionFilter, setConnectionFilter] = useState<
     "all" | "friends" | "matches" | "business"
   >("all");
@@ -186,28 +193,197 @@ export function ProfileScreen() {
             Manage your profile and account settings
           </DialogDescription>
         </DialogHeader>
-        <ScrollView style={{ paddingHorizontal: 16, maxHeight: 400 }}>
-          <View style={{ gap: 16 }}>
-            {/* Using Card for better tap area/visual grouping in RN */}
-            <Card style={styles.settingsCard}>
-              {/* FIX: Ensure button text is rendered correctly */}
-              <Button
-                variant="ghost"
-                style={styles.settingsButton}
-                onClick={() => {
-                  setShowSettings(false);
-                  navigation.navigate(SCREEN_NAMES.EDIT_PROFILE as never);
-                }}
-              >
-                <Edit
-                  size={20}
-                  color={Theme.colors.foreground}
-                  style={styles.mr3}
+        <ScrollView
+          style={styles.settingsModalScroll}
+          contentContainerStyle={styles.settingsModalScrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Devices */}
+          <Text style={styles.settingsSectionTitle}>Devices</Text>
+          <View style={styles.settingsList}>
+            <TouchableOpacity
+              style={styles.settingsRow}
+              onPress={() =>
+                Alert.alert("Register TAPPD Band", "Feature coming soon.")
+              }
+            >
+              <Smartphone
+                size={18}
+                color={Theme.colors.mutedForeground}
+                style={styles.settingsRowIcon}
+              />
+              <Text style={styles.settingsRowText}>Register TAPPD Band</Text>
+              <ChevronRight size={18} color={Theme.colors.mutedForeground} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.settingsRow}
+              onPress={() => Alert.alert("Manage Bands", "Feature coming soon.")}
+            >
+              <Smartphone
+                size={18}
+                color={Theme.colors.mutedForeground}
+                style={styles.settingsRowIcon}
+              />
+              <Text style={styles.settingsRowText}>Manage Bands</Text>
+              <ChevronRight size={18} color={Theme.colors.mutedForeground} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Account Settings */}
+          <Text style={styles.settingsSectionTitle}>Account Settings</Text>
+          <View style={styles.settingsList}>
+            <TouchableOpacity
+              style={styles.settingsRow}
+              onPress={() => Alert.alert("Change Email", "Feature coming soon.")}
+            >
+              <UserIcon
+                size={18}
+                color={Theme.colors.mutedForeground}
+                style={styles.settingsRowIcon}
+              />
+              <Text style={styles.settingsRowText}>Change Email</Text>
+              <ChevronRight size={18} color={Theme.colors.mutedForeground} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.settingsRow}
+              onPress={() =>
+                Alert.alert("Change Password", "Feature coming soon.")
+              }
+            >
+              <KeyRound
+                size={18}
+                color={Theme.colors.mutedForeground}
+                style={styles.settingsRowIcon}
+              />
+              <Text style={styles.settingsRowText}>Change Password</Text>
+              <ChevronRight size={18} color={Theme.colors.mutedForeground} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.settingsRow}
+              onPress={() =>
+                Alert.alert(
+                  "Manage Payment Information",
+                  "Feature coming soon."
+                )
+              }
+            >
+              <CreditCard
+                size={18}
+                color={Theme.colors.mutedForeground}
+                style={styles.settingsRowIcon}
+              />
+              <Text style={styles.settingsRowText}>
+                Manage Payment Information
+              </Text>
+              <ChevronRight size={18} color={Theme.colors.mutedForeground} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.settingsRow}
+              onPress={() =>
+                Alert.alert(
+                  "Delete Account",
+                  "This is a destructive action. Hook it up to backend before enabling."
+                )
+              }
+            >
+              <Trash2 size={18} color={"#F87171"} style={styles.settingsRowIcon} />
+              <Text style={[styles.settingsRowText, { color: "#F87171" }]}>
+                Delete Account
+              </Text>
+              <ChevronRight size={18} color={Theme.colors.mutedForeground} />
+            </TouchableOpacity>
+          </View>
+
+          {/* App Settings */}
+          <Text style={styles.settingsSectionTitle}>App Settings</Text>
+          <View style={styles.settingsList}>
+            <View style={styles.settingsToggleRow}>
+              <View style={styles.settingsToggleLeft}>
+                <Bell
+                  size={18}
+                  color={Theme.colors.mutedForeground}
+                  style={styles.settingsRowIcon}
                 />
-                <Text style={styles.settingsButtonText}>Edit Profile</Text>
-              </Button>
-              {/* ... (Other settings buttons omitted) ... */}
-            </Card>
+                <Text style={styles.settingsRowText}>Push Notifications</Text>
+              </View>
+              <Switch
+                value={user?.settings?.notifications ?? true}
+                onValueChange={() => toggleSettings("notifications")}
+                trackColor={{ true: Theme.colors.primary }}
+                thumbColor={Theme.colors.foreground}
+              />
+            </View>
+
+            <View style={styles.settingsToggleRow}>
+              <View style={styles.settingsToggleLeft}>
+                <Eye
+                  size={18}
+                  color={Theme.colors.mutedForeground}
+                  style={styles.settingsRowIcon}
+                />
+                <Text style={styles.settingsRowText}>Show Online Status</Text>
+              </View>
+              <Switch
+                value={showOnlineStatus}
+                onValueChange={setShowOnlineStatus}
+                trackColor={{ true: Theme.colors.primary }}
+                thumbColor={Theme.colors.foreground}
+              />
+            </View>
+
+            <View style={styles.settingsToggleRow}>
+              <View style={styles.settingsToggleLeft}>
+                <Shield
+                  size={18}
+                  color={Theme.colors.mutedForeground}
+                  style={styles.settingsRowIcon}
+                />
+                <Text style={styles.settingsRowText}>Private Profile</Text>
+              </View>
+              <Switch
+                value={user?.settings?.privacy ?? false}
+                onValueChange={() => toggleSettings("privacy")}
+                trackColor={{ true: Theme.colors.primary }}
+                thumbColor={Theme.colors.foreground}
+              />
+            </View>
+          </View>
+
+          {/* Help & Support */}
+          <Text style={styles.settingsSectionTitle}>Help & Support</Text>
+          <View style={styles.settingsList}>
+            <TouchableOpacity
+              style={styles.settingsRow}
+              onPress={() =>
+                Alert.alert("Contact Support", "support@tappd.co.in")
+              }
+            >
+              <HelpCircle
+                size={18}
+                color={Theme.colors.mutedForeground}
+                style={styles.settingsRowIcon}
+              />
+              <Text style={styles.settingsRowText}>Contact Support</Text>
+              <ChevronRight size={18} color={Theme.colors.mutedForeground} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Logout */}
+          <View style={styles.settingsLogoutWrapper}>
+            <Button
+              style={styles.logoutButton}
+              onClick={async () => {
+                setShowSettings(false);
+                await logout();
+              }}
+            >
+              <LogOut size={16} color={Theme.colors.foreground} style={styles.mr2} />
+              Logout
+            </Button>
           </View>
         </ScrollView>
       </DialogContent>
@@ -432,46 +608,169 @@ export function ProfileScreen() {
 
               {activeTab === "settings" && (
                 <View style={styles.tabContent}>
-                  <Text style={styles.sectionTitle}>App Settings</Text>
-                  <View style={styles.settingsGroup}>
-                    <View style={styles.settingRow}>
-                      <View style={styles.flexRowCenter}>
+                  <Text style={styles.settingsSectionTitle}>Devices</Text>
+                  <View style={styles.settingsList}>
+                    <TouchableOpacity
+                      style={styles.settingsRow}
+                      onPress={() =>
+                        Alert.alert("Register TAPPD Band", "Feature coming soon.")
+                      }
+                    >
+                      <Smartphone
+                        size={18}
+                        color={Theme.colors.mutedForeground}
+                        style={styles.settingsRowIcon}
+                      />
+                      <Text style={styles.settingsRowText}>Register TAPPD Band</Text>
+                      <ChevronRight size={18} color={Theme.colors.mutedForeground} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.settingsRow}
+                      onPress={() => Alert.alert("Manage Bands", "Feature coming soon.")}
+                    >
+                      <Smartphone
+                        size={18}
+                        color={Theme.colors.mutedForeground}
+                        style={styles.settingsRowIcon}
+                      />
+                      <Text style={styles.settingsRowText}>Manage Bands</Text>
+                      <ChevronRight size={18} color={Theme.colors.mutedForeground} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <Text style={styles.settingsSectionTitle}>Account Settings</Text>
+                  <View style={styles.settingsList}>
+                    <TouchableOpacity
+                      style={styles.settingsRow}
+                      onPress={() => Alert.alert("Change Email", "Feature coming soon.")}
+                    >
+                      <UserIcon
+                        size={18}
+                        color={Theme.colors.mutedForeground}
+                        style={styles.settingsRowIcon}
+                      />
+                      <Text style={styles.settingsRowText}>Change Email</Text>
+                      <ChevronRight size={18} color={Theme.colors.mutedForeground} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.settingsRow}
+                      onPress={() =>
+                        Alert.alert("Change Password", "Feature coming soon.")
+                      }
+                    >
+                      <KeyRound
+                        size={18}
+                        color={Theme.colors.mutedForeground}
+                        style={styles.settingsRowIcon}
+                      />
+                      <Text style={styles.settingsRowText}>Change Password</Text>
+                      <ChevronRight size={18} color={Theme.colors.mutedForeground} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.settingsRow}
+                      onPress={() =>
+                        Alert.alert(
+                          "Manage Payment Information",
+                          "Feature coming soon."
+                        )
+                      }
+                    >
+                      <CreditCard
+                        size={18}
+                        color={Theme.colors.mutedForeground}
+                        style={styles.settingsRowIcon}
+                      />
+                      <Text style={styles.settingsRowText}>
+                        Manage Payment Information
+                      </Text>
+                      <ChevronRight size={18} color={Theme.colors.mutedForeground} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.settingsRow}
+                      onPress={() =>
+                        Alert.alert(
+                          "Delete Account",
+                          "This is a destructive action. Hook it up to backend before enabling."
+                        )
+                      }
+                    >
+                      <Trash2 size={18} color={"#F87171"} style={styles.settingsRowIcon} />
+                      <Text style={[styles.settingsRowText, { color: "#F87171" }]}>
+                        Delete Account
+                      </Text>
+                      <ChevronRight size={18} color={Theme.colors.mutedForeground} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <Text style={styles.settingsSectionTitle}>App Settings</Text>
+                  <View style={styles.settingsList}>
+                    <View style={styles.settingsToggleRow}>
+                      <View style={styles.settingsToggleLeft}>
                         <Bell
-                          size={16}
+                          size={18}
                           color={Theme.colors.mutedForeground}
-                          style={styles.mr3}
+                          style={styles.settingsRowIcon}
                         />
-                        <Text style={styles.settingLabel}>
-                          Push Notifications
-                        </Text>
+                        <Text style={styles.settingsRowText}>Push Notifications</Text>
                       </View>
                       <Switch
                         value={user?.settings?.notifications ?? true}
-                        onValueChange={() => toggleSettings('notifications')}
+                        onValueChange={() => toggleSettings("notifications")}
                         trackColor={{ true: Theme.colors.primary }}
                         thumbColor={Theme.colors.foreground}
                       />
                     </View>
-                    <View style={styles.settingRow}>
-                      <View style={styles.flexRowCenter}>
-                        <Shield
-                          size={16}
+                    <View style={styles.settingsToggleRow}>
+                      <View style={styles.settingsToggleLeft}>
+                        <Eye
+                          size={18}
                           color={Theme.colors.mutedForeground}
-                          style={styles.mr3}
+                          style={styles.settingsRowIcon}
                         />
-                        <Text style={styles.settingLabel}>
-                          Privacy Mode
-                        </Text>
+                        <Text style={styles.settingsRowText}>Show Online Status</Text>
+                      </View>
+                      <Switch
+                        value={showOnlineStatus}
+                        onValueChange={setShowOnlineStatus}
+                        trackColor={{ true: Theme.colors.primary }}
+                        thumbColor={Theme.colors.foreground}
+                      />
+                    </View>
+                    <View style={styles.settingsToggleRow}>
+                      <View style={styles.settingsToggleLeft}>
+                        <Shield
+                          size={18}
+                          color={Theme.colors.mutedForeground}
+                          style={styles.settingsRowIcon}
+                        />
+                        <Text style={styles.settingsRowText}>Private Profile</Text>
                       </View>
                       <Switch
                         value={user?.settings?.privacy ?? false}
-                        onValueChange={() => toggleSettings('privacy')}
+                        onValueChange={() => toggleSettings("privacy")}
                         trackColor={{ true: Theme.colors.primary }}
                         thumbColor={Theme.colors.foreground}
                       />
                     </View>
                   </View>
-                  <View style={styles.logoutWrapper}>
+
+                  <Text style={styles.settingsSectionTitle}>Help & Support</Text>
+                  <View style={styles.settingsList}>
+                    <TouchableOpacity
+                      style={styles.settingsRow}
+                      onPress={() => Alert.alert("Contact Support", "support@tappd.co.in")}
+                    >
+                      <HelpCircle
+                        size={18}
+                        color={Theme.colors.mutedForeground}
+                        style={styles.settingsRowIcon}
+                      />
+                      <Text style={styles.settingsRowText}>Contact Support</Text>
+                      <ChevronRight size={18} color={Theme.colors.mutedForeground} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.settingsLogoutWrapper}>
                     <Button style={styles.logoutButton} onClick={logout}>
                       <LogOut
                         size={16}
@@ -649,18 +948,11 @@ const styles = StyleSheet.create({
   },
   connectionAge: { color: Theme.colors.mutedForeground, fontSize: 12 },
   // Settings Tab
-  settingsGroup: { gap: 12 },
-  settingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-  },
-  settingLabel: { color: Theme.colors.foreground, fontSize: 16 },
-  logoutWrapper: { marginTop: 24 },
   logoutButton: { backgroundColor: "#DC2626" },
   // Dialogs
   settingsModal: { width: "90%", maxHeight: "80%" },
+  settingsModalScroll: { maxHeight: 520 },
+  settingsModalScrollContent: { paddingBottom: 12 },
   settingsCard: {
     backgroundColor: "transparent",
     borderWidth: 0,
@@ -675,6 +967,46 @@ const styles = StyleSheet.create({
     color: Theme.colors.foreground,
     fontSize: 16,
     fontWeight: "normal",
+  },
+  settingsSectionTitle: {
+    color: Theme.colors.foreground,
+    fontSize: 18,
+    fontWeight: "700",
+    marginTop: 18,
+    marginBottom: 10,
+  },
+  settingsList: {
+    backgroundColor: "transparent",
+  },
+  settingsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+  },
+  settingsRowIcon: {
+    marginRight: 12,
+  },
+  settingsRowText: {
+    flex: 1,
+    color: Theme.colors.foreground,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  settingsToggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+  },
+  settingsToggleLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    paddingRight: 12,
+  },
+  settingsLogoutWrapper: {
+    marginTop: 24,
+    paddingBottom: 8,
   },
   photoModal: { padding: 0, backgroundColor: "black", width: "95%" },
   fullSizePhoto: { width: "100%", height: "100%", borderRadius: 8 },
