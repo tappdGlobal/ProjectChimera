@@ -433,14 +433,15 @@ export function ProfileScreen() {
               <View style={styles.photoWrapper}>
                 <View style={styles.avatarBorder}>
                   <Avatar style={styles.avatarStyle}>
-                    {/* FIX: AvatarImage uses profileImage state */}
-                    <AvatarImage src={profileImage} alt={user?.name || "User Profile"} />
-                    {/* FIX: AvatarFallback children should be simple text */}
-                    <AvatarFallback>
-                      <Text style={{ color: Theme.colors.foreground }}>
-                        {user?.name ? user.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() : "HA"}
-                      </Text>
-                    </AvatarFallback>
+                    {profileImage && profileImage.trim() !== "" ? (
+                      <AvatarImage src={profileImage} alt={user?.name || "User Profile"} />
+                    ) : (
+                      <AvatarFallback>
+                        <Text style={{ color: Theme.colors.foreground }}>
+                          {user?.name ? user.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() : "HA"}
+                        </Text>
+                      </AvatarFallback>
+                    )}
                   </Avatar>
                 </View>
                 <Button
@@ -584,14 +585,22 @@ export function ProfileScreen() {
                           <Card key={connection.id} style={styles.connectionCard}>
                             {/* FIX: Use Avatar components here */}
                             <Avatar style={styles.connectionAvatarWrapper}>
-                              <AvatarImage
-                                src={connection.profilePicUrl || connection.photo}
-                                alt={connection.name}
-                              />
-                              <AvatarFallback>
-                                <Text>{connection.name.charAt(0)}</Text>
-                              </AvatarFallback>
+                              {connection?.profilePicUrl?.trim() || connection?.photo?.trim() ? (
+                                <AvatarImage
+                                  src={connection.profilePicUrl?.trim() || connection.photo?.trim()}
+                                  alt={connection?.name ?? "User"}
+                                />
+                              ) : (
+                                <AvatarFallback>
+                                  <Text>
+                                    {connection?.name?.trim()
+                                      ? connection.name.trim().charAt(0).toUpperCase()
+                                      : "U"}
+                                  </Text>
+                                </AvatarFallback>
+                              )}
                             </Avatar>
+
                             <Text style={styles.connectionName}>
                               {connection.name}
                             </Text>
