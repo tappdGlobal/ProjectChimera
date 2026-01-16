@@ -1,44 +1,29 @@
-import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { useAuthStore } from '../store/authStore';
-import { AuthStack } from './AuthStack';
-import AppNavigator from './AppNavigator'; // This is our AppStack (Tab Navigator)
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
-import { SplashScreen } from '../screens/SplashScreen';
-
-import { linking } from './linking';
-import { notificationService } from '../services/notificationService';
+import React, { useEffect } from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { useAuthStore } from "../store/authStore";
+import { useUserStore } from "../store/userStore";
+import { AuthStack } from "./AuthStack";
+import AppNavigator from "./AppNavigator";
+import { SplashScreen } from "../screens/SplashScreen";
 
 export const RootNavigator = () => {
-  const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
-  const [showSplash, setShowSplash] = useState(true);
-
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isHydrated = useAuthStore((s) => s.isHydrated);
+  
   useEffect(() => {
-    checkAuth();
-    notificationService.registerForPushNotificationsAsync();
-  }, [checkAuth]);
-
-  useEffect(() => {
-    // Show splash screen for 2.5 seconds
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-    }, 2500);
-
-    return () => clearTimeout(timer);
+    useAuthStore.getState().hydrateAuth();
   }, []);
 
-  // Show splash screen
-  if (showSplash) {
-    return <SplashScreen />;
-  }
+  useEffect(() => {
+    if (isAuthenticated) {
+      useUserStore.getState().fetchUser();
+    } else {
+      useUserStore.getState().clearUser();
+    }
+  }, [isAuthenticated]);
 
-  // Show loading indicator while checking auth
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-      </View>
-    );
+  if (!isHydrated) {
+    return <SplashScreen />;
   }
 
   return (
@@ -47,12 +32,3 @@ export const RootNavigator = () => {
     </NavigationContainer>
   );
 };
-
-const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#121212',
-  },
-});

@@ -49,6 +49,7 @@ import { Switch } from "react-native";
 import { Avatar, AvatarImage, AvatarFallback } from "../components/ui/Avatar";
 import { Theme } from "../styles/Theme";
 import { SCREEN_NAMES } from "../navigation/Routes";
+import { useUserStore } from "../store/userStore";
 
 const { width } = Dimensions.get("window");
 
@@ -156,12 +157,18 @@ export function ProfileScreen() {
       }
     })();
   }, []);
+  const name = useUserStore((state) => state.user?.name);
+  const bio = useUserStore((state) => state.user?.bio);
+  const profilePicUrl = useUserStore((state) => state.user?.profilePicUrl);
+  const photos = useUserStore((state) => state.user?.photos);
+  const uploadPhotos = useUserStore((state) => state.uploadPhotos);
 
+  console.log(profilePicUrl)
   const filteredConnections = connections;
 
   const pickImage = async (isProfile: boolean = false) => {
     try {
-      let result = await ImagePicker.launchImageLibraryAsync({
+      const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: isProfile ? [1, 1] : [9, 16],
@@ -170,17 +177,18 @@ export function ProfileScreen() {
 
       if (!result.canceled) {
         const uri = result.assets[0].uri;
+
         if (isProfile) {
           setProfileImage(uri);
         } else {
-          // For gallery photos, in a real app, you would add to state array
-          console.log("Photo added to gallery:", uri);
+          await uploadPhotos([uri]); // ✅ ACTUAL UPLOAD
         }
       }
     } catch (error) {
       console.error("ImagePicker Error:", error);
     }
   };
+
 
   // --- SUB COMPONENTS ---
 
@@ -433,16 +441,26 @@ export function ProfileScreen() {
               <View style={styles.photoWrapper}>
                 <View style={styles.avatarBorder}>
                   <Avatar style={styles.avatarStyle}>
-                    {/* FIX: AvatarImage uses profileImage state */}
-                    <AvatarImage src={profileImage} alt={user?.name || "User Profile"} />
-                    {/* FIX: AvatarFallback children should be simple text */}
+                    <AvatarImage
+                      src={profilePicUrl ?? profileImage}
+                      alt={name ?? "User Profile"}
+                    />
+
                     <AvatarFallback>
                       <Text style={{ color: Theme.colors.foreground }}>
-                        {user?.name ? user.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() : "HA"}
+                        {name
+                          ? name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .substring(0, 2)
+                            .toUpperCase()
+                          : "HA"}
                       </Text>
                     </AvatarFallback>
                   </Avatar>
                 </View>
+
                 <Button
                   size="icon"
                   style={styles.cameraButton}
@@ -452,8 +470,9 @@ export function ProfileScreen() {
                 </Button>
               </View>
 
+
               {/* Name & Info */}
-              <Text style={styles.userName}>{user?.name || "Guest User"}</Text>
+              <Text style={styles.userName}>{name ?? "Guest"}</Text>
               {user?.bio && (
                 <Text style={styles.tagline} numberOfLines={2}>
                   {user.bio}
@@ -502,7 +521,7 @@ export function ProfileScreen() {
                 <View style={styles.tabContent}>
                   <Text style={styles.sectionTitle}>About Me</Text>
                   <Text style={styles.bioText}>
-                    {user?.bio || "No bio available."}
+                    {bio ?? "No bio available."}
                   </Text>
                   <View style={styles.detailsGrid}>
                     {user?.education && (
@@ -542,21 +561,16 @@ export function ProfileScreen() {
                     >
                       <Plus size={24} color={Theme.colors.mutedForeground} />
                     </TouchableOpacity>
-                    {(user?.photos || []).map((photo, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        style={styles.photoItem}
-                        onPress={() => setSelectedPhoto(photo)}
-                      >
-                        <Image
-                          source={{ uri: photo }}
-                          style={styles.photoGridImage}
-                          resizeMode="cover"
-                        />
+
+                    {(photos ?? []).map((photo, index) => (
+                      <TouchableOpacity key={index}>
+                        <Image source={{ uri: photo }} />
                       </TouchableOpacity>
                     ))}
+
                   </View>
                 </View>
+
               )}
 
               {activeTab === "connections" && (
