@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/authStore';
 import { storageService } from '../services/storageService';
 import { syncService } from '../services/syncService';
-import { X, Plus } from 'lucide-react-native';
+import { X } from 'lucide-react-native';
 import { Select } from '../components/ui/Select';
 import { Picker } from '@react-native-picker/picker';
 import { Theme } from '../styles/Theme';
@@ -72,7 +72,6 @@ export const EditProfileScreen = ({ navigation }: any) => {
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      // Convert height from feet'inches" format to cm if needed
       let heightInCm: number | undefined = undefined;
       if (height) {
         const feetInchesMatch = height.match(/(\d+)'(\d+)"/);
@@ -100,19 +99,14 @@ export const EditProfileScreen = ({ navigation }: any) => {
         drinking,
       };
 
-      // Queue the action for sync (simulating offline-first)
       await syncService.queueAction('UPDATE_PROFILE', updatedUser);
-
-      // Try to sync immediately
       try {
         await syncService.syncActions();
       } catch (error) {
         console.log('Sync failed, will retry later:', error);
       }
 
-      // Optimistically update store
       updateUser(updatedUser);
-
       navigation.goBack();
     } catch (error) {
       Alert.alert("Error", "Failed to update profile");
@@ -143,27 +137,29 @@ export const EditProfileScreen = ({ navigation }: any) => {
     setInterests(interests.filter(i => i !== interest));
   };
 
+  // Reusable props for Picker Items
+  const pickerItemProps = {
+    color: Theme.colors.foreground, // Ensures text is visible (e.g., white in dark mode)
+    style: { backgroundColor: Theme.colors.background } // Attempts to set background
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <ScrollView 
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+        keyboardShouldPersistTaps="handled"
+        bounces={true}
+      >
+        {/* Header - Moved INSIDE ScrollView to ensure full screen scrolls */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Edit Profile</Text>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
             <X size={24} color={Theme.colors.foreground} />
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
 
-      <ScrollView 
-        style={styles.scrollContainer}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={true}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        nestedScrollEnabled={true}
-        bounces={true}
-        alwaysBounceVertical={false}
-      >
         {/* About Me */}
         <View style={styles.section}>
           <Text style={styles.label}>About Me</Text>
@@ -175,6 +171,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
             placeholderTextColor={Theme.colors.mutedForeground}
             multiline
             numberOfLines={8}
+            scrollEnabled={false} // Let parent ScrollView handle scrolling
           />
         </View>
 
@@ -261,12 +258,20 @@ export const EditProfileScreen = ({ navigation }: any) => {
         <View style={styles.twoColumnSection}>
           <View style={styles.columnItem}>
             <Text style={styles.label}>Gender</Text>
-            <Select value={gender} onValueChange={setGender} style={styles.selectTrigger}>
-              <Picker.Item label="Select" value="" />
-              <Picker.Item label="Male" value="Male" />
-              <Picker.Item label="Female" value="Female" />
-              <Picker.Item label="Other" value="Other" />
-            </Select>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={gender}
+                onValueChange={(itemValue) => setGender(itemValue)}
+                dropdownIconColor={Theme.colors.foreground}
+                style={styles.pickerStyle}
+                mode="dialog" // Changed to dialog for better native handling
+              >
+                <Picker.Item label="Select" value="" {...pickerItemProps} />
+                <Picker.Item label="Male" value="Male" {...pickerItemProps} />
+                <Picker.Item label="Female" value="Female" {...pickerItemProps} />
+                <Picker.Item label="Other" value="Other" {...pickerItemProps} />
+              </Picker>
+            </View>
           </View>
           <View style={styles.columnItem}>
             <Text style={styles.label}>Location</Text>
@@ -312,21 +317,37 @@ export const EditProfileScreen = ({ navigation }: any) => {
         <View style={styles.twoColumnSection}>
           <View style={styles.columnItem}>
             <Text style={styles.label}>Smoking</Text>
-            <Select value={smoking} onValueChange={setSmoking} style={styles.selectTrigger}>
-              <Picker.Item label="Select" value="" />
-              <Picker.Item label="Yes" value="Yes" />
-              <Picker.Item label="No" value="No" />
-              <Picker.Item label="Occasionally" value="Occasionally" />
-            </Select>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={smoking}
+                onValueChange={(itemValue) => setSmoking(itemValue)}
+                dropdownIconColor={Theme.colors.foreground}
+                style={styles.pickerStyle}
+                mode="dialog"
+              >
+                <Picker.Item label="Select" value="" {...pickerItemProps} />
+                <Picker.Item label="Yes" value="Yes" {...pickerItemProps} />
+                <Picker.Item label="No" value="No" {...pickerItemProps} />
+                <Picker.Item label="Occasionally" value="Occasionally" {...pickerItemProps} />
+              </Picker>
+            </View>
           </View>
           <View style={styles.columnItem}>
             <Text style={styles.label}>Drinking</Text>
-            <Select value={drinking} onValueChange={setDrinking} style={styles.selectTrigger}>
-              <Picker.Item label="Select" value="" />
-              <Picker.Item label="Yes" value="Yes" />
-              <Picker.Item label="No" value="No" />
-              <Picker.Item label="Socially" value="Socially" />
-            </Select>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={drinking}
+                onValueChange={(itemValue) => setDrinking(itemValue)}
+                dropdownIconColor={Theme.colors.foreground}
+                style={styles.pickerStyle}
+                mode="dialog"
+              >
+                <Picker.Item label="Select" value="" {...pickerItemProps} />
+                <Picker.Item label="Yes" value="Yes" {...pickerItemProps} />
+                <Picker.Item label="No" value="No" {...pickerItemProps} />
+                <Picker.Item label="Socially" value="Socially" {...pickerItemProps} />
+              </Picker>
+            </View>
           </View>
         </View>
 
@@ -366,7 +387,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
           )}
         </View>
       </ScrollView>
-      </SafeAreaView>
+    </SafeAreaView>
   );
 };
 
@@ -375,14 +396,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Theme.colors.background,
   },
-  safeArea: {
-    backgroundColor: Theme.colors.background,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
+    marginBottom: 16, // Added margin since it's now part of scroll content
     borderBottomWidth: 1,
     borderColor: Theme.colors.border,
     backgroundColor: Theme.colors.background,
@@ -399,11 +418,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 24,
-    paddingBottom: 200,
+    flexGrow: 1,
+    paddingBottom: 100,
+    // Removed internal padding that might conflict with header
   },
   section: {
     marginBottom: 24,
+    paddingHorizontal: 24, // Moved padding here since scrollContent padding was removed/adjusted
   },
   label: {
     fontSize: 14,
@@ -431,20 +452,26 @@ const styles = StyleSheet.create({
     gap: 16,
     marginBottom: 24,
     width: '100%',
+    paddingHorizontal: 24,
   },
   columnItem: {
     flex: 1,
-    minWidth: 0, // Important for flex items to shrink properly
+    minWidth: 0, 
   },
-  selectTrigger: {
+  pickerContainer: {
     backgroundColor: Theme.colors.muted,
     borderRadius: 8,
-    padding: 12,
     borderWidth: 1,
     borderColor: Theme.colors.primary,
+    overflow: 'hidden',
     minHeight: 44,
+    justifyContent: 'center',
   },
-  // Tag Input Container
+  pickerStyle: {
+    backgroundColor: Theme.colors.muted,
+    color: Theme.colors.foreground,
+    height: 44,
+  },
   tagInputContainer: {
     flexDirection: 'row',
     gap: 8,
@@ -475,7 +502,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  // Tags Container
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -498,12 +524,12 @@ const styles = StyleSheet.create({
   tagRemove: {
     padding: 2,
   },
-  // Action Buttons
   actionButtons: {
     flexDirection: 'row',
     gap: 16,
     marginTop: 32,
     marginBottom: 24,
+    paddingHorizontal: 24,
   },
   cancelButton: {
     flex: 1,
