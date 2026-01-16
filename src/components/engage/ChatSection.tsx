@@ -1,131 +1,196 @@
-import React from "react";
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity } from "react-native";
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  Image,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+} from "react-native";
 import { Theme } from "../../styles/Theme";
-import { Search, Music } from "lucide-react-native";
+import {
+  Search,
+  ArrowLeft,
+  Video,
+  Phone,
+  MoreVertical,
+  Send,
+} from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
-import { StackNavigationProp } from "@react-navigation/stack";
-import { AppStackParamList, SCREEN_NAMES } from "../../navigation/Routes";
+import { SCREEN_NAMES } from "../../navigation/Routes";
 
-// Mock Data
-const CHATS = [
+// Mock Messages for Emma Johnson
+const EMMA_MESSAGES = [
   {
     id: "1",
-    name: "Emma Johnson",
-    avatar: "https://i.pravatar.cc/150?u=emma",
-    message: "Looking forward to the jazz night!",
-    time: "2m ago",
-    unread: 3,
-    online: true,
+    text: "Hey! Are you going to the jazz event tonight?",
+    time: "7:30 PM",
+    isMe: false,
   },
   {
     id: "2",
-    name: "Michael Chen",
-    avatar: "https://i.pravatar.cc/150?u=michael",
-    message: "Great meeting you at the pool party",
-    time: "15m ago",
-    unread: 1,
-    online: false,
+    text: "Yes! I'm really excited. Are you performing?",
+    time: "7:32 PM",
+    isMe: true,
   },
   {
     id: "3",
-    name: "Sarah Williams",
-    avatar: "https://i.pravatar.cc/150?u=sarah",
-    message: "The concert was amazing! 🎵",
-    time: "1h ago",
-    unread: 7,
-    online: true,
+    text: "Actually yes! I'll be playing saxophone in the second set",
+    time: "7:33 PM",
+    isMe: false,
   },
   {
     id: "4",
-    name: "David Rodriguez",
-    avatar: "https://i.pravatar.cc/150?u=david",
-    message: "Thanks for the recommendation",
-    time: "3h ago",
-    unread: 2,
-    online: false,
+    text: "That's awesome! I can't wait to hear you play",
+    time: "7:35 PM",
+    isMe: true,
   },
   {
     id: "5",
-    name: "Jessica Park",
-    avatar: "https://i.pravatar.cc/150?u=jessica",
-    message: "See you at the art gallery opening!",
-    time: "5h ago",
-    unread: 0,
-    online: true,
-  },
-  {
-    id: "6",
-    name: "Alex Thompson",
-    avatar: "https://i.pravatar.cc/150?u=alex",
-    message: "The hiking trip was incredible",
-    time: "1d ago",
-    unread: 0,
-    online: false,
+    text: "Looking forward to the jazz night!",
+    time: "7:40 PM",
+    isMe: false,
   },
 ];
 
-type NavigationProp = StackNavigationProp<AppStackParamList>;
+export function ChatSection() {
+  const navigation = useNavigation<any>();
+  const [inputText, setInputText] = useState("");
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-const ChatItem = ({ item }: { item: typeof CHATS[0] }) => {
-  const navigation = useNavigation<NavigationProp>();
-  
-  const handlePress = () => {
-    navigation.navigate(SCREEN_NAMES.CHAT_DETAIL, {
-      chatId: item.id,
-      name: item.name,
-      avatar: item.avatar,
-    });
+  const renderMessage = (msg: (typeof EMMA_MESSAGES)[0]) => {
+    if (msg.isMe) {
+      return (
+        <View key={msg.id} style={styles.myMessageContainer}>
+          <LinearGradient
+            colors={["#D946EF", "#A855F7"]} // Pink/Purple gradient
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.myMessageBubble}
+          >
+            <Text style={styles.myMessageText}>{msg.text}</Text>
+          </LinearGradient>
+          <Text style={styles.myMessageTime}>{msg.time}</Text>
+        </View>
+      );
+    } else {
+      return (
+        <View key={msg.id} style={styles.theirMessageContainer}>
+          <View style={styles.theirMessageBubble}>
+            <Text style={styles.theirMessageText}>{msg.text}</Text>
+          </View>
+          <Text style={styles.theirMessageTime}>{msg.time}</Text>
+        </View>
+      );
+    }
   };
 
   return (
-    <TouchableOpacity style={styles.chatItem} onPress={handlePress}>
-      <View style={styles.avatarContainer}>
-        <Image source={{ uri: item.avatar }} style={styles.avatar} />
-        {item.online && <View style={styles.onlineIndicator} />}
-      </View>
-      <View style={styles.chatContent}>
-        <View style={styles.chatHeader}>
-          <Text style={styles.userName}>{item.name}</Text>
-          <Text style={styles.timeText}>{item.time}</Text>
-        </View>
-        <View style={styles.chatFooter}>
-            <Text style={styles.messageText} numberOfLines={1}>
-                {item.message}
-            </Text>
-            {item.unread > 0 && (
-                <View style={styles.unreadBadge}>
-                    <Text style={styles.unreadText}>{item.unread}</Text>
-                </View>
-            )}
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-};
-
-export function ChatSection() {
-  return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
+      {/* Chat Header (Emma Johnson) */}
+      <View style={[styles.chatHeader, { zIndex: 10 }]}>
         <View style={styles.headerLeft}>
-            <Text style={styles.headerTitle}>Chats</Text>
-            <View style={styles.newBadge}>
-                <Text style={styles.newBadgeText}>4 new</Text>
-            </View>
+          <TouchableOpacity style={styles.iconButton}>
+            <ArrowLeft size={22} color={Theme.colors.foreground} />
+          </TouchableOpacity>
+          <View style={styles.avatarContainer}>
+            <Image
+              source={{ uri: "https://i.pravatar.cc/150?u=emma" }}
+              style={styles.avatar}
+            />
+            <View style={styles.onlineIndicator} />
+          </View>
+          <View>
+            <Text style={styles.headerName}>Emma</Text>
+            <Text style={styles.headerName}>Johnson</Text>
+            <Text style={styles.headerStatus}>Online</Text>
+          </View>
         </View>
-        <TouchableOpacity>
-          <Search size={22} color={Theme.colors.mutedForeground} />
+
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.iconButton}>
+            <Video size={22} color={Theme.colors.foreground} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconButton}>
+            <Phone size={22} color={Theme.colors.foreground} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconButton}>
+            <Search size={22} color={Theme.colors.foreground} />
+          </TouchableOpacity>
+          <View>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => setIsSettingsOpen(!isSettingsOpen)}
+            >
+              <MoreVertical size={22} color={Theme.colors.foreground} />
+            </TouchableOpacity>
+
+            {/* Dropdown Menu */}
+            {isSettingsOpen && (
+              <View style={styles.dropdownMenu}>
+                <TouchableOpacity
+                  style={styles.dropdownItem}
+                  onPress={() => {
+                    setIsSettingsOpen(false);
+                    navigation.navigate(SCREEN_NAMES.CHAT_SETTINGS);
+                  }}
+                >
+                  <Text style={styles.dropdownText}>Chat Settings</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.dropdownItem}>
+                  <Text style={styles.dropdownText}>When We Matched</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.dropdownItem}>
+                  <Text style={styles.dropdownText}>Media Shared</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+
+      {/* Messages Area */}
+      {/* Close dropdown when tapping outside */}
+      <TouchableOpacity
+        activeOpacity={1}
+        style={styles.messagesList}
+        onPress={() => isSettingsOpen && setIsSettingsOpen(false)}
+      >
+        <ScrollView
+          contentContainerStyle={styles.messagesContent}
+          showsVerticalScrollIndicator={false}
+          scrollEnabled={!isSettingsOpen} // Optional: disable scroll when menu is open? Maybe better not to.
+          // Actually, using TouchableOpacity wrapper might block ScrollView touches.
+          // Better approach might be a transparent overlay if needed, or just let it stay open until clicked elsewhere.
+          // For simplicity, let's keep the scrollview interactive.
+        >
+          {EMMA_MESSAGES.map(renderMessage)}
+        </ScrollView>
+      </TouchableOpacity>
+
+      {/* Input Area */}
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
+          placeholder="Add a message..."
+          placeholderTextColor={Theme.colors.mutedForeground}
+          value={inputText}
+          onChangeText={setInputText}
+        />
+        <TouchableOpacity style={styles.sendButton}>
+          <LinearGradient
+            colors={["#D946EF", "#A855F7"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.sendButtonGradient}
+          >
+            <Send size={18} color="#fff" />
+          </LinearGradient>
         </TouchableOpacity>
       </View>
-
-      <FlatList
-        data={CHATS}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <ChatItem item={item} />}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
     </View>
   );
 }
@@ -135,105 +200,179 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Theme.colors.background,
   },
-  header: {
+  // Header
+  chatHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: "rgba(255,255,255,0.05)",
   },
   headerLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: Theme.colors.foreground || 'white',
-    marginRight: 12,
-  },
-  newBadge: {
-      backgroundColor: '#581c87', // Dark purple
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 12,
-  },
-  newBadgeText: {
-      color: '#d8b4fe', // Light purple
-      fontSize: 12,
-      fontWeight: '600',
-  },
-  listContent: {
-    paddingBottom: 80,
-  },
-  chatItem: {
     flexDirection: "row",
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.02)',
+    alignItems: "center",
+    gap: 12,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  iconButton: {
+    padding: 4,
   },
   avatarContainer: {
     position: "relative",
-    marginRight: 16,
   },
   avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   onlineIndicator: {
     position: "absolute",
     bottom: 0,
     right: 0,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: "#10B981", // Green
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: Theme.colors.background,
   },
-  chatContent: {
-    flex: 1,
-    justifyContent: "center",
+  headerName: {
+    color: Theme.colors.foreground,
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 16,
   },
-  chatHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  headerStatus: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 11,
+    marginTop: 2,
+  },
+
+  // Messages
+  messagesList: {
+    flex: 1,
+  },
+  messagesContent: {
+    padding: 16,
+    gap: 16,
+  },
+  myMessageContainer: {
+    alignSelf: "flex-end",
+    alignItems: "flex-end",
+    maxWidth: "80%",
+  },
+  myMessageBubble: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 2, // Slight sharp corner for sender
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
     marginBottom: 4,
   },
-  userName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: Theme.colors.foreground || 'white',
+  myMessageText: {
+    color: "#fff",
+    fontSize: 15,
+    lineHeight: 20,
   },
-  timeText: {
-    fontSize: 12,
+  myMessageTime: {
     color: Theme.colors.mutedForeground,
+    fontSize: 11,
   },
-  chatFooter: {
-      flexDirection: 'row',
-      justifyContent: "space-between",
+
+  theirMessageContainer: {
+    alignSelf: "flex-start",
+    alignItems: "flex-start",
+    maxWidth: "80%",
   },
-  messageText: {
-    fontSize: 14,
+  theirMessageBubble: {
+    backgroundColor: "#2A2344", // Detailed dark purple/gray as in screenshot
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopLeftRadius: 2, // Sharp corner for receiver
+    borderTopRightRadius: 12,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    marginBottom: 4,
+  },
+  theirMessageText: {
+    color: "#e5e5e5",
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  theirMessageTime: {
     color: Theme.colors.mutedForeground,
+    fontSize: 11,
+  },
+
+  // Input
+  inputContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.05)",
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 5, // space from bottom
+    gap: 12,
+  },
+  input: {
     flex: 1,
-    marginRight: 8,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    color: Theme.colors.foreground,
+    fontSize: 15,
+    height: 44, // Fixed height for alignment
   },
-  unreadBadge: {
-    backgroundColor: '#c451c9', // Magenta
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+  sendButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: "hidden",
   },
-  unreadText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: '700',
+  sendButtonGradient: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingLeft: 4, // centering visual fix for send icon
+  },
+  // Dropdown
+  dropdownMenu: {
+    position: "absolute",
+    top: 40,
+    right: 0,
+    width: 200,
+    backgroundColor: "#110e1b", // Very dark background matching screenshot
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    paddingVertical: 8,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+    zIndex: 100,
+  },
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  dropdownText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "500",
   },
 });

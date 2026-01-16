@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
+  Modal,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useCameraPermissions } from "expo-camera";
@@ -29,11 +30,18 @@ import {
   BarChart3,
   UserCheck,
   Camera,
-  LayoutDashboard
+  LayoutDashboard,
+  TrendingUp,
+  Eye,
+  Car,
+  CheckCircle2,
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Toast from "react-native-toast-message"; // For toast messages
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 // Migrated UI Components
 import { Button } from "../components/ui/Button";
@@ -53,19 +61,13 @@ import { Theme } from "../styles/Theme";
 import { useNavigation } from "@react-navigation/native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 
-
-
-
 import { createStackNavigator } from "@react-navigation/stack";
 // import { HostScreen } from "../screens/HostScreen"; // Removed to fix naming conflict
 // import { PublishedEventsScreen } from "../screens/PublishedEventsScreen";
 // FIX: Update the path below if the file exists elsewhere, or create the file if missing.
 import { PublishedEventsScreen } from "./PublishedEventsScreen";
-// Update the import path if Routes.ts is located elsewhere, for example:
 import { SCREEN_NAMES } from "../navigation/Routes";
-// Or, if the file does not exist, create 'Routes.ts' in the correct directory and export SCREEN_NAMES.
-// Note: TooltipProvider/Tooltip/TooltipTrigger/TooltipContent are web-specific.
-// We will replace them with a simple View/Modal or a basic Alert for the info icon.
+import { DraftsScreen } from "./DraftsScreen";
 
 interface TicketType {
   id: string;
@@ -95,8 +97,8 @@ interface HostProps {
   onShowPublished?: () => void;
   onBack?: () => void;
   editingDraft?:
-  | (EventForm & { id: string; createdAt: string; lastModified: string })
-  | null;
+    | (EventForm & { id: string; createdAt: string; lastModified: string })
+    | null;
 }
 
 const eventGenres = [
@@ -170,6 +172,10 @@ export function HostStackScreen() {
         name={SCREEN_NAMES.PUBLISHED_EVENTS}
         component={PublishedEventsScreen}
       />
+      <HostStack.Screen
+        name={SCREEN_NAMES.DRAFT_EVENTS}
+        component={DraftsScreen}
+      />
     </HostStack.Navigator>
   );
 }
@@ -181,6 +187,7 @@ export function HostScreen({
   editingDraft,
 }: HostProps) {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<
     "private" | "public" | "published"
   >("private");
@@ -232,7 +239,6 @@ export function HostScreen({
     },
     [errors]
   );
-
 
   // Handler for ticket changes
   const handleLocalTicketChange = useCallback(
@@ -490,7 +496,6 @@ export function HostScreen({
     </View>
   );
 
-
   const EventFormContent = () => (
     <View style={styles.formContentContainer}>
       <View style={styles.formSection}>
@@ -593,7 +598,10 @@ export function HostScreen({
                     setShowDatePicker(false);
 
                     const dd = String(selectedDate.getDate()).padStart(2, "0");
-                    const mm = String(selectedDate.getMonth() + 1).padStart(2, "0");
+                    const mm = String(selectedDate.getMonth() + 1).padStart(
+                      2,
+                      "0"
+                    );
                     const yyyy = selectedDate.getFullYear();
 
                     handleLocalFieldChange("date", `${dd}-${mm}-${yyyy}`);
@@ -632,18 +640,19 @@ export function HostScreen({
                 <DateTimePickerModal
                   isVisible={showTimePicker}
                   mode="time"
-                  display="spinner"     // 👈 THIS MAKES IT A WHEEL PICKER
+                  display="spinner" // 👈 THIS MAKES IT A WHEEL PICKER
                   themeVariant="dark"
                   onConfirm={(selectedTime) => {
                     setShowTimePicker(false);
                     const hh = String(selectedTime.getHours()).padStart(2, "0");
-                    const mm = String(selectedTime.getMinutes()).padStart(2, "0");
+                    const mm = String(selectedTime.getMinutes()).padStart(
+                      2,
+                      "0"
+                    );
                     handleLocalFieldChange("time", `${hh}:${mm}`);
                   }}
                   onCancel={() => setShowTimePicker(false)}
                 />
-
-
 
                 {errors.time && (
                   <Text style={styles.errorText}>{errors.time}</Text>
@@ -748,7 +757,7 @@ export function HostScreen({
               </View>
             </View>
 
-            <View style={styles.grid2Col}>
+            <View style={{ gap: 16 }}>
               <View style={styles.switchWrapper}>
                 <View style={styles.switchTextGroup}>
                   <Text style={styles.label}>Alcohol Allowed</Text>
@@ -820,7 +829,7 @@ export function HostScreen({
                 </View>
 
                 <View style={styles.grid2Col}>
-                  <View style={styles.formGroup}>
+                  <View style={[styles.formGroup, { flex: 1 }]}>
                     <Text style={styles.label}>Ticket Name</Text>
                     <Input
                       value={ticket.name}
@@ -836,7 +845,7 @@ export function HostScreen({
                     )}
                   </View>
 
-                  <View style={styles.formGroup}>
+                  <View style={[styles.formGroup, { flex: 1 }]}>
                     <Text style={styles.label}>Price (₹)</Text>
                     <Input
                       keyboardType="numeric"
@@ -979,18 +988,24 @@ export function HostScreen({
     setPopupActiveTab("guests");
   };
 
-
   const EventControlPopup = () => (
-    <View style={styles.popupOverallContainer}>
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={showEventControlPopup}
+      onRequestClose={() => setShowEventControlPopup(false)}
+    >
       <View style={styles.popupOverlay}>
         <View style={styles.popupContainer}>
-
           {/* Header */}
           <View style={styles.popupHeaderRow}>
             <Text style={styles.popupTitle}>Summer Jazz Festival</Text>
 
-            <TouchableOpacity onPress={() => setShowEventControlPopup(false)}>
-              <X size={22} color={Theme.colors.foreground} />
+            <TouchableOpacity
+              onPress={() => setShowEventControlPopup(false)}
+              style={styles.closeButton}
+            >
+              <X size={24} color={Theme.colors.foreground} />
             </TouchableOpacity>
           </View>
 
@@ -1002,26 +1017,89 @@ export function HostScreen({
           <View style={styles.popupTabs}>
             {/* (keep your existing tab buttons here) */}
             {/* Analytics */}
-            <TouchableOpacity onPress={handleAnalytics} style={[styles.popupTab, popupActiveTab === "analytics" && styles.popupTabActive]}>
+            <TouchableOpacity
+              onPress={handleAnalytics}
+              style={[
+                styles.popupTab,
+                popupActiveTab === "analytics" && styles.popupTabActive,
+              ]}
+            >
               <View style={styles.popupTabInner}>
-                <BarChart3 size={18} color={popupActiveTab === "analytics" ? Theme.colors.primaryForeground : Theme.colors.mutedForeground} />
-                <Text style={popupActiveTab === "analytics" ? styles.popupTabActiveText : styles.popupTabText}>Analytics</Text>
+                <BarChart3
+                  size={18}
+                  color={
+                    popupActiveTab === "analytics"
+                      ? Theme.colors.primaryForeground
+                      : Theme.colors.mutedForeground
+                  }
+                />
+                <Text
+                  style={
+                    popupActiveTab === "analytics"
+                      ? styles.popupTabActiveText
+                      : styles.popupTabText
+                  }
+                >
+                  Analytics
+                </Text>
               </View>
             </TouchableOpacity>
 
             {/* Scan */}
-            <TouchableOpacity onPress={handleScan} style={[styles.popupTab, popupActiveTab === "scan" && styles.popupTabActive]}>
+            <TouchableOpacity
+              onPress={handleScan}
+              style={[
+                styles.popupTab,
+                popupActiveTab === "scan" && styles.popupTabActive,
+              ]}
+            >
               <View style={styles.popupTabInner}>
-                <QrCode size={18} color={popupActiveTab === "scan" ? Theme.colors.primaryForeground : Theme.colors.mutedForeground} />
-                <Text style={popupActiveTab === "scan" ? styles.popupTabActiveText : styles.popupTabText}>Scan</Text>
+                <QrCode
+                  size={18}
+                  color={
+                    popupActiveTab === "scan"
+                      ? Theme.colors.primaryForeground
+                      : Theme.colors.mutedForeground
+                  }
+                />
+                <Text
+                  style={
+                    popupActiveTab === "scan"
+                      ? styles.popupTabActiveText
+                      : styles.popupTabText
+                  }
+                >
+                  Scan
+                </Text>
               </View>
             </TouchableOpacity>
 
             {/* Guests */}
-            <TouchableOpacity onPress={handleGuests} style={[styles.popupTab, popupActiveTab === "guests" && styles.popupTabActive]}>
+            <TouchableOpacity
+              onPress={handleGuests}
+              style={[
+                styles.popupTab,
+                popupActiveTab === "guests" && styles.popupTabActive,
+              ]}
+            >
               <View style={styles.popupTabInner}>
-                <Users size={18} color={popupActiveTab === "guests" ? Theme.colors.primaryForeground : Theme.colors.mutedForeground} />
-                <Text style={popupActiveTab === "guests" ? styles.popupTabActiveText : styles.popupTabText}>Guests</Text>
+                <Users
+                  size={18}
+                  color={
+                    popupActiveTab === "guests"
+                      ? Theme.colors.primaryForeground
+                      : Theme.colors.mutedForeground
+                  }
+                />
+                <Text
+                  style={
+                    popupActiveTab === "guests"
+                      ? styles.popupTabActiveText
+                      : styles.popupTabText
+                  }
+                >
+                  Guests
+                </Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -1031,21 +1109,151 @@ export function HostScreen({
             {popupActiveTab === "guests" && <GuestsContent />}
             {popupActiveTab === "scan" && <ScanContent />}
             {popupActiveTab === "analytics" && (
-              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 12 }} showsVerticalScrollIndicator={false}>
-                <Text style={{ color: Theme.colors.mutedForeground }}>Analytics UI placeholder</Text>
+              <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ padding: 4, paddingBottom: 24 }}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Attendance Rate */}
+                <View style={styles.analyticsCard}>
+                  <View style={styles.analyticsHeader}>
+                    <TrendingUp
+                      size={18}
+                      color={Theme.colors.foreground}
+                      style={{ marginRight: 8 }}
+                    />
+                    <Text style={styles.analyticsTitle}>Attendance Rate</Text>
+                  </View>
+                  <View style={styles.flexRowSpaceBetweenMb2}>
+                    <Text style={styles.analyticsLabelSmall}>
+                      Current Check-ins
+                    </Text>
+                    <Text style={styles.analyticsValueSmall}>47%</Text>
+                  </View>
+                  <View style={styles.progressBarContainer}>
+                    <LinearGradient
+                      colors={["#C026D3", "#DB2777"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={{ width: "47%", height: "100%" }}
+                    />
+                  </View>
+                </View>
+
+                {/* Ticket Type Breakdown */}
+                <View style={styles.analyticsCard}>
+                  <Text style={[styles.analyticsTitle, { marginBottom: 16 }]}>
+                    Ticket Type Breakdown
+                  </Text>
+
+                  {/* VIP */}
+                  <View style={styles.mb4}>
+                    <View style={styles.flexRowSpaceBetweenMb2}>
+                      <Text style={styles.analyticsLabel}>VIP</Text>
+                      <Text style={styles.analyticsValue}>3/5</Text>
+                    </View>
+                    <View style={styles.progressBarContainer}>
+                      <LinearGradient
+                        colors={["#C026D3", "#DB2777"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={{ width: "60%", height: "100%" }}
+                      />
+                    </View>
+                  </View>
+
+                  {/* Premium */}
+                  <View style={styles.mb4}>
+                    <View style={styles.flexRowSpaceBetweenMb2}>
+                      <Text style={styles.analyticsLabel}>Premium</Text>
+                      <Text style={styles.analyticsValue}>3/5</Text>
+                    </View>
+                    <View style={styles.progressBarContainer}>
+                      <LinearGradient
+                        colors={["#C026D3", "#DB2777"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={{ width: "60%", height: "100%" }}
+                      />
+                    </View>
+                  </View>
+
+                  {/* Standard */}
+                  <View style={styles.mb4}>
+                    <View style={styles.flexRowSpaceBetweenMb2}>
+                      <Text style={styles.analyticsLabel}>Standard</Text>
+                      <Text style={styles.analyticsValue}>1/5</Text>
+                    </View>
+                    <View style={styles.progressBarContainer}>
+                      <LinearGradient
+                        colors={["#C026D3", "#DB2777"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={{ width: "20%", height: "100%" }}
+                      />
+                    </View>
+                  </View>
+                </View>
+
+                {/* Recent Check-ins */}
+                <View style={styles.analyticsCard}>
+                  <View style={styles.analyticsHeader}>
+                    <Eye
+                      size={18}
+                      color={Theme.colors.foreground}
+                      style={{ marginRight: 8 }}
+                    />
+                    <Text style={styles.analyticsTitle}>Recent Check-ins</Text>
+                  </View>
+
+                  {[
+                    { name: "Ava Garcia", type: "Premium", time: "9:00 PM" },
+                    { name: "Daniel Brown", type: "Premium", time: "8:45 PM" },
+                    { name: "Sophia Lee", type: "Premium", time: "8:30 PM" },
+                    { name: "Priya Sharma", type: "VIP", time: "8:15 PM" },
+                    { name: "Lisa Anderson", type: "VIP", time: "8:00 PM" },
+                  ].map((checkin, idx) => (
+                    <View key={idx} style={styles.recentCheckInRow}>
+                      <View>
+                        <Text style={styles.checkInName}>{checkin.name}</Text>
+                        <Text style={styles.checkInType}>{checkin.type}</Text>
+                      </View>
+                      <Text style={styles.checkInTime}>{checkin.time}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Ride Booking */}
+                <View style={styles.rideCard}>
+                  <View style={styles.flexRowCenterGap3}>
+                    <View style={styles.carIconCircle}>
+                      <Car size={20} color={Theme.colors.foreground} />
+                    </View>
+                    <View>
+                      <Text style={styles.rideTitle}>
+                        Need to get to the venue?
+                      </Text>
+                      <Text style={styles.rideSubtitle}>
+                        Book a ride to manage your event
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity style={styles.bookRideButton}>
+                    <CheckCircle2
+                      size={16}
+                      color={Theme.colors.foreground}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text style={styles.bookRideText}>Book Ride</Text>
+                  </TouchableOpacity>
+                </View>
               </ScrollView>
             )}
           </View>
-
         </View>
       </View>
-    </View>
+    </Modal>
   );
-
-
-
-
-
 
   const GuestsContent = () => {
     const guestList = [
@@ -1071,166 +1279,102 @@ export function HostScreen({
         id: 3,
         name: "Emma Wilson",
         email: "emma.w@email.com",
-        ticketType: "Standard",
-        ticketId: "STD-022",
-        time: "8:00 PM",
+        ticketType: "Premium",
+        ticketId: "PRM-023",
+        time: "Pending",
         status: "pending",
       },
       {
         id: 4,
-        name: "David Patel",
-        email: "d.patel@email.com",
-        ticketType: "VIP",
-        ticketId: "VIP-014",
-        time: "6:50 PM",
-        status: "checked",
-      },
-      {
-        id: 5,
-        name: "Olivia Martinez",
-        email: "olivia.m@email.com",
-        ticketType: "Premium",
-        ticketId: "PRE-010",
-        time: "7:10 PM",
+        name: "David Kumar",
+        email: "d.kumar@email.com",
+        ticketType: "Standard",
+        ticketId: "STD-078",
+        time: "Pending",
         status: "pending",
       },
       {
-        id: 6,
-        name: "James Anderson",
-        email: "j.anderson@email.com",
-        ticketType: "Standard",
-        ticketId: "STD-089",
-        time: "8:15 PM",
+        id: 5,
+        name: "Lisa Anderson",
+        email: "lisa.a@email.com",
+        ticketType: "VIP",
+        ticketId: "VIP-002",
+        time: "8:00 PM",
         status: "checked",
+      },
+      {
+        id: 6,
+        name: "James Taylor",
+        email: "j.taylor@email.com",
+        ticketType: "Premium",
+        ticketId: "PRM-034",
+        time: "Pending",
+        status: "pending",
       },
       {
         id: 7,
         name: "Priya Sharma",
         email: "priya.s@email.com",
-        ticketType: "Premium",
-        ticketId: "PRE-023",
-        time: "7:55 PM",
-        status: "pending",
+        ticketType: "VIP",
+        ticketId: "VIP-003",
+        time: "8:15 PM",
+        status: "checked",
       },
       {
         id: 8,
-        name: "William Brown",
-        email: "will.b@email.com",
-        ticketType: "VIP",
-        ticketId: "VIP-009",
-        time: "6:40 PM",
-        status: "checked",
+        name: "Robert Martinez",
+        email: "r.martinez@email.com",
+        ticketType: "Standard",
+        ticketId: "STD-089",
+        time: "Pending",
+        status: "pending",
       },
       {
         id: 9,
-        name: "Ava Thompson",
-        email: "ava.t@email.com",
-        ticketType: "Standard",
-        ticketId: "STD-031",
-        time: "8:20 PM",
-        status: "pending",
-      },
-      {
-        id: 10,
-        name: "Daniel Kim",
-        email: "daniel.k@email.com",
-        ticketType: "VIP",
-        ticketId: "VIP-017",
-        time: "7:20 PM",
-        status: "checked",
-      },
-      {
-        id: 11,
         name: "Sophia Lee",
         email: "sophia.l@email.com",
         ticketType: "Premium",
-        ticketId: "PRE-032",
-        time: "7:05 PM",
+        ticketId: "PRM-056",
+        time: "8:30 PM",
         status: "checked",
+      },
+      {
+        id: 10,
+        name: "Alex Rodriguez",
+        email: "alex.r@email.com",
+        ticketType: "Standard",
+        ticketId: "STD-112",
+        time: "Pending",
+        status: "pending",
+      },
+      {
+        id: 11,
+        name: "Maya Patel",
+        email: "maya.p@email.com",
+        ticketType: "VIP",
+        ticketId: "VIP-004",
+        time: "Pending",
+        status: "pending",
       },
       {
         id: 12,
-        name: "Henry Walker",
-        email: "henry.w@email.com",
-        ticketType: "Standard",
-        ticketId: "STD-099",
-        time: "8:30 PM",
-        status: "pending",
+        name: "Daniel Brown",
+        email: "d.brown@email.com",
+        ticketType: "Premium",
+        ticketId: "PRM-067",
+        time: "8:45 PM",
+        status: "checked",
       },
       {
         id: 13,
-        name: "Meera Gupta",
-        email: "meera.g@email.com",
-        ticketType: "VIP",
-        ticketId: "VIP-025",
-        time: "6:55 PM",
-        status: "checked",
-      },
-      {
-        id: 14,
-        name: "Robert Davis",
-        email: "rob.d@email.com",
+        name: "Olivia White",
+        email: "olivia.w@email.com",
         ticketType: "Standard",
-        ticketId: "STD-052",
-        time: "7:40 PM",
-        status: "checked",
-      },
-      {
-        id: 15,
-        name: "Isabella Harris",
-        email: "isabella.h@email.com",
-        ticketType: "Premium",
-        ticketId: "PRE-044",
-        time: "8:05 PM",
-        status: "pending",
-      },
-      {
-        id: 16,
-        name: "Noah Smith",
-        email: "noah.s@email.com",
-        ticketType: "Standard",
-        ticketId: "STD-061",
-        time: "6:45 PM",
-        status: "checked",
-      },
-      {
-        id: 17,
-        name: "Zara Khan",
-        email: "zara.k@email.com",
-        ticketType: "VIP",
-        ticketId: "VIP-033",
-        time: "7:15 PM",
-        status: "pending",
-      },
-      {
-        id: 18,
-        name: "Ethan Wright",
-        email: "ethan.w@email.com",
-        ticketType: "Standard",
-        ticketId: "STD-074",
-        time: "7:50 PM",
-        status: "checked",
-      },
-      {
-        id: 19,
-        name: "Maya Rodriguez",
-        email: "maya.r@email.com",
-        ticketType: "Premium",
-        ticketId: "PRE-056",
-        time: "7:00 PM",
-        status: "checked",
-      },
-      {
-        id: 20,
-        name: "Lucas Green",
-        email: "lucas.g@email.com",
-        ticketType: "VIP",
-        ticketId: "VIP-045",
-        time: "8:25 PM",
+        ticketId: "STD-123",
+        time: "Pending",
         status: "pending",
       },
     ];
-
 
     return (
       <ScrollView
@@ -1242,13 +1386,14 @@ export function HostScreen({
         {/* Summary Row */}
         <View style={styles.summaryRow}>
           <Text style={styles.summaryText}>
-            Total Guests: <Text style={styles.summaryBold}>{guestList.length}</Text>
+            Total Guests:{" "}
+            <Text style={styles.summaryBold}>{guestList.length}</Text>
           </Text>
 
           <Text style={styles.summaryText}>
             Checked In:{" "}
             <Text style={[styles.summaryBold, { color: "#22c55e" }]}>
-              {guestList.filter(g => g.status === "checked").length}
+              {guestList.filter((g) => g.status === "checked").length}
             </Text>
           </Text>
         </View>
@@ -1267,7 +1412,13 @@ export function HostScreen({
               </View>
 
               <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: 6,
+                  }}
+                >
                   <Text style={styles.guestName}>{g.name}</Text>
 
                   {g.status === "checked" ? (
@@ -1287,10 +1438,16 @@ export function HostScreen({
                   <Text style={styles.guestMeta}>{g.ticketType}</Text>
                   <Text style={styles.dot}>•</Text>
                   <Text style={styles.guestMeta}>{g.ticketId}</Text>
-                  <Text style={styles.dot}>•</Text>
-                  <Text style={[styles.guestMeta, { color: g.status === "checked" ? "#4ade80" : Theme.colors.mutedForeground }]}>
-                    {g.time}
-                  </Text>
+
+                  {/* Only show time if checked in */}
+                  {g.status === "checked" && (
+                    <>
+                      <Text style={styles.dot}>•</Text>
+                      <Text style={[styles.guestMeta, { color: "#4ade80" }]}>
+                        {g.time}
+                      </Text>
+                    </>
+                  )}
                 </View>
               </View>
 
@@ -1298,7 +1455,12 @@ export function HostScreen({
                 <UserCheck size={26} color="#4ade80" />
               ) : (
                 <TouchableOpacity>
-                  <LinearGradient colors={["#D11A87", "#7F1AB2"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.checkInButton}>
+                  <LinearGradient
+                    colors={["#D11A87", "#7F1AB2"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.checkInButton}
+                  >
                     <Text style={styles.checkInButtonText}>Check In</Text>
                   </LinearGradient>
                 </TouchableOpacity>
@@ -1320,7 +1482,6 @@ export function HostScreen({
         contentContainerStyle={{ paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
-
         {/* ---------- CAMERA CARD ---------- */}
         <View
           style={{
@@ -1396,10 +1557,7 @@ export function HostScreen({
               marginBottom: 10,
             }}
           >
-            <Input
-              placeholder="Enter Ticket Number"
-              style={{ flex: 1 }}
-            />
+            <Input placeholder="Enter Ticket Number" style={{ flex: 1 }} />
 
             <LinearGradient
               colors={["#D11A87", "#7F1AB2"]}
@@ -1433,7 +1591,9 @@ export function HostScreen({
           }}
         >
           <View style={styles.scanStatBox}>
-            <Text style={[styles.scanStatNumber, { color: "#C84BFF" }]}>15</Text>
+            <Text style={[styles.scanStatNumber, { color: "#C84BFF" }]}>
+              15
+            </Text>
             <Text style={styles.scanStatLabel}>Total</Text>
           </View>
 
@@ -1447,20 +1607,9 @@ export function HostScreen({
             <Text style={styles.scanStatLabel}>Pending</Text>
           </View>
         </View>
-
       </ScrollView>
     );
   };
-
-
-
-
-
-
-
-
-
-
 
   if (onShowPublished && activeTab === "published") {
     // Parent component (AppNavigator or HostScreen wrapper) will handle the navigation to PublishedEventsScreen
@@ -1471,14 +1620,21 @@ export function HostScreen({
   return (
     <SafeAreaView style={styles.flex1} edges={["top"]}>
       <View style={styles.mainContainer}>
-
         {/* HEADER */}
         <View style={styles.mainHeader}>
-          <TouchableOpacity onPress={handlePublishedTabClick} style={styles.headerIconLeft}>
+          <TouchableOpacity
+            onPress={handlePublishedTabClick}
+            style={styles.headerIconLeft}
+          >
             <ArrowLeft size={22} color={Theme.colors.foreground} />
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={onShowDrafts} style={styles.draftIconWrapper}>
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate(SCREEN_NAMES.DRAFT_EVENTS as never)
+            }
+            style={styles.draftIconWrapper}
+          >
             <FileText size={20} color={Theme.colors.primaryForeground} />
           </TouchableOpacity>
 
@@ -1490,7 +1646,6 @@ export function HostScreen({
           >
             <LayoutDashboard size={22} color={Theme.colors.foreground} />
           </TouchableOpacity>
-
         </View>
         {showEventControlPopup && <EventControlPopup />}
         {/* MENU TABS */}
@@ -1500,7 +1655,10 @@ export function HostScreen({
               setActiveTab("private");
               setShowPublicVerification(false);
             }}
-            style={[styles.tabButton, activeTab === "private" && styles.tabButtonActive]}
+            style={[
+              styles.tabButton,
+              activeTab === "private" && styles.tabButtonActive,
+            ]}
           >
             {activeTab === "private" ? (
               <LinearGradient
@@ -1518,7 +1676,10 @@ export function HostScreen({
 
           <TouchableOpacity
             onPress={handlePublicTabClick}
-            style={[styles.tabButton, activeTab === "public" && styles.tabButtonActive]}
+            style={[
+              styles.tabButton,
+              activeTab === "public" && styles.tabButtonActive,
+            ]}
           >
             {activeTab === "public" ? (
               <LinearGradient
@@ -1570,16 +1731,16 @@ export function HostScreen({
 
         {/* CONTENT */}
         {showPublicVerification ? (
-          <ScrollView 
-            style={styles.flex1} 
+          <ScrollView
+            style={styles.flex1}
             contentContainerStyle={styles.verificationScrollContainer}
             showsVerticalScrollIndicator={false}
           >
             <PublicVerificationForm />
           </ScrollView>
         ) : (
-          <ScrollView 
-            style={styles.flex1} 
+          <ScrollView
+            style={styles.flex1}
             contentContainerStyle={styles.scrollPadding}
             showsVerticalScrollIndicator={false}
           >
@@ -1589,27 +1750,35 @@ export function HostScreen({
 
         {/* BOTTOM ACTION BAR */}
         {!showPublicVerification && activeTab !== "published" && (
-          <View style={styles.bottomActionBar}>
-
-
+          <View
+            style={[
+              styles.bottomActionBar,
+              { paddingBottom: Math.max(12, insets.bottom) },
+            ]}
+          >
             <View style={styles.bottomActionBarInner}>
-              <Button onClick={handleSaveDraft} variant="outline" style={styles.bottomButtonOutline}>
+              <Button
+                onClick={handleSaveDraft}
+                variant="outline"
+                style={styles.bottomButtonOutline}
+              >
                 Save as Draft
               </Button>
 
-              <Button onClick={handlePublishEvent} style={styles.bottomButtonPrimary}>
+              <Button
+                onClick={handlePublishEvent}
+                style={styles.bottomButtonPrimary}
+              >
                 Publish Event
               </Button>
             </View>
           </View>
         )}
-
       </View>
 
       <Toast />
     </SafeAreaView>
   );
-
 }
 
 // --- STYLESHEET ---
@@ -1649,7 +1818,7 @@ const styles = StyleSheet.create({
   draftIconWrapper: {
     position: "absolute",
     left: 60,
-    backgroundColor: "#2A2344",   // same faint circle as screenshot
+    backgroundColor: "#2A2344", // same faint circle as screenshot
     padding: 10,
     borderRadius: 30,
   },
@@ -1724,7 +1893,6 @@ const styles = StyleSheet.create({
   },
   // for date-time dropdown
 
-
   dateBoxWrapper: {
     padding: 12,
     borderWidth: 1,
@@ -1765,10 +1933,10 @@ const styles = StyleSheet.create({
   },
   popupOverallContainer: {
     position: "absolute",
-    top: 70,              // keep it below the header
+    top: 70, // keep it below the header
     left: 0,
     right: 0,
-    bottom: 0,            // <-- allow full overlay height so children can size with percentages
+    bottom: 0, // <-- allow full overlay height so children can size with percentages
     zIndex: 9999,
     elevation: 20,
     alignItems: "center",
@@ -1784,8 +1952,8 @@ const styles = StyleSheet.create({
     borderColor: Theme.colors.border,
 
     // Give the popup a concrete size so inner scrollables can measure.
-    height: "94%",    // concrete height (adjust if you want taller/shorter)
-    width: "92%",     // fixed width percent
+    height: "94%", // concrete height (adjust if you want taller/shorter)
+    width: "92%", // fixed width percent
     overflow: "hidden",
   },
 
@@ -1796,13 +1964,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-
   popupHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
 
+  closeButton: {
+    padding: 8,
+    marginRight: -8,
+  },
   popupTitle: {
     color: Theme.colors.foreground,
     fontSize: 20,
@@ -1889,19 +2060,17 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#30144eff",   // darker, deeper purple
+    backgroundColor: "#30144eff", // darker, deeper purple
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
   },
 
-
   guestIndexText: {
-    color: "#C84BFF",             // neon pink-purple from screenshot
+    color: "#C84BFF", // neon pink-purple from screenshot
     fontWeight: "700",
     fontSize: 14,
   },
-
 
   guestName: {
     color: Theme.colors.foreground,
@@ -1931,16 +2100,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
 
-
-
-
   checkedBadge: {
-    backgroundColor: "rgba(34, 197, 94, 0.12)",   // light green bg
+    backgroundColor: "rgba(34, 197, 94, 0.12)", // light green bg
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: Theme.radius.md,
     borderWidth: 1,
-    borderColor: "rgba(34, 197, 94, 0.4)",        // light green border
+    borderColor: "rgba(34, 197, 94, 0.4)", // light green border
   },
 
   checkedBadgeText: {
@@ -1949,14 +2115,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-
   pendingBadge: {
-    backgroundColor: "rgba(234, 179, 8, 0.12)",   // light amber bg
+    backgroundColor: "rgba(234, 179, 8, 0.12)", // light amber bg
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: Theme.radius.md,
     borderWidth: 1,
-    borderColor: "rgba(234, 179, 8, 0.4)",        // light amber border
+    borderColor: "rgba(234, 179, 8, 0.4)", // light amber border
   },
 
   pendingBadgeText: {
@@ -2006,8 +2171,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     color: Theme.colors.mutedForeground,
   },
-
-
 
   // --- Verification Form ---
   verificationContainer: {
@@ -2247,4 +2410,123 @@ const styles = StyleSheet.create({
     height: 100, // Spacer at the bottom of the ScrollView
   },
 
+  // Analytics Styles
+  analyticsCard: {
+    backgroundColor: Theme.colors.muted,
+    borderRadius: Theme.radius.lg,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+  },
+  analyticsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  analyticsTitle: {
+    color: Theme.colors.foreground,
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  flexRowSpaceBetweenMb2: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  analyticsLabelSmall: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 12,
+  },
+  analyticsValueSmall: {
+    color: Theme.colors.foreground,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  progressBarContainer: {
+    height: 6,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  mb4: {
+    marginBottom: 16,
+  },
+  analyticsLabel: {
+    color: Theme.colors.foreground,
+    fontSize: 14,
+  },
+  analyticsValue: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 14,
+  },
+  recentCheckInRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderColor: "rgba(255,255,255,0.05)",
+  },
+  checkInName: {
+    color: Theme.colors.foreground,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  checkInType: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  checkInTime: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 12,
+  },
+  rideCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#18181B", // Darker card for contrast
+    padding: 16,
+    borderRadius: Theme.radius.lg,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  flexRowCenterGap3: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  carIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Theme.colors.muted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rideTitle: {
+    color: Theme.colors.foreground,
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  rideSubtitle: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  bookRideButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
+  },
+  bookRideText: {
+    color: "#000000",
+    fontSize: 14,
+    fontWeight: "bold",
+  },
 });

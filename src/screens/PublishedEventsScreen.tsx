@@ -10,8 +10,8 @@ import {
   Alert,
   ViewStyle,
   TextStyle,
-  SafeAreaView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ArrowLeft,
   Calendar,
@@ -21,7 +21,9 @@ import {
   Star,
   MessageSquare,
   BarChart3,
+  TrendingUp as TrendingUpIcon, // Rename to avoid conflict if we create a component
 } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { Theme } from "../styles/Theme";
 
@@ -85,29 +87,21 @@ const mockPublishedEvents: PublishedEvent[] = [
     location: "Sky Lounge",
     maxOccupancy: 100,
     registrations: 85,
-    revenue: 127500,
+    revenue: 127500, // Implied from net earnings / 0.8
     serviceCharge: 25500,
     netEarnings: 102000,
     rating: 4.7,
     totalReviews: 42,
     connections: 78,
     status: "completed",
-    reviews: [
-      {
-        id: "r1",
-        userName: "Sarah M.",
-        rating: 5,
-        comment: "Amazing atmosphere!",
-        date: "2024-06-21",
-      },
-    ],
+    reviews: [],
   },
   {
     id: "pub-2",
     name: "Tech Startup Pitch Night",
     date: "2024-07-25",
     location: "Innovation Hub",
-    maxOccupancy: 150,
+    maxOccupancy: 200,
     registrations: 142,
     revenue: 213000,
     serviceCharge: 42600,
@@ -123,7 +117,7 @@ const mockPublishedEvents: PublishedEvent[] = [
     name: "Summer Food Festival",
     date: "2024-07-10",
     location: "Central Plaza",
-    maxOccupancy: 300,
+    maxOccupancy: 350,
     registrations: 278,
     revenue: 417000,
     serviceCharge: 83400,
@@ -132,15 +126,7 @@ const mockPublishedEvents: PublishedEvent[] = [
     totalReviews: 89,
     connections: 234,
     status: "ongoing",
-    reviews: [
-      {
-        id: "r3",
-        userName: "Emma L.",
-        rating: 5,
-        comment: "Incredible variety of food vendors!",
-        date: "2024-07-10",
-      },
-    ],
+    reviews: [],
   },
 ];
 
@@ -223,44 +209,120 @@ export function PublishedEventsScreen() {
 
   // --- SUB COMPONENTS ---
 
+  const EarningsChart = () => (
+    <Card style={styles.chartCard}>
+      <CardHeader>
+        <CardTitle style={styles.chartTitle}>
+          <TrendingUpIcon
+            size={20}
+            color={Theme.colors.foreground}
+            style={{ marginRight: 8 }}
+          />
+          Earnings Overview
+        </CardTitle>
+      </CardHeader>
+      <CardContent style={styles.chartContent}>
+        {/* Y-Axis Labels */}
+        <View style={styles.chartYAxis}>
+          <Text style={styles.chartLabel}>₹180k</Text>
+          <Text style={styles.chartLabel}>₹135k</Text>
+          <Text style={styles.chartLabel}>₹90k</Text>
+          <Text style={styles.chartLabel}>₹45k</Text>
+          <Text style={styles.chartLabel}>₹0k</Text>
+        </View>
+
+        {/* Chart Area */}
+        <View style={styles.chartArea}>
+          {/* Grid Lines */}
+          {[0, 1, 2, 3, 4].map((i) => (
+            <View key={i} style={[styles.gridLine, { top: `${i * 25}%` }]} />
+          ))}
+
+          {/* Visual Chart Placeholder (Gradient Area) */}
+          <LinearGradient
+            colors={["rgba(192, 38, 211, 0.5)", "rgba(192, 38, 211, 0.0)"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.chartGradientArea}
+          />
+          <View style={styles.chartLine} />
+
+          {/* X-Axis Labels */}
+          <View style={styles.chartXAxis}>
+            {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"].map((m) => (
+              <Text key={m} style={styles.chartLabel}>
+                {m}
+              </Text>
+            ))}
+          </View>
+        </View>
+      </CardContent>
+    </Card>
+  );
+
   const EventCard = ({ event }: { event: PublishedEvent }) => (
     <Card onClick={() => setSelectedEvent(event)} style={styles.eventCardBase}>
       <CardContent style={styles.eventCardContent}>
+        {/* Header: Title + Badge */}
         <View style={styles.eventCardHeader}>
-          <View style={styles.flex1}>
-            <Text style={styles.eventCardTitle}>{event.name}</Text>
-            <Text style={styles.eventCardLocation}>{event.location}</Text>
-          </View>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(event.status).backgroundColor }]}>
-            <Text style={{ color: getStatusColor(event.status).color }}>
+          <Text style={styles.eventCardTitle}>{event.name}</Text>
+          <View
+            style={[
+              styles.statusBadge,
+              { borderColor: getStatusColor(event.status).color },
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusText,
+                { color: getStatusColor(event.status).color },
+              ]}
+            >
               {event.status}
             </Text>
           </View>
         </View>
 
+        {/* Location */}
+        <Text style={styles.eventCardLocation}>{event.location}</Text>
+
+        {/* Metrics Grid */}
         <View style={styles.eventCardMetricsGrid}>
-          <View style={styles.metricItem}>
-            <Text style={styles.metricPrimaryText}>{event.registrations}</Text>
-            <Text style={styles.metricSecondaryText}>Registrations</Text>
+          {/* Registrations */}
+          <View style={styles.metricItemLeft}>
+            <Text style={styles.metricBigNumber}>{event.registrations}</Text>
+            <Text style={styles.metricLabel}>Registrations</Text>
           </View>
-          <View style={styles.metricItem}>
-            <Text style={styles.metricPrimaryTextNet}>
+
+          {/* Earnings */}
+          <View style={styles.metricItemRight}>
+            <Text style={styles.metricBigNumberGreen}>
               {formatCurrency(event.netEarnings)}
             </Text>
-            <Text style={styles.metricSecondaryText}>Net Earnings</Text>
+            <Text style={styles.metricLabel}>Net Earnings</Text>
           </View>
         </View>
 
+        {/* Footer: Rating + Connections */}
         <View style={styles.eventCardFooter}>
           <View style={styles.flexRowCenter}>
-            {renderStars(event.rating)}
-            <Text style={styles.eventCardRatingText}>
+            <Star
+              size={14}
+              color="#FBBF24"
+              fill="#FBBF24"
+              style={{ marginRight: 4 }}
+            />
+            <Text style={styles.footerText}>
               {event.rating} ({event.totalReviews})
             </Text>
           </View>
           <View style={styles.flexRowCenter}>
-            <Users size={16} color={Theme.colors.mutedForeground} />
-            <Text style={styles.eventCardRatingText}>
+            <Users
+              size={14}
+              color={Theme.colors.mutedForeground}
+              style={{ marginRight: 4 }}
+            />
+            <Text style={styles.footerText}>
               {event.connections} connections
             </Text>
           </View>
@@ -524,7 +586,7 @@ export function PublishedEventsScreen() {
 
   // --- MAIN RENDER ---
   return (
-    <SafeAreaView style={styles.flex1}>
+    <SafeAreaView style={styles.flex1} edges={["top", "bottom"]}>
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.mainHeader}>
@@ -538,46 +600,43 @@ export function PublishedEventsScreen() {
           <View style={styles.w10} />
         </View>
 
-        {/* Overview Stats */}
-        <View style={styles.overviewContainer}>
-          <View style={styles.overviewGrid}>
-            <Card style={styles.overviewCard}>
-              <CardContent style={styles.p3}>
-                <Text style={styles.overviewMetricNet}>
-                  {formatCurrency(totalNetEarnings)}
-                </Text>
-                <Text style={styles.overviewMetricLabel}>Total Earnings</Text>
-              </CardContent>
-            </Card>
-            <Card style={styles.overviewCard}>
-              <CardContent style={styles.p3}>
-                <Text style={styles.overviewMetricPrimary}>
-                  {totalRegistrations}
-                </Text>
-                <Text style={styles.overviewMetricLabel}>
-                  Total Registrations
-                </Text>
-              </CardContent>
-            </Card>
-          </View>
-          <View style={styles.overviewFooter}>
-            <Text style={styles.overviewFooterText}>
-              {events.length} events published
-            </Text>
-            <Text style={styles.overviewFooterText}>
-              Avg. {averageRating.toFixed(1)}★ rating
-            </Text>
-          </View>
-        </View>
-
-        {/* Events List */}
         <ScrollView
           style={styles.flex1}
-          contentContainerStyle={styles.scrollPaddingList}
+          contentContainerStyle={[styles.scrollPadding, { paddingBottom: 40 }]}
         >
-          {events.map((event) => (
-            <EventCard key={event.id} event={event} />
-          ))}
+          {/* Top Stats Cards */}
+          <View style={styles.statsGrid}>
+            <View style={styles.statsCardPurple}>
+              <Text style={[styles.statsValueGreen, { fontSize: 18 }]}>
+                ₹606,000
+              </Text>
+              <Text style={styles.statsLabel}>Total Earnings</Text>
+            </View>
+            <View style={styles.statsCardPurple}>
+              <Text style={[styles.statsValuePurple, { fontSize: 18 }]}>
+                505
+              </Text>
+              <Text style={styles.statsLabel}>Total Registrations</Text>
+            </View>
+          </View>
+
+          {/* Secondary Stats Row */}
+          <View style={styles.secondaryStatsRow}>
+            <Text style={styles.secondaryStatText}>
+              {events.length} events published
+            </Text>
+            <Text style={styles.secondaryStatText}>Avg. 4.7★ rating</Text>
+          </View>
+
+          {/* Earnings Chart */}
+          <EarningsChart />
+
+          {/* Events List */}
+          <View style={styles.eventsListContainer}>
+            {events.map((event) => (
+              <EventCard key={event.id} event={event} />
+            ))}
+          </View>
         </ScrollView>
 
         {/* Event Detail Modal */}
@@ -594,195 +653,247 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Theme.colors.background,
   },
-  // --- Shared Styles ---
+  scrollPadding: {
+    padding: 16,
+    gap: 24,
+  },
+  // Header
   mainHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderColor: Theme.colors.border,
+    borderColor: "rgba(255,255,255,0.05)",
   },
   mainHeaderTitle: {
     color: Theme.colors.foreground,
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 16,
+    fontWeight: "500",
   },
   backButton: {
-    padding: 8,
-    borderRadius: 9999,
+    padding: 4,
   },
-  w10: { width: 40 }, // Space placeholder
-  flexRowCenter: { flexDirection: "row", alignItems: "center" },
-  flexRowCenterGap2: { flexDirection: "row", alignItems: "center", gap: 8 },
-  flexRowGap4: { flexDirection: "row", gap: 16 },
-  flexRowSpaceBetween: {
+  w10: { width: 32 },
+
+  // Stats Grid
+  statsGrid: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  statsCardPurple: {
+    flex: 1,
+    backgroundColor: "#18122F", // Dark purple bg
+    borderRadius: 12,
+    paddingVertical: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  statsValueGreen: {
+    color: "#22c55e",
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  statsValuePurple: {
+    color: "#C026D3",
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  statsLabel: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 12,
+  },
+
+  // Secondary Stats
+  secondaryStatsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    paddingHorizontal: 4,
   },
-  p3: { padding: 12 },
-  p4: { padding: 16 },
-  mxAutoMb2: { alignSelf: "center", marginBottom: 8 },
-  mt2H2: { marginTop: 8, height: 8 },
-  textAlignCeneter: { textAlign: "center" as "center" },
-  h2: { height: 8 },
-  mt3: { marginTop: 12 },
-  spaceY2: { gap: 8 },
-  flexRowGap2: { flexDirection: "row", gap: 8 },
-  emptyState: { paddingVertical: 48, alignItems: "center" },
-  emptyStateText: { color: Theme.colors.mutedForeground },
-  mxAutoMb4: { alignSelf: "center", marginBottom: 16 },
+  secondaryStatText: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 13,
+  },
 
-  // --- Overview Section ---
-  overviewContainer: {
+  // Chart
+  chartCard: {
+    backgroundColor: "#18122F",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
     padding: 16,
-    borderBottomWidth: 1,
-    borderColor: Theme.colors.border,
   },
-  overviewGrid: {
+  chartTitle: {
     flexDirection: "row",
-    gap: 16,
+    alignItems: "center",
+    fontSize: 16,
+    color: Theme.colors.foreground,
     marginBottom: 16,
   },
-  overviewCard: {
-    flex: 1,
-    backgroundColor: Theme.colors.muted,
-    borderColor: Theme.colors.border,
+  chartContent: {
+    flexDirection: "row",
+    height: 180,
   },
-  overviewMetricNet: {
-    fontSize: 18,
-    color: "#4ADE80", // Green-400
-    fontWeight: "bold",
+  chartYAxis: {
+    justifyContent: "space-between",
+    paddingRight: 8,
+    height: "100%",
+    paddingBottom: 20, // Align with X axis space
   },
-  overviewMetricPrimary: {
-    fontSize: 18,
-    color: Theme.colors.primary,
-    fontWeight: "bold",
-  },
-  overviewMetricLabel: {
-    fontSize: 12,
+  chartLabel: {
     color: Theme.colors.mutedForeground,
+    fontSize: 10,
   },
-  overviewFooter: {
+  chartArea: {
+    flex: 1,
+    height: "100%",
+    position: "relative",
+  },
+  gridLine: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  chartXAxis: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: "row",
     justifyContent: "space-between",
   },
-  overviewFooterText: {
-    fontSize: 14,
-    color: Theme.colors.mutedForeground,
+  chartGradientArea: {
+    position: "absolute",
+    bottom: 20, // Above X-Axis
+    left: 0,
+    right: 0,
+    height: "100%", // Simplified
+    opacity: 0.3,
+  },
+  chartLine: {
+    // Placeholder for line
   },
 
-  // --- Event Card (List) ---
-  scrollPaddingList: {
-    paddingHorizontal: 16,
-    paddingVertical: 24,
+  // Event List
+  eventsListContainer: {
     gap: 16,
   },
   eventCardBase: {
-    backgroundColor: Theme.colors.muted,
-    borderColor: Theme.colors.border,
+    backgroundColor: "#18122F",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    overflow: "hidden",
   },
   eventCardContent: {
-    padding: 16,
-    gap: 12,
+    padding: 20,
   },
   eventCardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 8,
+    marginBottom: 4,
   },
   eventCardTitle: {
-    color: Theme.colors.foreground,
     fontSize: 16,
     fontWeight: "bold",
-  },
-  eventCardLocation: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 12,
+    color: Theme.colors.foreground,
   },
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 9999,
+    borderRadius: 8,
     borderWidth: 1,
+  },
+  statusText: {
     fontSize: 10,
     fontWeight: "500",
   },
+  eventCardLocation: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 13,
+    marginBottom: 20,
+  },
   eventCardMetricsGrid: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderTopWidth: 1,
-    borderColor: Theme.colors.border,
+    justifyContent: "space-between",
+    marginBottom: 20,
   },
-  metricItem: {
+  metricItemLeft: {
     alignItems: "center",
+    flex: 1,
   },
-  metricPrimaryText: {
-    fontSize: 20,
-    color: Theme.colors.primary,
+  metricItemRight: {
+    alignItems: "center",
+    flex: 1,
+  },
+  metricBigNumber: {
+    fontSize: 24,
+    color: "#C026D3",
+    fontWeight: "500",
+    marginBottom: 2,
+  },
+  metricBigNumberGreen: {
+    fontSize: 24,
+    color: "#22c55e",
     fontWeight: "bold",
+    marginBottom: 2,
   },
-  metricPrimaryTextNet: {
-    fontSize: 20,
-    color: "#4ADE80", // Green-400
-    fontWeight: "bold",
-  },
-  metricSecondaryText: {
-    fontSize: 10,
+  metricLabel: {
+    fontSize: 11,
     color: Theme.colors.mutedForeground,
   },
   eventCardFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 8,
   },
-  eventCardRatingText: {
-    fontSize: 14,
+  flexRowCenter: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  footerText: {
     color: Theme.colors.mutedForeground,
-    marginLeft: 4,
-  },
-  starIcon: {
-    marginHorizontal: 1,
+    fontSize: 13,
   },
 
-  // --- Detail Modal ---
-  detailModalContent: {
-    width: "95%",
-    maxHeight: "90%",
-    padding: 16, // Adjust padding for modal
-  },
+  // Shared / Utils
+  flexRowCenterGap2: { flexDirection: "row", alignItems: "center", gap: 8 },
+  flexRowGap4: { flexDirection: "row", gap: 16 },
+  p3: { padding: 12 },
+  p4: { padding: 16 },
+  mt2H2: { marginTop: 8, height: 8 },
+  h2: { height: 8 },
+  mt3: { marginTop: 12 },
+  spaceY2: { gap: 8 },
+  flexRowGap2: { flexDirection: "row", gap: 8 },
+  mxAutoMb2: { alignSelf: "center", marginBottom: 8 },
+  mxAutoMb4: { alignSelf: "center", marginBottom: 16 },
+
+  // Modal Styles (Preserved)
+  detailModalContent: { width: "95%", maxHeight: "90%", padding: 16 },
   modalTabsList: {
     flexDirection: "row",
+    marginTop: 16,
     backgroundColor: Theme.colors.muted,
     borderRadius: Theme.radius.md,
     borderWidth: 1,
     borderColor: Theme.colors.border,
-    overflow: "hidden",
-    marginTop: 16,
   },
   modalTabButton: {
     flex: 1,
-    paddingVertical: 12,
+    padding: 12,
     alignItems: "center",
     justifyContent: "center",
   },
-  modalTabButtonActive: {
-    backgroundColor: Theme.colors.primary,
-  },
-  modalTabTextActive: {
-    color: Theme.colors.foreground,
-    fontWeight: "bold",
-  },
-  modalTabTextInactive: {
-    color: Theme.colors.mutedForeground,
-  },
-  tabContentContainer: {
-    paddingVertical: 16,
-    gap: 16,
-  },
+  modalTabButtonActive: { backgroundColor: Theme.colors.primary },
+  modalTabTextActive: { color: Theme.colors.foreground, fontWeight: "bold" },
+  modalTabTextInactive: { color: Theme.colors.mutedForeground },
+  tabContentContainer: { paddingVertical: 16, gap: 16 },
   analyticCard: {
     flex: 1,
     backgroundColor: Theme.colors.muted,
@@ -793,67 +904,51 @@ const styles = StyleSheet.create({
     color: Theme.colors.foreground,
     fontWeight: "bold",
   },
-  analyticMetricLabel: {
-    fontSize: 14,
-    color: Theme.colors.mutedForeground,
-  },
-  ratingText: {
-    fontSize: 32,
-    color: "#FBBF24",
-    fontWeight: "bold",
-  },
-  starLabel: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 14,
-  },
-  progressBarContainer: {
-    height: 8,
-    width: "100%",
-    backgroundColor: Theme.colors.border,
-    borderRadius: 4,
-    overflow: "hidden",
-  },
-  progressBarFill: {
-    height: "100%",
-    backgroundColor: Theme.colors.primary,
-  },
+  analyticMetricLabel: { fontSize: 14, color: Theme.colors.mutedForeground },
+  ratingText: { fontSize: 24, fontWeight: "bold" },
+  starLabel: { width: 20, fontSize: 12, color: Theme.colors.mutedForeground },
+  emptyState: { alignItems: "center", paddingVertical: 48 },
+  emptyStateText: { color: Theme.colors.mutedForeground },
   reviewHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 4,
-  },
-  reviewUserName: {
-    color: Theme.colors.foreground,
-    fontWeight: "bold",
-  },
-  reviewDate: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 12,
-  },
-  reviewComment: {
-    color: Theme.colors.mutedForeground,
     marginBottom: 8,
   },
+  reviewUserName: { fontWeight: "bold", color: Theme.colors.foreground },
+  reviewDate: { fontSize: 12, color: Theme.colors.mutedForeground },
+  reviewComment: { marginTop: 8, color: Theme.colors.foreground },
   hostReplyBox: {
-    borderLeftWidth: 2,
-    borderLeftColor: Theme.colors.primary,
-    paddingLeft: 12,
-    paddingVertical: 8,
-    backgroundColor: "rgba(196, 81, 201, 0.1)", // primary/10 approximation
-    marginBottom: 8,
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: Theme.colors.muted,
+    borderRadius: 8,
   },
   hostReplyTitle: {
-    color: Theme.colors.primary,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "bold",
+    color: Theme.colors.primary,
+    marginBottom: 4,
   },
-  hostReplyText: {
-    color: Theme.colors.foreground,
-    fontSize: 14,
+  hostReplyText: { fontSize: 12, color: Theme.colors.mutedForeground },
+  flexRowSpaceBetween: {
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   financialLabel: { color: Theme.colors.mutedForeground },
-  financialValue: { color: Theme.colors.foreground },
-  financialDestructiveValue: { color: "#F87171" }, // Red-400
+  financialValue: { color: Theme.colors.foreground, fontWeight: "500" },
+  financialDestructiveValue: {
+    color: Theme.colors.destructive,
+    fontWeight: "500",
+  },
   financialNetLabel: { color: Theme.colors.foreground, fontWeight: "bold" },
-  financialNetValue: { color: "#4ADE80", fontWeight: "bold" }, // Green-400
+  financialNetValue: { color: "#22c55e", fontWeight: "bold" },
+  starIcon: { marginHorizontal: 1 },
+  progressBarContainer: {
+    height: 4,
+    backgroundColor: Theme.colors.border,
+    borderRadius: 2,
+    overflow: "hidden",
+    flex: 1,
+  },
+  progressBarFill: { height: "100%", backgroundColor: Theme.colors.primary },
 });
