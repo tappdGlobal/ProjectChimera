@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authApi, User, SigninData, SignupData } from '../api/authApi';
+import { userApi } from '../api/userApi';
 
 interface AuthState {
   user: User | null;
@@ -88,15 +89,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const token = await AsyncStorage.getItem('authToken');
       if (token) {
-        // TODO: Validate token with backend or decode JWT
-        // For now, assume valid if exists
-        // In production, you might want to call a /me endpoint
-        set({
-          isAuthenticated: true,
-          isLoading: false
-        });
+        try {
+          // Fetch current user profile to validate token and get user data
+          const user = await userApi.getCurrentUser();
+          set({
+            user,
+            isAuthenticated: true,
+            isLoading: false
+          });
+        } catch (error: any) {
+          // Token might be invalid, clear it
+          console.warn('Token validation failed, clearing auth:', error);
+          await AsyncStorage.removeItem('authToken');
+          set({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false
+          });
+        }
       } else {
         set({
+          user: null,
           isAuthenticated: false,
           isLoading: false
         });
@@ -104,6 +117,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (error) {
       console.error('Check auth error:', error);
       set({
+        user: null,
         isAuthenticated: false,
         isLoading: false
       });

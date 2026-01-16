@@ -10,9 +10,12 @@ const Stack = createNativeStackNavigator();
 
 export default function ExploreStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator 
+      screenOptions={{ headerShown: false }}
+      initialRouteName={SCREEN_NAMES.EXPLORE}
+    >
       <Stack.Screen
-        name={SCREEN_NAMES.EXPLORE_HOME}
+        name={SCREEN_NAMES.EXPLORE}
         component={ExploreScreen}
       />
 

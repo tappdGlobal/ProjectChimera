@@ -29,6 +29,11 @@ export const userApi = {
     return response.data;
   },
 
+  getCurrentUser: async (): Promise<User> => {
+    const response = await apiClient.get('/users/me');
+    return response.data;
+  },
+
   getConnections: async (): Promise<any[]> => {
     const response = await apiClient.get('/connections/accepted');
     return response.data;

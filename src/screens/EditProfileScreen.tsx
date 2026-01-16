@@ -1,76 +1,98 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, Dimensions, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/authStore';
 import { storageService } from '../services/storageService';
 import { syncService } from '../services/syncService';
-import { ArrowLeft, Camera, Plus, X } from 'lucide-react-native';
-import { Avatar, AvatarImage, AvatarFallback } from '../components/ui/Avatar';
-import { Select, SelectItem, SelectValue } from '../components/ui/Select';
+import { X, Plus } from 'lucide-react-native';
+import { Select } from '../components/ui/Select';
 import { Picker } from '@react-native-picker/picker';
 import { Theme } from '../styles/Theme';
-import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
+
+const { width, height } = Dimensions.get('window');
 
 export const EditProfileScreen = ({ navigation }: any) => {
   const { user, updateUser } = useAuthStore();
-  const [name, setName] = useState(user?.name || '');
   const [bio, setBio] = useState(user?.bio || '');
-  const [avatar, setAvatar] = useState(user?.avatar || '');
   const [occupation, setOccupation] = useState(user?.occupation || '');
   const [education, setEducation] = useState(user?.education || '');
-  const [lookingFor, setLookingFor] = useState(user?.lookingFor || '');
+  const [lookingForTags, setLookingForTags] = useState<string[]>(
+    typeof user?.lookingFor === 'string' 
+      ? user.lookingFor.split(',').map(s => s.trim()).filter(Boolean)
+      : Array.isArray(user?.lookingFor)
+      ? user.lookingFor
+      : []
+  );
+  const [newLookingFor, setNewLookingFor] = useState('');
   const [age, setAge] = useState(user?.age?.toString() || '');
-  const [height, setHeight] = useState(user?.height?.toString() || '');
+  const [height, setHeight] = useState(
+    user?.height 
+      ? (typeof user.height === 'number' && user.height >= 30 && user.height <= 300
+          ? `${Math.floor(user.height / 30.48)}'${Math.round((user.height % 30.48) / 2.54)}"`
+          : user.height.toString())
+      : ''
+  );
   const [gender, setGender] = useState(user?.gender || '');
   const [location, setLocation] = useState(user?.location || '');
   const [interests, setInterests] = useState<string[]>(user?.interests || []);
-  const [smoking, setSmoking] = useState(user?.smoking || '');
-  const [drinking, setDrinking] = useState(user?.drinking || '');
   const [newInterest, setNewInterest] = useState('');
+  const [smoking, setSmoking] = useState(user?.smoking || 'No');
+  const [drinking, setDrinking] = useState(user?.drinking || 'Socially');
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
-      setName(user.name);
       setBio(user.bio || '');
-      setAvatar(user.avatar || '');
       setOccupation(user.occupation || '');
       setEducation(user.education || '');
-      setLookingFor(user.lookingFor || '');
+      setLookingForTags(
+        typeof user.lookingFor === 'string' 
+          ? user.lookingFor.split(',').map(s => s.trim()).filter(Boolean)
+          : Array.isArray(user.lookingFor)
+          ? user.lookingFor
+          : []
+      );
       setAge(user.age?.toString() || '');
-      setHeight(user.height?.toString() || '');
+      setHeight(
+        user.height 
+          ? (typeof user.height === 'number' && user.height >= 30 && user.height <= 300
+              ? `${Math.floor(user.height / 30.48)}'${Math.round((user.height % 30.48) / 2.54)}"`
+              : user.height.toString())
+          : ''
+      );
       setGender(user.gender || '');
       setLocation(user.location || '');
       setInterests(user.interests || []);
-      setSmoking(user.smoking || '');
-      setDrinking(user.drinking || '');
+      setSmoking(user.smoking || 'No');
+      setDrinking(user.drinking || 'Socially');
     }
   }, [user]);
 
   const handleSave = async () => {
-    if (!name) {
-      Alert.alert("Error", "Name is required");
-      return;
-    }
-
     setIsLoading(true);
     try {
-      // If avatar is a local URI (starts with file://), "upload" it
-      let finalAvatar = avatar;
-      if (avatar && avatar.startsWith('file://')) {
-        finalAvatar = await storageService.uploadImage(avatar);
+      // Convert height from feet'inches" format to cm if needed
+      let heightInCm: number | undefined = undefined;
+      if (height) {
+        const feetInchesMatch = height.match(/(\d+)'(\d+)"/);
+        if (feetInchesMatch) {
+          const feet = parseInt(feetInchesMatch[1]);
+          const inches = parseInt(feetInchesMatch[2]);
+          heightInCm = Math.round((feet * 30.48) + (inches * 2.54));
+        } else {
+          heightInCm = parseFloat(height);
+        }
       }
 
       const updatedUser = {
         ...user!,
-        name,
         bio,
-        avatar: finalAvatar,
         occupation,
         education,
-        lookingFor,
+        lookingFor: lookingForTags.join(', '),
         age: age ? parseInt(age) : undefined,
-        height: height ? parseFloat(height) : undefined,
+        height: heightInCm,
         gender,
         location,
         interests,
@@ -99,6 +121,17 @@ export const EditProfileScreen = ({ navigation }: any) => {
     }
   };
 
+  const addLookingFor = () => {
+    if (newLookingFor.trim() && !lookingForTags.includes(newLookingFor.trim())) {
+      setLookingForTags([...lookingForTags, newLookingFor.trim()]);
+      setNewLookingFor('');
+    }
+  };
+
+  const removeLookingFor = (tag: string) => {
+    setLookingForTags(lookingForTags.filter(t => t !== tag));
+  };
+
   const addInterest = () => {
     if (newInterest.trim() && !interests.includes(newInterest.trim())) {
       setInterests([...interests, newInterest.trim()]);
@@ -110,73 +143,30 @@ export const EditProfileScreen = ({ navigation }: any) => {
     setInterests(interests.filter(i => i !== interest));
   };
 
-  const pickImage = async () => {
-    try {
-      let result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 1,
-      });
-
-      if (!result.canceled) {
-        setAvatar(result.assets[0].uri);
-      }
-    } catch (error) {
-      console.error("ImagePicker Error:", error);
-    }
-  };
-
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <ArrowLeft size={24} color={Theme.colors.foreground} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Profile</Text>
-        <TouchableOpacity onPress={handleSave} disabled={isLoading}>
-          {isLoading ? (
-            <ActivityIndicator size="small" color={Theme.colors.primary} />
-          ) : (
-            <Text style={styles.saveText}>Save</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Edit Profile</Text>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
+            <X size={24} color={Theme.colors.foreground} />
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
 
       <ScrollView 
         style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
+        nestedScrollEnabled={true}
+        bounces={true}
+        alwaysBounceVertical={false}
       >
-        <View style={styles.avatarContainer}>
-          <View style={styles.avatarWrapper}>
-            <Avatar style={styles.avatar}>
-              <AvatarImage src={avatar} alt={name} />
-              <AvatarFallback>
-                <Text style={styles.avatarFallbackText}>
-                  {name ? name.substring(0, 2).toUpperCase() : "HA"}
-                </Text>
-              </AvatarFallback>
-            </Avatar>
-            <TouchableOpacity style={styles.cameraButton} onPress={pickImage}>
-              <Camera size={20} color="#FFF" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Name</Text>
-          <TextInput
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            placeholder="Your Name"
-            placeholderTextColor={Theme.colors.mutedForeground}
-          />
-
-          <Text style={styles.label}>Bio</Text>
+        {/* About Me */}
+        <View style={styles.section}>
+          <Text style={styles.label}>About Me</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={bio}
@@ -184,9 +174,12 @@ export const EditProfileScreen = ({ navigation }: any) => {
             placeholder="Tell us about yourself"
             placeholderTextColor={Theme.colors.mutedForeground}
             multiline
-            numberOfLines={4}
+            numberOfLines={8}
           />
+        </View>
 
+        {/* Occupation */}
+        <View style={styles.section}>
           <Text style={styles.label}>Occupation</Text>
           <TextInput
             style={styles.input}
@@ -195,7 +188,10 @@ export const EditProfileScreen = ({ navigation }: any) => {
             placeholder="Your occupation"
             placeholderTextColor={Theme.colors.mutedForeground}
           />
+        </View>
 
+        {/* Education */}
+        <View style={styles.section}>
           <Text style={styles.label}>Education</Text>
           <TextInput
             style={styles.input}
@@ -204,101 +200,182 @@ export const EditProfileScreen = ({ navigation }: any) => {
             placeholder="Your education"
             placeholderTextColor={Theme.colors.mutedForeground}
           />
+        </View>
 
+        {/* Looking For */}
+        <View style={styles.section}>
           <Text style={styles.label}>Looking For</Text>
-          <Select value={lookingFor} onValueChange={setLookingFor} style={styles.selectTrigger}>
-            <Picker.Item label="Select what you're looking for" value="" />
-            <Picker.Item label="Friendship" value="FRIENDSHIP" />
-            <Picker.Item label="Relationship" value="RELATIONSHIP" />
-            <Picker.Item label="Networking" value="NETWORKING" />
-          </Select>
+          <View style={styles.tagInputContainer}>
+            <TextInput
+              style={styles.tagInput}
+              value={newLookingFor}
+              onChangeText={setNewLookingFor}
+              placeholder="Add motive..."
+              placeholderTextColor={Theme.colors.mutedForeground}
+              onSubmitEditing={addLookingFor}
+            />
+            <TouchableOpacity onPress={addLookingFor} style={styles.addButton}>
+              <Text style={styles.addButtonText}>Add</Text>
+            </TouchableOpacity>
+          </View>
+          {lookingForTags.length > 0 && (
+            <View style={styles.tagsContainer}>
+              {lookingForTags.map((tag, index) => (
+                <View key={index} style={styles.tag}>
+                  <Text style={styles.tagText}>{tag}</Text>
+                  <TouchableOpacity onPress={() => removeLookingFor(tag)} style={styles.tagRemove}>
+                    <X size={14} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
 
-          <Text style={styles.label}>Age</Text>
-          <TextInput
-            style={styles.input}
-            value={age}
-            onChangeText={setAge}
-            placeholder="Your age"
-            placeholderTextColor={Theme.colors.mutedForeground}
-            keyboardType="numeric"
-          />
+        {/* Age and Height */}
+        <View style={styles.twoColumnSection}>
+          <View style={styles.columnItem}>
+            <Text style={styles.label}>Age</Text>
+            <TextInput
+              style={styles.input}
+              value={age}
+              onChangeText={setAge}
+              placeholder="Age"
+              placeholderTextColor={Theme.colors.mutedForeground}
+              keyboardType="numeric"
+            />
+          </View>
+          <View style={styles.columnItem}>
+            <Text style={styles.label}>Height</Text>
+            <TextInput
+              style={styles.input}
+              value={height}
+              onChangeText={setHeight}
+              placeholder="5'10&quot;"
+              placeholderTextColor={Theme.colors.mutedForeground}
+            />
+          </View>
+        </View>
 
-          <Text style={styles.label}>Height (cm)</Text>
-          <TextInput
-            style={styles.input}
-            value={height}
-            onChangeText={setHeight}
-            placeholder="Your height in cm"
-            placeholderTextColor={Theme.colors.mutedForeground}
-            keyboardType="numeric"
-          />
+        {/* Gender and Location */}
+        <View style={styles.twoColumnSection}>
+          <View style={styles.columnItem}>
+            <Text style={styles.label}>Gender</Text>
+            <Select value={gender} onValueChange={setGender} style={styles.selectTrigger}>
+              <Picker.Item label="Select" value="" />
+              <Picker.Item label="Male" value="Male" />
+              <Picker.Item label="Female" value="Female" />
+              <Picker.Item label="Other" value="Other" />
+            </Select>
+          </View>
+          <View style={styles.columnItem}>
+            <Text style={styles.label}>Location</Text>
+            <TextInput
+              style={styles.input}
+              value={location}
+              onChangeText={setLocation}
+              placeholder="Your location"
+              placeholderTextColor={Theme.colors.mutedForeground}
+            />
+          </View>
+        </View>
 
-          <Text style={styles.label}>Gender</Text>
-          <Select value={gender} onValueChange={setGender} style={styles.selectTrigger}>
-            <Picker.Item label="Select your gender" value="" />
-            <Picker.Item label="Male" value="MALE" />
-            <Picker.Item label="Female" value="FEMALE" />
-            <Picker.Item label="Other" value="OTHER" />
-          </Select>
-
-          <Text style={styles.label}>Location</Text>
-          <TextInput
-            style={styles.input}
-            value={location}
-            onChangeText={setLocation}
-            placeholder="Your location"
-            placeholderTextColor={Theme.colors.mutedForeground}
-          />
-
+        {/* Interests */}
+        <View style={styles.section}>
           <Text style={styles.label}>Interests</Text>
-          <View style={styles.interestsContainer}>
+          <View style={styles.tagInputContainer}>
+            <TextInput
+              style={styles.tagInput}
+              value={newInterest}
+              onChangeText={setNewInterest}
+              placeholder="Add interest..."
+              placeholderTextColor={Theme.colors.mutedForeground}
+              onSubmitEditing={addInterest}
+            />
+            <TouchableOpacity onPress={addInterest} style={styles.addButton}>
+              <Text style={styles.addButtonText}>Add</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.tagsContainer}>
             {interests.map((interest, index) => (
-              <View key={index} style={styles.interestTag}>
-                <Text style={styles.interestText}>{interest}</Text>
-                <TouchableOpacity onPress={() => removeInterest(interest)}>
-                  <X size={16} color={Theme.colors.foreground} />
+              <View key={index} style={styles.tag}>
+                <Text style={styles.tagText}>{interest}</Text>
+                <TouchableOpacity onPress={() => removeInterest(interest)} style={styles.tagRemove}>
+                  <X size={14} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>
             ))}
-            <View style={styles.addInterestContainer}>
-              <TextInput
-                style={styles.addInterestInput}
-                value={newInterest}
-                onChangeText={setNewInterest}
-                placeholder="Add interest"
-                placeholderTextColor={Theme.colors.mutedForeground}
-                onSubmitEditing={addInterest}
-              />
-              <TouchableOpacity onPress={addInterest} style={styles.addInterestButton}>
-                <Plus size={20} color={Theme.colors.primary} />
-              </TouchableOpacity>
-            </View>
           </View>
+        </View>
 
-          <Text style={styles.label}>Smoking</Text>
-          <Select value={smoking} onValueChange={setSmoking} style={styles.selectTrigger}>
-            <Picker.Item label="Do you smoke?" value="" />
-            <Picker.Item label="Yes" value="YES" />
-            <Picker.Item label="No" value="NO" />
-            <Picker.Item label="Occasionally" value="OCCASIONALLY" />
-          </Select>
+        {/* Smoking and Drinking */}
+        <View style={styles.twoColumnSection}>
+          <View style={styles.columnItem}>
+            <Text style={styles.label}>Smoking</Text>
+            <Select value={smoking} onValueChange={setSmoking} style={styles.selectTrigger}>
+              <Picker.Item label="Select" value="" />
+              <Picker.Item label="Yes" value="Yes" />
+              <Picker.Item label="No" value="No" />
+              <Picker.Item label="Occasionally" value="Occasionally" />
+            </Select>
+          </View>
+          <View style={styles.columnItem}>
+            <Text style={styles.label}>Drinking</Text>
+            <Select value={drinking} onValueChange={setDrinking} style={styles.selectTrigger}>
+              <Picker.Item label="Select" value="" />
+              <Picker.Item label="Yes" value="Yes" />
+              <Picker.Item label="No" value="No" />
+              <Picker.Item label="Socially" value="Socially" />
+            </Select>
+          </View>
+        </View>
 
-          <Text style={styles.label}>Drinking</Text>
-          <Select value={drinking} onValueChange={setDrinking} style={styles.selectTrigger}>
-            <Picker.Item label="Do you drink?" value="" />
-            <Picker.Item label="Yes" value="YES" />
-            <Picker.Item label="No" value="NO" />
-            <Picker.Item label="Socially" value="SOCIALLY" />
-          </Select>
+        {/* Action Buttons */}
+        <View style={styles.actionButtons}>
+          <TouchableOpacity 
+            style={styles.cancelButton} 
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+          {isLoading ? (
+            <View style={styles.saveButton}>
+              <LinearGradient
+                colors={["#C026D3", "#DB2777"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.saveButtonGradient}
+              >
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              </LinearGradient>
+            </View>
+          ) : (
+            <TouchableOpacity 
+              style={styles.saveButton} 
+              onPress={handleSave}
+            >
+              <LinearGradient
+                colors={["#C026D3", "#DB2777"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.saveButtonGradient}
+              >
+                <Text style={styles.saveButtonText}>Save Changes</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Theme.colors.background,
+  },
+  safeArea: {
     backgroundColor: Theme.colors.background,
   },
   header: {
@@ -308,65 +385,31 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderColor: Theme.colors.border,
-  },
-  backButton: {
-    padding: 4,
+    backgroundColor: Theme.colors.background,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: Theme.colors.foreground,
   },
-  saveText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Theme.colors.primary,
-  },
-  content: {
-    padding: 24,
+  closeButton: {
+    padding: 4,
   },
   scrollContainer: {
     flex: 1,
   },
   scrollContent: {
     padding: 24,
+    paddingBottom: 200,
   },
-  avatarContainer: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  avatarWrapper: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-  },
-  avatarFallbackText: {
-    color: Theme.colors.foreground,
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  cameraButton: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: Theme.colors.primary,
-    padding: 8,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: Theme.colors.background,
-  },
-  inputContainer: {
-    paddingBottom: 24,
+  section: {
+    marginBottom: 24,
   },
   label: {
     fontSize: 14,
-    fontWeight: '500',
-    color: Theme.colors.mutedForeground,
-    marginBottom: 4,
-    marginTop: 16,
+    fontWeight: '600',
+    color: Theme.colors.foreground,
+    marginBottom: 8,
   },
   input: {
     backgroundColor: Theme.colors.muted,
@@ -375,56 +418,120 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Theme.colors.foreground,
     borderWidth: 1,
-    borderColor: Theme.colors.border,
+    borderColor: Theme.colors.primary,
+    minHeight: 44,
   },
   textArea: {
-    height: 100,
+    minHeight: 120,
     textAlignVertical: 'top',
+    paddingTop: 12,
+  },
+  twoColumnSection: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 24,
+    width: '100%',
+  },
+  columnItem: {
+    flex: 1,
+    minWidth: 0, // Important for flex items to shrink properly
   },
   selectTrigger: {
     backgroundColor: Theme.colors.muted,
     borderRadius: 8,
     padding: 12,
     borderWidth: 1,
-    borderColor: Theme.colors.border,
+    borderColor: Theme.colors.primary,
+    minHeight: 44,
   },
-  interestsContainer: {
+  // Tag Input Container
+  tagInputContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  tagInput: {
+    flex: 1,
+    backgroundColor: Theme.colors.muted,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: Theme.colors.foreground,
+    borderWidth: 1,
+    borderColor: Theme.colors.primary,
+    minHeight: 44,
+  },
+  addButton: {
+    backgroundColor: Theme.colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: 44,
+  },
+  addButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Tags Container
+  tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 8,
+    gap: 12,
   },
-  interestTag: {
+  tag: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Theme.colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
     gap: 8,
   },
-  interestText: {
-    color: Theme.colors.primaryForeground,
+  tagText: {
+    color: '#FFFFFF',
     fontSize: 14,
+    fontWeight: '500',
   },
-  addInterestContainer: {
+  tagRemove: {
+    padding: 2,
+  },
+  // Action Buttons
+  actionButtons: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Theme.colors.muted,
+    gap: 16,
+    marginTop: 32,
+    marginBottom: 24,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 14,
     borderRadius: 8,
-    padding: 8,
     borderWidth: 1,
     borderColor: Theme.colors.border,
-    marginTop: 8,
-    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  addInterestInput: {
-    flex: 1,
-    fontSize: 16,
+  cancelButtonText: {
     color: Theme.colors.foreground,
-    padding: 4,
+    fontSize: 16,
+    fontWeight: '600',
   },
-  addInterestButton: {
-    padding: 4,
+  saveButton: {
+    flex: 1,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  saveButtonGradient: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

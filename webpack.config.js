@@ -13,5 +13,12 @@ module.exports = async function (env, argv) {
   config.experiments = config.experiments || {};
   config.experiments.asyncWebAssembly = true;
 
+  // Fix MIME type issues
+  config.devServer = config.devServer || {};
+  config.devServer.headers = {
+    ...config.devServer.headers,
+    'Content-Type': 'text/javascript',
+  };
+
   return config;
 };
