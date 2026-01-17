@@ -5,6 +5,7 @@ import { useUserStore } from "../store/userStore";
 import { AuthStack } from "./AuthStack";
 import AppNavigator from "./AppNavigator";
 import { SplashScreen } from "../screens/SplashScreen";
+import { linking } from "./linking";
 
 // Default user for testing when bypassing auth
 const DEFAULT_TEST_USER: User = {
