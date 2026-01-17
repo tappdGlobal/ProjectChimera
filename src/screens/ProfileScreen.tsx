@@ -49,7 +49,15 @@ import { Switch } from "react-native";
 import { Avatar, AvatarImage, AvatarFallback } from "../components/ui/Avatar";
 import { Theme } from "../styles/Theme";
 import { SCREEN_NAMES } from "../navigation/Routes";
-
+import { StatusBar } from "react-native";
+import { useUserStore } from "../store/userStore";
+import { TappdBandPopup } from "../components/profile/TappdBandPopup";
+import { ManageBandPopup } from "../components/profile/ManageBandPopup";
+import { ChangeEmailPopup } from "../components/profile/ChangeEmailPopup";
+import { PaymentDetailForm } from "../components/profile/PaymentDetailForm";
+import { ChangePasswordPopup } from "../components/profile/ChangePasswordPopup";
+import { ManagePaymentInformationPopup } from "../components/profile/ManagePaymentInformationPopup";
+import { AddPaymentAccountTypePopup } from "../components/profile/AddPaymentAccountTypePopup";
 const { width } = Dimensions.get("window");
 
 // --- MOCK DATA ---
@@ -117,6 +125,23 @@ export function ProfileScreen() {
   const [profileImage, setProfileImage] = useState(user?.avatar || harshPhotos[0]);
   const [connections, setConnections] = useState<any[]>([]);
   const [isLoadingConnections, setIsLoadingConnections] = useState(false);
+  const [showTappdBandPopup, setShowTappdBandPopup] = useState(false);
+  const [showManageBandPopup, setShowManageBandPopup] = useState(false);
+  const [showChangeEmailPopup, setShowChangeEmailPopup] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
+
+
+  type PaymentFlow =
+    | "NONE"
+    | "MANAGE"
+    | "ACCOUNT_TYPE"
+    | "DETAIL_FORM";
+
+  const [paymentFlow, setPaymentFlow] = useState<PaymentFlow>("NONE");
+  const [paymentType, setPaymentType] = useState<
+    "Individual" | "Business" | null
+  >(null);
 
   // Update profile image if user avatar changes
   React.useEffect(() => {
@@ -156,12 +181,18 @@ export function ProfileScreen() {
       }
     })();
   }, []);
+  const name = useUserStore((state) => state.user?.data?.name);
+  const bio = useUserStore((state) => state.user?.data?.bio);
+  const profilePicUrl = useUserStore((state) => state.user?.profilePicUrl);
+  const photos = useUserStore((state) => state.user?.photos);
+  const uploadPhotos = useUserStore((state) => state.uploadPhotos);
 
+  console.log(profilePicUrl)
   const filteredConnections = connections;
 
   const pickImage = async (isProfile: boolean = false) => {
     try {
-      let result = await ImagePicker.launchImageLibraryAsync({
+      const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: isProfile ? [1, 1] : [9, 16],
@@ -170,17 +201,18 @@ export function ProfileScreen() {
 
       if (!result.canceled) {
         const uri = result.assets[0].uri;
+
         if (isProfile) {
           setProfileImage(uri);
         } else {
-          // For gallery photos, in a real app, you would add to state array
-          console.log("Photo added to gallery:", uri);
+          await uploadPhotos([uri]); // ✅ ACTUAL UPLOAD
         }
       }
     } catch (error) {
       console.error("ImagePicker Error:", error);
     }
   };
+
 
   // --- SUB COMPONENTS ---
 
@@ -203,9 +235,7 @@ export function ProfileScreen() {
           <View style={styles.settingsList}>
             <TouchableOpacity
               style={styles.settingsRow}
-              onPress={() =>
-                Alert.alert("Register TAPPD Band", "Feature coming soon.")
-              }
+              onPress={() => setShowTappdBandPopup(true)}
             >
               <Smartphone
                 size={18}
@@ -216,9 +246,11 @@ export function ProfileScreen() {
               <ChevronRight size={18} color={Theme.colors.mutedForeground} />
             </TouchableOpacity>
 
+
             <TouchableOpacity
               style={styles.settingsRow}
-              onPress={() => Alert.alert("Manage Bands", "Feature coming soon.")}
+              onPress={() => setShowManageBandPopup(true)}
+
             >
               <Smartphone
                 size={18}
@@ -235,7 +267,7 @@ export function ProfileScreen() {
           <View style={styles.settingsList}>
             <TouchableOpacity
               style={styles.settingsRow}
-              onPress={() => Alert.alert("Change Email", "Feature coming soon.")}
+              onPress={() => setShowChangeEmailPopup(true)}
             >
               <UserIcon
                 size={18}
@@ -248,9 +280,7 @@ export function ProfileScreen() {
 
             <TouchableOpacity
               style={styles.settingsRow}
-              onPress={() =>
-                Alert.alert("Change Password", "Feature coming soon.")
-              }
+              onPress={() => setShowChangePassword(true)}
             >
               <KeyRound
                 size={18}
@@ -264,10 +294,7 @@ export function ProfileScreen() {
             <TouchableOpacity
               style={styles.settingsRow}
               onPress={() =>
-                Alert.alert(
-                  "Manage Payment Information",
-                  "Feature coming soon."
-                )
+                setPaymentFlow("MANAGE")
               }
             >
               <CreditCard
@@ -406,7 +433,13 @@ export function ProfileScreen() {
 
   // --- MAIN RENDER ---
   return (
-    <SafeAreaView style={styles.flex1} edges={["top"]}>
+    <SafeAreaView style={styles.flex1} edges={["left", "right"]}>
+      <StatusBar
+    barStyle="light-content"
+    backgroundColor={Theme.colors.background}
+    translucent={false}
+  />
+
       <View style={styles.mainContainer}>
         {/* Header */}
         <View style={styles.header}>
@@ -433,17 +466,26 @@ export function ProfileScreen() {
               <View style={styles.photoWrapper}>
                 <View style={styles.avatarBorder}>
                   <Avatar style={styles.avatarStyle}>
-                    {profileImage && profileImage.trim() !== "" ? (
-                      <AvatarImage src={profileImage} alt={user?.name || "User Profile"} />
-                    ) : (
-                      <AvatarFallback>
-                        <Text style={{ color: Theme.colors.foreground }}>
-                          {user?.name ? user.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() : "HA"}
-                        </Text>
-                      </AvatarFallback>
-                    )}
+                    <AvatarImage
+                      src={profilePicUrl ?? profileImage}
+                      alt={name ?? "User Profile"}
+                    />
+
+                    <AvatarFallback>
+                      <Text style={{ color: Theme.colors.foreground }}>
+                        {name
+                          ? name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .substring(0, 2)
+                            .toUpperCase()
+                          : "HA"}
+                      </Text>
+                    </AvatarFallback>
                   </Avatar>
                 </View>
+
                 <Button
                   size="icon"
                   style={styles.cameraButton}
@@ -453,8 +495,9 @@ export function ProfileScreen() {
                 </Button>
               </View>
 
+
               {/* Name & Info */}
-              <Text style={styles.userName}>{user?.name || "Guest User"}</Text>
+              <Text style={styles.userName}>{name ?? "Guest"}</Text>
               {user?.bio && (
                 <Text style={styles.tagline} numberOfLines={2}>
                   {user.bio}
@@ -503,7 +546,7 @@ export function ProfileScreen() {
                 <View style={styles.tabContent}>
                   <Text style={styles.sectionTitle}>About Me</Text>
                   <Text style={styles.bioText}>
-                    {user?.bio || "No bio available."}
+                    {bio ?? "No bio available."}
                   </Text>
                   <View style={styles.detailsGrid}>
                     {user?.education && (
@@ -543,21 +586,16 @@ export function ProfileScreen() {
                     >
                       <Plus size={24} color={Theme.colors.mutedForeground} />
                     </TouchableOpacity>
-                    {(user?.photos || []).map((photo, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        style={styles.photoItem}
-                        onPress={() => setSelectedPhoto(photo)}
-                      >
-                        <Image
-                          source={{ uri: photo }}
-                          style={styles.photoGridImage}
-                          resizeMode="cover"
-                        />
+
+                    {(photos ?? []).map((photo, index) => (
+                      <TouchableOpacity key={index}>
+                        <Image source={{ uri: photo }} />
                       </TouchableOpacity>
                     ))}
+
                   </View>
                 </View>
+
               )}
 
               {activeTab === "connections" && (
@@ -621,8 +659,8 @@ export function ProfileScreen() {
                   <View style={styles.settingsList}>
                     <TouchableOpacity
                       style={styles.settingsRow}
-                      onPress={() =>
-                        Alert.alert("Register TAPPD Band", "Feature coming soon.")
+                      onPress={
+                        () => setShowTappdBandPopup(true)
                       }
                     >
                       <Smartphone
@@ -635,7 +673,7 @@ export function ProfileScreen() {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.settingsRow}
-                      onPress={() => Alert.alert("Manage Bands", "Feature coming soon.")}
+                      onPress={() => setShowManageBandPopup(true)}
                     >
                       <Smartphone
                         size={18}
@@ -651,7 +689,7 @@ export function ProfileScreen() {
                   <View style={styles.settingsList}>
                     <TouchableOpacity
                       style={styles.settingsRow}
-                      onPress={() => Alert.alert("Change Email", "Feature coming soon.")}
+                      onPress={() => setShowChangeEmailPopup(true)}
                     >
                       <UserIcon
                         size={18}
@@ -663,9 +701,7 @@ export function ProfileScreen() {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.settingsRow}
-                      onPress={() =>
-                        Alert.alert("Change Password", "Feature coming soon.")
-                      }
+                      onPress={() => setShowChangePassword(true)}
                     >
                       <KeyRound
                         size={18}
@@ -678,10 +714,7 @@ export function ProfileScreen() {
                     <TouchableOpacity
                       style={styles.settingsRow}
                       onPress={() =>
-                        Alert.alert(
-                          "Manage Payment Information",
-                          "Feature coming soon."
-                        )
+                        setPaymentFlow("MANAGE")
                       }
                     >
                       <CreditCard
@@ -797,23 +830,137 @@ export function ProfileScreen() {
       </View>
       <SettingsDialog />
       <PhotoDialog />
+      <TappdBandPopup
+        visible={showTappdBandPopup}
+        onClose={() => setShowTappdBandPopup(false)}
+        onStartPairing={() => {
+          setShowTappdBandPopup(false);
+          // TODO: Start BLE / NFC pairing here
+        }}
+      />
+      <ManageBandPopup
+        visible={showManageBandPopup}
+        onClose={() => setShowManageBandPopup(false)}
+      />
+      <ChangeEmailPopup
+        visible={showChangeEmailPopup}
+        onClose={() => setShowChangeEmailPopup(false)}
+        onSubmit={(email) => {
+          console.log("New email:", email);
+          setShowChangeEmailPopup(false);
+          // TODO: call API here
+        }}
+      />
+      <ChangePasswordPopup
+        visible={showChangePassword}
+        onClose={() => setShowChangePassword(false)}
+        onRequestOtp={(email) => {
+          console.log("Request OTP for", email);
+        }}
+        onSubmit={(payload) => {
+          console.log("Reset password payload", payload);
+          setShowChangePassword(false);
+        }}
+      />
+      {paymentFlow === "MANAGE" && (
+        <ManagePaymentInformationPopup
+          visible
+          onClose={() => setPaymentFlow("NONE")}
+          payments={[
+            {
+              id: "1",
+              bankName: "HDFC Bank",
+              last4: "4567",
+              email: "harsh@tappd.co.in",
+              phone: "+91 98765 43210",
+              type: "Individual",
+              addedOn: "15 Dec 2024",
+              verified: true,
+            },
+            {
+              id: "2",
+              bankName: "ICICI Bank",
+              last4: "8901",
+              email: "business@tappd.co.in",
+              phone: "+91 98765 43210",
+              type: "Business",
+              addedOn: "10 Jan 2025",
+              verified: true,
+            },
+          ]}
+          onAddNew={() => setPaymentFlow("ACCOUNT_TYPE")}
+          onEdit={(id) => {
+            setEditingPaymentId(id);
+            setPaymentFlow("DETAIL_FORM");
+          }}
+
+          onDelete={(id) => console.log("Delete", id)}
+        />
+      )}
+
+      {paymentFlow === "ACCOUNT_TYPE" && (
+        <AddPaymentAccountTypePopup
+          visible
+          onClose={() => setPaymentFlow("MANAGE")}
+          onSelectIndividual={() => {
+            setPaymentType("Individual");
+            setPaymentFlow("DETAIL_FORM");
+          }}
+          onSelectBusiness={() => {
+            setPaymentType("Business");
+            setPaymentFlow("DETAIL_FORM");
+          }}
+        />
+      )}
+
+      {paymentFlow === "DETAIL_FORM" && (
+        <PaymentDetailForm
+          visible
+          onClose={() => {
+            setEditingPaymentId(null);
+            setPaymentType(null);
+            setPaymentFlow("NONE");
+          }}
+          onBack={() => {
+            setEditingPaymentId(null);
+            setPaymentFlow("MANAGE");
+          }}
+          onSave={(data) => {
+            if (editingPaymentId) {
+              console.log("Updating payment:", editingPaymentId, data);
+            } else {
+              console.log("Creating new payment:", data, paymentType);
+            }
+
+            setEditingPaymentId(null);
+            setPaymentType(null);
+            setPaymentFlow("MANAGE");
+          }}
+        />
+      )}
+
     </SafeAreaView>
   );
 }
+
 
 // --- STYLESHEET ---
 const styles = StyleSheet.create({
   flex1: { flex: 1 },
   mainContainer: { flex: 1, backgroundColor: Theme.colors.background },
   // Header
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderColor: Theme.colors.border,
-  },
+ header: {
+  paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+  backgroundColor: Theme.colors.background,
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  paddingHorizontal: 16,
+  paddingBottom: 16,
+  borderBottomWidth: 1,
+  borderColor: Theme.colors.border,
+},
+
   backButton: { padding: 4 },
   headerTitle: {
     color: Theme.colors.foreground,
