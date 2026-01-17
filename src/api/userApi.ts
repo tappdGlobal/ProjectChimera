@@ -1,43 +1,35 @@
-import { apiClient } from '../services/api';
-import { User } from './authApi';
-
-export interface UpdateProfileData {
-  name?: string;
-  bio?: string;
-  profilePicUrl?: string;
-  occupation?: string;
-  education?: string;
-  lookingFor?: string;
-  age?: number;
-  height?: number;
-  gender?: string;
-  location?: string;
-  interests?: string[];
-  smoking?: string;
-  drinking?: string;
-  // Add other updatable fields as needed
-}
+import { apiClient } from "../services/api";
+import { User } from "./user.model";
 
 export const userApi = {
-  updateProfile: async (userId: string, data: UpdateProfileData): Promise<User> => {
-    const response = await apiClient.put(`/users/${userId}`, data);
-    return response.data;
+  /* ================= GET USER ================= */
+  getUserById: async (userId: string): Promise<User> => {
+    return apiClient.get(`/users/${userId}`);
   },
 
-  getProfile: async (userId: string): Promise<User> => {
-    const response = await apiClient.get(`/users/${userId}`);
-    return response.data;
-  },
+  /* ================= UPLOAD PHOTOS ================= */
+  uploadPhotos: async (
+    userId: string,
+    photos: string[]
+  ): Promise<string[]> => {
+    const formData = new FormData();
 
-  getCurrentUser: async (): Promise<User> => {
-    const response = await apiClient.get('/users/me');
-    return response.data;
-  },
+    photos.forEach((uri, index) => {
+      formData.append("photos", {
+        uri,
+        name: `photo_${index}.jpg`,
+        type: "image/jpeg",
+      } as any);
+    });
 
-  getConnections: async (): Promise<any[]> => {
-    const response = await apiClient.get('/connections/accepted');
-    return response.data;
-  },
+    const response = await apiClient.post(
+      `/users/${userId}/photos`,
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      }
+    );
 
-  // Add other user-related endpoints as needed
+    return response.data.photos; 
+  },
 };

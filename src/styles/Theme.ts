@@ -15,8 +15,8 @@ const MUTED_COLOR_RGB = "rgba(255, 255, 255, 0.1)"; // --muted, --border
 const MUTED_FOREGROUND_RGB = "rgba(255, 255, 255, 0.7)"; // --muted-foreground
 
 // Input & Border
-const INPUT_BACKGROUND_RGB = "rgba(255, 255, 255, 0.05)"; // --input-background
-const BORDER_COLOR_RGB = "rgba(255, 255, 255, 0.1)"; // --border
+const INPUT_BACKGROUND_RGB = "rgba(255, 255, 255, 0.1)"; // --input-background (Increased from 0.05)
+const BORDER_COLOR_RGB = "rgba(255, 255, 255, 0.2)"; // --border (Increased from 0.1)
 
 // Chart Colors
 const CHART_1 = "#c451c9";

@@ -10,14 +10,12 @@ const Icon = ({ name, color, size }: any) => <View style={{ width: size, height:
 import { ExploreScreen } from "../screens/ExploreScreen";
 import { HostStackScreen } from "./HostStack";
 import { ProfileScreen } from "../screens/ProfileScreen";
-import { EngageScreen } from "../screens/EngageScreen";
 import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { ReconnectScreen } from "../screens/ReconnectScreen";
 import { BottomNavigation } from "./BottomNavigation";
 import { EditProfileScreen } from "../screens/EditProfileScreen";
 import ExploreStack from "./ExploreStack";
-import { ChatDetailScreen } from "../components/engage/ChatDetailScreen";
-
+import EngageStack from "./EngageStack";
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const Stack = createStackNavigator<AppStackParamList>();
@@ -34,7 +32,7 @@ const MainTabs = () => {
     >
       <Tab.Screen
         name={SCREEN_NAMES.EXPLORE}
-        component={ExploreStack} 
+        component={ExploreStack}
         options={{
           tabBarIcon: ({ color, size }) => (
             <Icon name="compass-outline" color={color} size={size} />
@@ -44,7 +42,7 @@ const MainTabs = () => {
 
       <Tab.Screen
         name={SCREEN_NAMES.ENGAGE}
-        component={EngageScreen}
+        component={EngageStack}
         options={{
           tabBarIcon: ({ color, size }) => (
             <Icon name="people-outline" color={color} size={size} />
@@ -86,8 +84,10 @@ const AppNavigator = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name={SCREEN_NAMES.MAIN_TABS} component={MainTabs} />
-      <Stack.Screen name={SCREEN_NAMES.EDIT_PROFILE} component={EditProfileScreen} />
-      <Stack.Screen name={SCREEN_NAMES.CHAT_DETAIL} component={ChatDetailScreen} />
+      <Stack.Screen
+        name={SCREEN_NAMES.EDIT_PROFILE}
+        component={EditProfileScreen}
+      />
     </Stack.Navigator>
   );
 };

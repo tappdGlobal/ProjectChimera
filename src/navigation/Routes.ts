@@ -9,12 +9,14 @@ export const SCREEN_NAMES = {
   // App Stack
   MAIN_TABS: "MainTabs",
   EDIT_PROFILE: "EditProfile",
-  CHAT_DETAIL: "ChatDetail", // ✅ Added
+  CHAT_DETAIL: "ChatDetail",
+  CHAT_SETTINGS: "ChatSettings", // ✅ Added
 
   // Tabs
   EXPLORE: "Explore",
   EXPLORE_HOME: "ExploreHome",
   ENGAGE: "Engage",
+  ENGAGE_HOME: "EngageHome", // ✅ Added
   HOST: "Host",
   PROFILE: "Profile",
   NOTIFICATIONS: "Notifications",
@@ -51,6 +53,7 @@ export type AppStackParamList = {
     name: string;
     avatar: string;
   };
+  [SCREEN_NAMES.CHAT_SETTINGS]: undefined; // ✅ Added
 };
 
 export type ExploreStackParamList = {
@@ -63,5 +66,15 @@ export type ExploreStackParamList = {
   [SCREEN_NAMES.EVENT_DETAIL]: {
     event: any; 
   };
+};
+
+export type EngageStackParamList = {
+  [SCREEN_NAMES.ENGAGE_HOME]: undefined;
+  [SCREEN_NAMES.CHAT_DETAIL]: {
+    chatId: string;
+    name: string;
+    avatar: string;
+  };
+  [SCREEN_NAMES.CHAT_SETTINGS]: undefined;
 };
 

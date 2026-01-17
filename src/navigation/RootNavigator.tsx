@@ -1,14 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { useAuthStore } from '../store/authStore';
-import { AuthStack } from './AuthStack';
-import AppNavigator from './AppNavigator'; // This is our AppStack (Tab Navigator)
-import { ActivityIndicator, View, StyleSheet, Platform } from 'react-native';
-import { SplashScreen } from '../screens/SplashScreen';
-import { User } from '../api/authApi';
-
-import { linking } from './linking';
-import { notificationService } from '../services/notificationService';
+import React, { useEffect } from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { useAuthStore } from "../store/authStore";
+import { useUserStore } from "../store/userStore";
+import { AuthStack } from "./AuthStack";
+import AppNavigator from "./AppNavigator";
+import { SplashScreen } from "../screens/SplashScreen";
 
 // Default user for testing when bypassing auth
 const DEFAULT_TEST_USER: User = {
@@ -42,56 +38,28 @@ const DEFAULT_TEST_USER: User = {
 };
 
 export const RootNavigator = () => {
-  const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
-  const [showSplash, setShowSplash] = useState(true);
-
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isHydrated = useAuthStore((s) => s.isHydrated);
+  
   useEffect(() => {
-    // Check authentication status on mount
-    checkAuth();
-    // Only register for notifications on native platforms
-    if (Platform.OS !== 'web') {
-      notificationService.registerForPushNotificationsAsync().catch((error) => {
-        console.warn('Failed to register for notifications:', error);
-      });
-    }
-  }, [checkAuth]);
-
-  useEffect(() => {
-    // Show splash screen for 2.5 seconds
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-    }, 2500);
-
-    return () => clearTimeout(timer);
+    useAuthStore.getState().hydrateAuth();
   }, []);
 
-  // Show splash screen
-  if (showSplash) {
+  useEffect(() => {
+    if (isAuthenticated) {
+      useUserStore.getState().fetchUser();
+    } else {
+      useUserStore.getState().clearUser();
+    }
+  }, [isAuthenticated]);
+
+  if (!isHydrated) {
     return <SplashScreen />;
   }
 
-  // Show loading indicator while checking auth
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-      </View>
-    );
-  }
-
-  // Show appropriate navigator based on auth state
   return (
     <NavigationContainer linking={linking as any}>
       {isAuthenticated ? <AppNavigator /> : <AuthStack />}
     </NavigationContainer>
   );
 };
-
-const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#121212',
-  },
-});

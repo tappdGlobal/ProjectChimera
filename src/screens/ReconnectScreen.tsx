@@ -5,414 +5,988 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   Image,
+  ScrollView,
 } from "react-native";
-import { X, Heart, LayoutGrid, Layers } from "lucide-react-native";
-import { useNavigation } from "@react-navigation/native";
+import { Heart, MapPin, Layers, LayoutGrid, X, Eye, MessageCircle, Clock, UserPlus, ArrowLeft } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Theme } from "../styles/Theme";
-import { Button } from "../components/ui/Button";
+import { Theme, GRADIENT_COLORS } from "../styles/Theme";
+import { LinearGradient } from "expo-linear-gradient";
+import Modal from "react-native-modal";
 
-// --- MOCK DATA ---
-interface FriendRequest {
-  id: string;
-  name: string;
-  age: number;
-  gender: string;
-  location: string;
-  image: string;
-}
-
-const initialRequests: FriendRequest[] = [
+// Mock data for List View
+const listData = [
   {
     id: "1",
     name: "Claudia Alves",
-    age: 24,
     gender: "Female",
     location: "MATCHA CLUB",
-    image:
-      "https://images.unsplash.com/photo-1615338437154-3b752f3e1a6f?crop=face&fit=crop&w=400&h=400",
+    image: "https://images.unsplash.com/photo-1615338437154-3b752f3e1a6f?crop=face&fit=crop&w=400&h=400",
   },
   {
     id: "2",
     name: "Marcus Rodriguez",
-    age: 28,
     gender: "Male",
     location: "DOWNTOWN LOUNGE",
-    image:
-      "https://images.unsplash.com/photo-1633037543479-a70452ea1e12?crop=face&fit=crop&w=400&h=400",
+    image: "https://images.unsplash.com/photo-1633037543479-a70452ea1e12?crop=face&fit=crop&w=400&h=400",
   },
   {
     id: "3",
     name: "Sofia Chen",
-    age: 26,
     gender: "Female",
     location: "ROOFTOP BAR",
-    image:
-      "https://images.unsplash.com/photo-1687610265701-1255ece05d75?crop=face&fit=crop&w=400&h=400",
+    image: "https://images.unsplash.com/photo-1687610265701-1255ece05d75?crop=face&fit=crop&w=400&h=400",
+  },
+  {
+    id: "4",
+    name: "David Park",
+    gender: "Male",
+    location: "JAZZ CAFE",
+    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?crop=face&fit=crop&w=400&h=400",
+  },
+  {
+    id: "5",
+    name: "Emma Wilson",
+    gender: "Female",
+    location: "WINE BAR",
+    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=face&fit=crop&w=400&h=400",
   },
 ];
-// --- END MOCK DATA ---
+
+// Mock data for Crossed Paths
+const crossedPathsData = [
+  {
+    id: "1",
+    name: "Isabella Martinez",
+    age: 25,
+    crossedCount: 3,
+    location: "Sky Lounge, Mumbai",
+    timeAgo: "2 hours ago",
+    distance: "5m away",
+    interests: ["Jazz", "Art", "Coffee"],
+    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=face&fit=crop&w=400&h=400",
+  },
+  {
+    id: "2",
+    name: "Alex Thompson",
+    age: 28,
+    crossedCount: 1,
+    location: "Central Cafe, Bandra",
+    timeAgo: "5 hours ago",
+    distance: "10m away",
+    interests: ["Tech", "Food"],
+    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=face&fit=crop&w=400&h=400",
+  },
+  {
+    id: "3",
+    name: "Priya Sharma",
+    age: 26,
+    crossedCount: 2,
+    location: "Innovation Hub, Powai",
+    timeAgo: "Yesterday",
+    distance: "15m away",
+    interests: ["Startup", "Networking", "Yoga"],
+    image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?crop=face&fit=crop&w=400&h=400",
+  },
+  {
+    id: "4",
+    name: "Rahul Verma",
+    age: 29,
+    crossedCount: 5,
+    location: "Downtown Club, Lower Parel",
+    timeAgo: "2 days ago",
+    distance: "20m away",
+    interests: ["Music", "Nightlife", "Sports"],
+    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?crop=face&fit=crop&w=400&h=400",
+  },
+];
 
 export function ReconnectScreen() {
-  const navigation = useNavigation();
-  const [viewMode, setViewMode] = useState<"swipe" | "list">("swipe");
-  const [requests, setRequests] = useState(initialRequests);
-  const [currentIndex, setCurrentIndex] = useState(0);
-
-  const handleButtonAction = (
-    action: "accept" | "decline",
-    requestId: string
-  ) => {
-    // Filter out the dismissed request
-    const newRequests = requests.filter((req) => req.id !== requestId);
-    setRequests(newRequests);
-
-    // Logic to update currentIndex to stay within bounds or move to the next item
-    if (newRequests.length > 0) {
-      // If current index is now out of bounds, reset it. Otherwise, keep it the same
-      // to move to the 'new' item now at that position.
-      setCurrentIndex((prevIndex) =>
-        Math.min(prevIndex, newRequests.length - 1)
-      );
-    } else {
-      setCurrentIndex(0); // Reset index if list is empty
-    }
-  };
-
-  const currentRequest = requests[currentIndex];
-
-  if (requests.length === 0) {
-    return (
-      <View style={styles.emptyStateContainer}>
-        <Text style={styles.emptyStateTitle}>No more friend requests!</Text>
-        <Text style={styles.emptyStateText}>
-          Check back later for new connections.
-        </Text>
-      </View>
-    );
-  }
+  const [activeButton, setActiveButton] = useState<"friendRequests" | "crossedPaths" | "swipe" | "list">("swipe");
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [modalTab, setModalTab] = useState<"about" | "photos">("about");
 
   return (
-    <SafeAreaView style={styles.flex1} edges={["top"]}>
-      <View style={styles.mainContainer}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Reconnect</Text>
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Reconnect</Text>
 
-          {/* View Mode Toggle */}
-          <View style={styles.toggleContainer}>
-            <Button
-              variant={viewMode === "swipe" ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setCurrentIndex(0);
-                setViewMode("swipe");
-              }}
-              style={styles.toggleButton}
+        {/* Tab Selector - Row 1 */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[
+              styles.tabButton,
+              activeButton === "friendRequests" && styles.tabButtonActive,
+            ]}
+            onPress={() => setActiveButton("friendRequests")}
+          >
+            <Heart
+              size={16}
+              color={activeButton === "friendRequests" ? "#FFFFFF" : "rgba(255, 255, 255, 0.7)"}
+              style={styles.tabIcon}
+            />
+            <Text
+              style={[
+                activeButton === "friendRequests" ? styles.tabTextActive : styles.tabTextInactive,
+              ]}
             >
-              <Layers
-                size={16}
-                color={
-                  viewMode === "swipe"
-                    ? Theme.colors.primaryForeground
-                    : Theme.colors.foreground
-                }
-                style={styles.mr2}
-              />
-              <Text
-                style={
-                  viewMode === "swipe"
-                    ? styles.toggleTextActive
-                    : styles.toggleTextInactive
-                }
-              >
-                Swipe
-              </Text>
-            </Button>
-            <Button
-              variant={viewMode === "list" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setViewMode("list")}
-              style={styles.toggleButton}
+              Friend Requests
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.tabButton,
+              activeButton === "crossedPaths" && styles.tabButtonActive,
+            ]}
+            onPress={() => setActiveButton("crossedPaths")}
+          >
+            <MapPin
+              size={16}
+              color={activeButton === "crossedPaths" ? "#FFFFFF" : "rgba(255, 255, 255, 0.7)"}
+              style={styles.tabIcon}
+            />
+            <Text
+              style={[
+                activeButton === "crossedPaths" ? styles.tabTextActive : styles.tabTextInactive,
+              ]}
             >
-              <LayoutGrid
-                size={16}
-                color={
-                  viewMode === "list"
-                    ? Theme.colors.primaryForeground
-                    : Theme.colors.foreground
-                }
-                style={styles.mr2}
-              />
-              <Text
-                style={
-                  viewMode === "list"
-                    ? styles.toggleTextActive
-                    : styles.toggleTextInactive
-                }
-              >
-                List
-              </Text>
-            </Button>
-          </View>
+              Crossed Paths
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {viewMode === "swipe" ? (
-          <View style={styles.swipeContainer}>
-            {currentRequest && (
-              <View style={styles.profileCard}>
-                {/* Profile Image */}
-                <View style={styles.imageWrapper}>
-                  <Image
-                    source={{ uri: currentRequest.image }}
-                    style={styles.profileImage}
-                    resizeMode="cover"
-                  />
-                </View>
+        {/* View Mode Toggle - Row 2 */}
+        <View style={styles.viewModeContainer}>
+          <TouchableOpacity
+            style={[
+              styles.viewModeButton,
+              activeButton === "swipe" && styles.viewModeButtonActive,
+            ]}
+            onPress={() => setActiveButton("swipe")}
+          >
+            <Layers
+              size={16}
+              color={activeButton === "swipe" ? "#FFFFFF" : "rgba(255, 255, 255, 0.7)"}
+              style={styles.tabIcon}
+            />
+            <Text
+              style={[
+                activeButton === "swipe" ? styles.tabTextActive : styles.tabTextInactive,
+              ]}
+            >
+              Swipe
+            </Text>
+          </TouchableOpacity>
 
-                {/* Profile Info */}
-                <Text style={styles.profileName}>{currentRequest.name}</Text>
-                <View style={styles.infoRow}>
-                  <View style={styles.infoPill}>
-                    <View style={styles.infoDot} />
-                    <Text style={styles.infoText}>{currentRequest.gender}</Text>
-                  </View>
-                  <View style={styles.infoPill}>
-                    <View style={styles.infoDot} />
-                    <Text style={styles.infoText}>
-                      {currentRequest.location}
-                    </Text>
-                  </View>
-                </View>
+          <TouchableOpacity
+            style={[
+              styles.viewModeButton,
+              activeButton === "list" && styles.viewModeButtonActive,
+            ]}
+            onPress={() => setActiveButton("list")}
+          >
+            <LayoutGrid
+              size={16}
+              color={activeButton === "list" ? "#FFFFFF" : "rgba(255, 255, 255, 0.7)"}
+              style={styles.tabIcon}
+            />
+            <Text
+              style={[
+                activeButton === "list" ? styles.tabTextActive : styles.tabTextInactive,
+              ]}
+            >
+              List
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
-                {/* Action Buttons */}
-                <View style={styles.actionButtons}>
-                  <Button
-                    onClick={() =>
-                      handleButtonAction("decline", currentRequest.id)
-                    }
-                    variant="outline"
-                    size="icon"
-                    style={styles.declineButton}
-                  >
-                    <X size={24} color={Theme.colors.foreground} />
-                  </Button>
-                  <Button
-                    onClick={() =>
-                      handleButtonAction("accept", currentRequest.id)
-                    }
-                    size="icon"
-                    style={styles.acceptButton}
-                  >
-                    <Heart size={24} color={Theme.colors.primaryForeground} />
-                  </Button>
-                </View>
-              </View>
-            )}
-            <Text style={styles.instructionText}>
-              Use the buttons to accept or decline
+      {/* Content */}
+      {activeButton === "crossedPaths" ? (
+        // Crossed Paths List View
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Crossed Paths</Text>
+            <Text style={styles.sectionSubtitle}>
+              People you've crossed paths with at events
             </Text>
           </View>
-        ) : (
-          /* List View */
-          <ScrollView
-            style={styles.listScrollView}
-            contentContainerStyle={styles.listContent}
-          >
-            {requests.map((request) => (
-              <View key={request.id} style={styles.listItemCard}>
-                <Image
-                  source={{ uri: request.image }}
-                  style={styles.listImage}
-                  resizeMode="cover"
-                />
-                <View style={styles.listInfo}>
-                  <Text style={styles.listName}>{request.name}</Text>
-                  <Text style={styles.listDetails}>
-                    {request.gender} • {request.location}
+
+          {crossedPathsData.map((user) => (
+            <View key={user.id} style={styles.crossedPathCard}>
+              <Image source={{ uri: user.image }} style={styles.crossedPathImage} />
+              
+              <View style={styles.crossedPathInfo}>
+                <Text style={styles.crossedPathName}>
+                  {user.name}, {user.age}
+                </Text>
+                
+                <View style={styles.crossedBadge}>
+                  <Text style={styles.crossedBadgeText}>{user.crossedCount}x crossed</Text>
+                </View>
+
+                <View style={styles.crossedPathDetailRow}>
+                  <MapPin size={14} color="rgba(255, 255, 255, 0.6)" />
+                  <Text style={styles.crossedPathDetailText}>{user.location}</Text>
+                </View>
+
+                <View style={styles.crossedPathDetailRow}>
+                  <Clock size={14} color="rgba(255, 255, 255, 0.6)" />
+                  <Text style={styles.crossedPathDetailText}>
+                    {user.timeAgo} • {user.distance}
                   </Text>
                 </View>
-                <View style={styles.listActions}>
-                  <Button
-                    onClick={() => handleButtonAction("decline", request.id)}
-                    variant="outline"
-                    size="icon"
-                    style={styles.declineButtonSmall}
-                  >
-                    <X size={16} color={Theme.colors.foreground} />
-                  </Button>
-                  <Button
-                    onClick={() => handleButtonAction("accept", request.id)}
-                    size="icon"
-                    style={styles.acceptButtonSmall}
-                  >
-                    <Heart size={16} color={Theme.colors.primaryForeground} />
-                  </Button>
+
+                <View style={styles.interestsContainer}>
+                  {user.interests.map((interest, index) => (
+                    <View key={index} style={styles.interestTag}>
+                      <Text style={styles.interestText}>{interest}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                <View style={styles.crossedPathActionButtons}>
+                  <TouchableOpacity style={styles.viewButton}>
+                    <Eye size={16} color="#FFFFFF" />
+                    <Text style={styles.viewButtonText}>View</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.connectButton}>
+                    <UserPlus size={16} color="#FFFFFF" />
+                    <Text style={styles.connectButtonText}>Connect</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.chatButton}>
+                    <MessageCircle size={20} color="#FFFFFF" />
+                  </TouchableOpacity>
                 </View>
               </View>
-            ))}
-          </ScrollView>
-        )}
-      </View>
+            </View>
+          ))}
+        </ScrollView>
+      ) : activeButton === "list" ? (
+        // List View - Simple profile cards
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.listScrollContent}>
+          {listData.map((user) => (
+            <View key={user.id} style={styles.listCard}>
+              <Image source={{ uri: user.image }} style={styles.listCardImage} />
+              <View style={styles.listCardInfo}>
+                <Text style={styles.listCardName}>{user.name}</Text>
+                <Text style={styles.listCardDetails}>
+                  {user.gender} • {user.location}
+                </Text>
+              </View>
+              <View style={styles.listCardButtons}>
+                <TouchableOpacity style={styles.listDeclineButton}>
+                  <X size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.listAcceptButton}>
+                  <LinearGradient
+                    colors={GRADIENT_COLORS.primary as [string, string, ...string[]]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.listAcceptButtonGradient}
+                  >
+                    <Heart size={20} color="#FFFFFF" />
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+      ) : (
+        // Default Profile Card (for Swipe, Friend Requests, List)
+        <View style={styles.profileCardContainer}>
+          <TouchableOpacity 
+            style={styles.profileCard}
+            onPress={() => setShowProfileModal(true)}
+            activeOpacity={0.9}
+          >
+            <Image
+              source={{
+                uri: "https://images.unsplash.com/photo-1615338437154-3b752f3e1a6f?crop=face&fit=crop&w=400&h=400",
+              }}
+              style={styles.profileImage}
+            />
+            <Text style={styles.profileName}>Claudia Alves</Text>
+            <View style={styles.infoRow}>
+              <View style={styles.infoDot} />
+              <Text style={styles.infoText}>Female</Text>
+              <View style={styles.infoDot} />
+              <Text style={styles.infoText}>MATCHA CLUB</Text>
+            </View>
+            <Text style={styles.tapInstruction}>Tap to view full profile</Text>
+            <View style={styles.actionButtons}>
+              <TouchableOpacity style={styles.declineButtonCircle}>
+                <X size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.acceptButtonCircle}>
+                <LinearGradient
+                  colors={GRADIENT_COLORS.primary as [string, string, ...string[]]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.acceptButtonGradientCircle}
+                >
+                  <Heart size={24} color="#FFFFFF" />
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+          <Text style={styles.buttonInstruction}>Use the buttons to accept or decline</Text>
+        </View>
+      )}
+
+      {/* Profile Modal Pop-up */}
+      <Modal
+        isVisible={showProfileModal}
+        onBackdropPress={() => setShowProfileModal(false)}
+        style={styles.modal}
+        backdropOpacity={0.7}
+        animationIn="fadeIn"
+        animationOut="fadeOut"
+        transparent={true}
+        hasBackdrop={true}
+        coverScreen={true}
+      >
+        <TouchableOpacity 
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setShowProfileModal(false)}
+        >
+          <TouchableOpacity 
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={styles.modalCard}
+          >
+            <LinearGradient
+              colors={GRADIENT_COLORS.primary as [string, string, ...string[]]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.modalHeader}
+            >
+              <TouchableOpacity onPress={() => setShowProfileModal(false)} style={styles.modalHeaderButton}>
+                <ArrowLeft size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowProfileModal(false)} style={styles.modalHeaderButton}>
+                <X size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            </LinearGradient>
+
+            <ScrollView 
+              style={styles.modalScrollView}
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.modalImageContainer}>
+                <Image
+                  source={{
+                    uri: "https://images.unsplash.com/photo-1615338437154-3b752f3e1a6f?crop=face&fit=crop&w=400&h=400",
+                  }}
+                  style={styles.modalProfileImage}
+                  resizeMode="cover"
+                />
+              </View>
+
+              <View style={styles.modalUserInfo}>
+                <Text style={styles.modalUserName}>Claudia Alves</Text>
+                <Text style={styles.modalUserDetails}>24 years old • Female</Text>
+
+                <View style={styles.modalLocationRow}>
+                  <MapPin size={14} color={Theme.colors.primary} />
+                  <Text style={styles.modalLocationText}>MATCHA CLUB</Text>
+                </View>
+
+                <View style={styles.modalStats}>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statNumber}>42</Text>
+                    <Text style={styles.statLabel}>Events</Text>
+                  </View>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statNumber}>5</Text>
+                    <Text style={styles.statLabel}>Mutual Friends</Text>
+                  </View>
+                </View>
+
+                <View style={styles.modalActionButtons}>
+                  <TouchableOpacity style={styles.modalDeclineButton}>
+                    <X size={20} color="#FFFFFF" />
+                    <Text style={styles.modalDeclineButtonText}>Decline</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.modalAcceptButton}>
+                    <LinearGradient
+                      colors={GRADIENT_COLORS.primary as [string, string, ...string[]]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.modalAcceptButtonGradient}
+                    >
+                      <Heart size={20} color="#FFFFFF" />
+                      <Text style={styles.modalAcceptButtonText}>Accept</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.modalTabs}>
+                  <TouchableOpacity
+                    style={[styles.modalTab, modalTab === "about" && styles.modalTabActive]}
+                    onPress={() => setModalTab("about")}
+                  >
+                    <Text
+                      style={[
+                        styles.modalTabText,
+                        modalTab === "about" && styles.modalTabTextActive,
+                      ]}
+                    >
+                      About
+                    </Text>
+                    {modalTab === "about" && <View style={styles.modalTabUnderline} />}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalTab, modalTab === "photos" && styles.modalTabActive]}
+                    onPress={() => setModalTab("photos")}
+                  >
+                    <Text
+                      style={[
+                        styles.modalTabText,
+                        modalTab === "photos" && styles.modalTabTextActive,
+                      ]}
+                    >
+                      Photos
+                    </Text>
+                    {modalTab === "photos" && <View style={styles.modalTabUnderline} />}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 // --- STYLESHEET ---
 const styles = StyleSheet.create({
-  flex1: { flex: 1 },
-  mainContainer: { flex: 1, backgroundColor: Theme.colors.background },
+  container: {
+    flex: 1,
+    backgroundColor: Theme.colors.background,
+  },
   header: {
-    padding: 24,
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderColor: Theme.colors.border,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 20,
   },
   headerTitle: {
-    color: Theme.colors.foreground,
-    fontSize: 24,
-    marginBottom: 16,
+    fontSize: 28,
     fontWeight: "bold",
+    color: "#FFFFFF",
+    textAlign: "center",
+    marginBottom: 20,
   },
-  toggleContainer: { flexDirection: "row", gap: 8, justifyContent: "center" },
-  toggleButton: {
+  tabContainer: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 12,
+  },
+  tabButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: Theme.radius.xl,
+    borderRadius: 24,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
-  toggleTextActive: {
-    color: Theme.colors.primaryForeground,
+  tabButtonActive: {
+    backgroundColor: Theme.colors.primary,
+    borderColor: Theme.colors.primary,
+  },
+  tabIcon: {
+    marginRight: 8,
+  },
+  tabTextActive: {
     fontSize: 14,
     fontWeight: "500",
+    color: "#FFFFFF",
   },
-  toggleTextInactive: {
-    color: Theme.colors.foreground,
+  tabTextInactive: {
     fontSize: 14,
     fontWeight: "500",
+    color: "rgba(255, 255, 255, 0.7)",
   },
-  mr2: { marginRight: 8 },
-
-  // --- Swipe View ---
-  swipeContainer: {
+  viewModeContainer: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  viewModeButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 24,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  viewModeButtonActive: {
+    backgroundColor: Theme.colors.primary,
+    borderColor: Theme.colors.primary,
+  },
+  profileCardContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 24,
+    paddingTop: 40,
   },
   profileCard: {
-    width: 320,
-    maxWidth: "100%",
-    backgroundColor: Theme.colors.muted,
-    borderRadius: Theme.radius.xl,
-    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+    backgroundColor: "rgba(169, 1, 109, 0.15)",
+    borderRadius: 24,
+    padding: 32,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
   },
-  imageWrapper: {
-    width: 192,
-    height: 192,
-    borderRadius: 9999,
-    overflow: "hidden",
-    borderWidth: 4,
-    borderColor: Theme.colors.border,
+  profileImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
     marginBottom: 24,
   },
-  profileImage: { width: "100%", height: "100%" },
   profileName: {
-    color: Theme.colors.foreground,
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "bold",
-    marginBottom: 8,
+    color: "#FFFFFF",
+    marginBottom: 12,
+    textAlign: "center",
   },
   infoRow: {
     flexDirection: "row",
-    justifyContent: "center",
-    gap: 16,
-    marginBottom: 24,
-  },
-  infoPill: { flexDirection: "row", alignItems: "center", gap: 4 },
-  infoDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Theme.colors.primary,
-  },
-  infoText: { color: Theme.colors.mutedForeground, fontSize: 14 },
-  actionButtons: { flexDirection: "row", gap: 24, justifyContent: "center" },
-  declineButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 9999,
-    backgroundColor: Theme.colors.muted,
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-    padding: 0,
-  },
-  acceptButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 9999,
-    backgroundColor: Theme.colors.primary,
-    padding: 0,
-  },
-  instructionText: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 14,
-    marginTop: 24,
-  },
-  emptyStateContainer: {
-    flex: 1,
-    justifyContent: "center",
     alignItems: "center",
-    backgroundColor: Theme.colors.background,
+    marginBottom: 8,
+    gap: 8,
   },
-  emptyStateTitle: {
-    color: Theme.colors.foreground,
-    fontSize: 20,
+  infoDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Theme.colors.primary,
+    marginHorizontal: 4,
+  },
+  infoText: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.8)",
+  },
+  tapInstruction: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.6)",
+    marginBottom: 24,
+    textAlign: "center",
+  },
+  actionButtons: {
+    flexDirection: "row",
+    gap: 24,
+    justifyContent: "center",
+  },
+  declineButtonCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  acceptButtonCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    overflow: "hidden",
+  },
+  acceptButtonGradientCircle: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  buttonInstruction: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.7)",
+    textAlign: "center",
+    marginTop: 16,
+  },
+  // Crossed Paths Styles
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 100,
+  },
+  sectionHeader: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 24,
     fontWeight: "bold",
+    color: "#FFFFFF",
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.6)",
+  },
+  crossedPathCard: {
+    flexDirection: "row",
+    backgroundColor: "rgba(169, 1, 109, 0.15)",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  crossedPathImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginRight: 16,
+  },
+  crossedPathInfo: {
+    flex: 1,
+  },
+  crossedPathName: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    marginBottom: 6,
+  },
+  crossedBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#a9016d",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
     marginBottom: 8,
   },
-  emptyStateText: { color: Theme.colors.mutedForeground, textAlign: "center" },
-
-  // --- List View ---
-  listScrollView: { flex: 1, paddingHorizontal: 16 },
-  listContent: { paddingVertical: 16, gap: 16 },
-  listItemCard: {
-    backgroundColor: Theme.colors.muted,
-    borderRadius: Theme.radius.xl,
-    padding: 16,
+  crossedBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  crossedPathDetailRow: {
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: 4,
+    gap: 6,
+  },
+  crossedPathDetailText: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.7)",
+  },
+  interestsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  interestTag: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: Theme.colors.border,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+    backgroundColor: "transparent",
   },
-  listImage: { width: 64, height: 64, borderRadius: 9999, marginRight: 16 },
-  listInfo: { flex: 1, marginRight: 16 },
-  listName: {
-    color: Theme.colors.foreground,
-    fontSize: 16,
-    fontWeight: "bold",
+  interestText: {
+    fontSize: 12,
+    color: "#FFFFFF",
   },
-  listDetails: { color: Theme.colors.mutedForeground, fontSize: 14 },
-  listActions: { flexDirection: "row", gap: 8 },
-  declineButtonSmall: {
-    width: 40,
-    height: 40,
-    borderRadius: 9999,
-    backgroundColor: Theme.colors.muted,
+  crossedPathActionButtons: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 4,
+  },
+  viewButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: Theme.colors.border,
-    padding: 0,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+    backgroundColor: "transparent",
+    gap: 6,
   },
-  acceptButtonSmall: {
-    width: 40,
-    height: 40,
-    borderRadius: 9999,
+  viewButtonText: {
+    fontSize: 14,
+    color: "#FFFFFF",
+    fontWeight: "500",
+  },
+  connectButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
     backgroundColor: Theme.colors.primary,
+    gap: 6,
+    flex: 1,
+    justifyContent: "center",
+  },
+  connectButtonText: {
+    fontSize: 14,
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
+  chatButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+    backgroundColor: "transparent",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // List View Styles
+  listScrollContent: {
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 100,
+  },
+  listCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(169, 1, 109, 0.15)",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+  },
+  listCardImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginRight: 16,
+  },
+  listCardInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  listCardName: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    marginBottom: 4,
+  },
+  listCardDetails: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.7)",
+  },
+  listCardButtons: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "center",
+  },
+  listDeclineButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  listAcceptButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    overflow: "hidden",
+  },
+  listAcceptButtonGradient: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // Modal Styles
+  modal: {
+    justifyContent: "center",
+    alignItems: "center",
+    margin: 0,
     padding: 0,
+  },
+  modalBackdrop: {
+    flex: 1,
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    borderWidth: 0,
+  },
+  modalCard: {
+    width: "90%",
+    maxWidth: 400,
+    maxHeight: "85%",
+    backgroundColor: Theme.colors.background,
+    borderRadius: 24,
+    overflow: "hidden",
+    borderWidth: 0,
+  },
+  modalScrollView: {
+    flex: 1,
+  },
+  modalScrollContent: {
+    paddingBottom: 20,
+    flexGrow: 1,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingTop: 50,
+  },
+  modalHeaderButton: {
+    padding: 8,
+  },
+  modalImageContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: -50,
+    marginBottom: 16,
+    zIndex: 10,
+    height: 120,
+  },
+  modalProfileImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 4,
+    borderColor: Theme.colors.background,
+    backgroundColor: Theme.colors.background,
+  },
+  modalUserInfo: {
+    paddingHorizontal: 24,
+    alignItems: "center",
+  },
+  modalUserName: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    marginBottom: 4,
+  },
+  modalUserDetails: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.8)",
+    marginBottom: 12,
+  },
+  modalLocationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 24,
+    gap: 6,
+  },
+  modalLocationText: {
+    fontSize: 14,
+    color: Theme.colors.primary,
+  },
+  modalStats: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 32,
+    marginBottom: 24,
+  },
+  statItem: {
+    alignItems: "center",
+  },
+  statNumber: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.7)",
+  },
+  modalActionButtons: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 24,
+    paddingHorizontal: 24,
+  },
+  modalDeclineButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    gap: 8,
+  },
+  modalDeclineButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  modalAcceptButton: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  modalAcceptButtonGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  modalAcceptButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  modalTabs: {
+    flexDirection: "row",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.1)",
+    paddingTop: 16,
+    width: "100%",
+    marginTop: "auto",
+  },
+  modalTab: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 12,
+    position: "relative",
+  },
+  modalTabActive: {
+    // Active state handled by underline
+  },
+  modalTabText: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.7)",
+    fontWeight: "500",
+  },
+  modalTabTextActive: {
+    color: "#FFFFFF",
+  },
+  modalTabUnderline: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: Theme.colors.primary,
+    borderRadius: 2,
   },
 });

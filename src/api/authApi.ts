@@ -1,4 +1,6 @@
-import { apiClient } from '../services/api';
+import { apiClient } from "../services/api";
+
+/* ===================== TYPES ===================== */
 
 export interface SignupData {
   name: string;
@@ -12,43 +14,10 @@ export interface SigninData {
   password: string;
 }
 
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  username: string;
-  bio?: string;
-  occupation?: string;
-  education?: string;
-  lookingFor?: string;
-  age?: number;
-  height?: number;
-  gender?: string;
-  location?: string;
-  interests: string[];
-  smoking?: string;
-  drinking?: string;
-  profilePicUrl?: string;
-  photos: string[];
-  latitude?: number;
-  longitude?: number;
-  locationVisibility: boolean;
-  lastLocationUpdate?: string;
-  createdAt: string;
-  updatedAt: string;
-  phone?: string;
-  avatar?: string;
-  isVerified?: boolean;
-  emailVerifiedAt?: string;
-  settings?: {
-    notifications: boolean;
-    privacy: boolean;
-  };
-}
-
+/* Auth API should ONLY return auth-related data */
 export interface AuthResponse {
-  user: User;
   token: string;
+  userId: string;
 }
 
 export interface ForgotPasswordData {
@@ -62,27 +31,40 @@ export interface ResetPasswordData {
   confirmPassword: string;
 }
 
+/* ===================== API ===================== */
+
 export const authApi = {
-  signup: async (data: SignupData): Promise<AuthResponse> => {
-    const response = await apiClient.post('/auth/signup', data, false);
+  signin: async (data: SigninData) => {
+    const response = await apiClient.post("/auth/signin", data);
+
+    return {
+      token: response.data.token,
+      userId: response.data.user.id,
+    };
+  },
+
+  signup: async (data: SignupData) => {
+    const response = await apiClient.post("/auth/signup", data);
+
+    return {
+      token: response.data.token,
+      userId: response.data.user.id,
+    };
+  },
+
+  forgotPassword: async (data: ForgotPasswordData) => {
+    const response = await apiClient.post(
+      "/auth/forgot-password",
+      data,
+    );
     return response.data;
   },
 
-  signin: async (data: SigninData): Promise<AuthResponse> => {
-    const response = await apiClient.post('/auth/signin', data, false);
+  resetPassword: async (data: ResetPasswordData) => {
+    const response = await apiClient.post(
+      "/auth/reset-password",
+      data,
+    );
     return response.data;
   },
-
-  forgotPassword: async (data: ForgotPasswordData): Promise<any> => {
-    const response = await apiClient.post('/auth/forgot-password', data, false);
-    return response.data;
-  },
-
-  resetPassword: async (data: ResetPasswordData): Promise<any> => {
-    const response = await apiClient.post('/auth/reset-password', data, false);
-    return response.data;
-  },
-
-  // Add other auth-related endpoints as needed
-  // verifyEmail, etc.
 };
