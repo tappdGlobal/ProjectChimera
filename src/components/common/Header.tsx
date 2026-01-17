@@ -26,10 +26,10 @@ export function Header({
   onSettingsClick,
   onNotificationClick,
 }: HeaderProps) {
-  const name = useUserStore((state) => state.user?.name);
-  // console.log(name)
+  const name = useUserStore((state) => state.user?.data?.name);
+  console.log(name)
   const isUserLoading = useUserStore((state) => state.isLoading);
-
+  
   return (
     <View style={styles.container}>
       {/* Welcome message */}
