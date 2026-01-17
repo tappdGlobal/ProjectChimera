@@ -3,9 +3,10 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Platform } from "react-native";
 import { SCREEN_NAMES, RootTabParamList, AppStackParamList } from "./Routes";
-import Icon from "react-native-vector-icons/Ionicons"; // Example icon library
+// Icons are handled by BottomNavigation component, so we use a simple placeholder
+const Icon = ({ name, color, size }: any) => <View style={{ width: size, height: size, backgroundColor: color }} />;
 import { ExploreScreen } from "../screens/ExploreScreen";
 import { HostStackScreen } from "./HostStack";
 import { ProfileScreen } from "../screens/ProfileScreen";

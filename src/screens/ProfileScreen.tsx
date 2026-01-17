@@ -122,7 +122,9 @@ export function ProfileScreen() {
     "all" | "friends" | "matches" | "business"
   >("all");
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
-  const [profileImage, setProfileImage] = useState(user?.avatar || harshPhotos[0]);
+  // Use user avatar or profilePicUrl, fallback to a default placeholder instead of mock photos
+  const defaultAvatar = 'https://via.placeholder.com/400x400?text=No+Photo';
+  const [profileImage, setProfileImage] = useState(user?.avatar || user?.profilePicUrl || defaultAvatar);
   const [connections, setConnections] = useState<any[]>([]);
   const [isLoadingConnections, setIsLoadingConnections] = useState(false);
   const [showTappdBandPopup, setShowTappdBandPopup] = useState(false);
@@ -145,10 +147,9 @@ export function ProfileScreen() {
 
   // Update profile image if user avatar changes
   React.useEffect(() => {
-    if (user?.avatar) {
-      setProfileImage(user.avatar);
-    }
-  }, [user?.avatar]);
+    const newAvatar = user?.avatar || user?.profilePicUrl || defaultAvatar;
+    setProfileImage(newAvatar);
+  }, [user?.avatar, user?.profilePicUrl]);
 
   // Fetch connections on mount
   React.useEffect(() => {
@@ -541,6 +542,17 @@ export function ProfileScreen() {
                 ))}
               </View>
 
+              {/* Edit Details Button */}
+              <View style={styles.editButtonContainer}>
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={() => navigation.navigate(SCREEN_NAMES.EDIT_PROFILE)}
+                >
+                  <Edit size={16} color="#FFFFFF" style={styles.editIcon} />
+                  <Text style={styles.editButtonText}>Edit Details</Text>
+                </TouchableOpacity>
+              </View>
+
               {/* Tab Contents */}
               {activeTab === "about" && (
                 <View style={styles.tabContent}>
@@ -548,32 +560,127 @@ export function ProfileScreen() {
                   <Text style={styles.bioText}>
                     {bio ?? "No bio available."}
                   </Text>
-                  <View style={styles.detailsGrid}>
-                    {user?.education && (
-                      <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Education</Text>
-                        <Text style={styles.detailValue}>{user.education}</Text>
-                      </View>
-                    )}
+
+                  {/* Occupation & Education */}
+                  <View style={styles.twoColumnGrid}>
                     {user?.occupation && (
                       <View style={styles.detailItem}>
                         <Text style={styles.detailLabel}>Occupation</Text>
                         <Text style={styles.detailValue}>{user.occupation}</Text>
                       </View>
                     )}
-                    {user?.lookingFor && (
+                    {user?.education && (
                       <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Looking For</Text>
-                        <Text style={styles.detailValue}>{user.lookingFor}</Text>
-                      </View>
-                    )}
-                    {user?.age && (
-                      <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Age</Text>
-                        <Text style={styles.detailValue}>{user.age} years old</Text>
+                        <Text style={styles.detailLabel}>Education</Text>
+                        <Text style={styles.detailValue}>{user.education}</Text>
                       </View>
                     )}
                   </View>
+
+                  {/* Looking For */}
+                  {user?.lookingFor && (
+                    <View style={styles.lookingForSection}>
+                      <Text style={styles.sectionTitle}>Looking For</Text>
+                      <View style={styles.lookingForButtons}>
+                        {typeof user.lookingFor === 'string' 
+                          ? user.lookingFor.split(',').map((item, index) => (
+                              <View key={index} style={styles.lookingForButton}>
+                                <Text style={styles.lookingForButtonText}>
+                                  {item.trim()}
+                                </Text>
+                              </View>
+                            ))
+                          : Array.isArray(user.lookingFor)
+                          ? user.lookingFor.map((item, index) => (
+                              <View key={index} style={styles.lookingForButton}>
+                                <Text style={styles.lookingForButtonText}>
+                                  {item}
+                                </Text>
+                              </View>
+                            ))
+                          : (
+                            <View style={styles.lookingForButton}>
+                              <Text style={styles.lookingForButtonText}>
+                                {user.lookingFor}
+                              </Text>
+                            </View>
+                          )
+                        }
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Personal Details */}
+                  <View style={styles.personalDetailsSection}>
+                    <View style={styles.twoColumnGrid}>
+                      {user?.age && (
+                        <View style={styles.detailItem}>
+                          <Text style={styles.detailLabel}>Age</Text>
+                          <Text style={styles.detailValue}>{user.age}</Text>
+                        </View>
+                      )}
+                      {user?.height && (
+                        <View style={styles.detailItem}>
+                          <Text style={styles.detailLabel}>Height</Text>
+                          <Text style={styles.detailValue}>
+                            {typeof user.height === 'number' && user.height >= 30 && user.height <= 300
+                              ? `${Math.floor(user.height / 30.48)}'${Math.round((user.height % 30.48) / 2.54)}"`
+                              : user.height}
+                          </Text>
+                        </View>
+                      )}
+                      {user?.gender && (
+                        <View style={styles.detailItem}>
+                          <Text style={styles.detailLabel}>Gender</Text>
+                          <Text style={styles.detailValue}>
+                            {user.gender.charAt(0).toUpperCase() + user.gender.slice(1).toLowerCase()}
+                          </Text>
+                        </View>
+                      )}
+                      {user?.location && (
+                        <View style={styles.detailItem}>
+                          <Text style={styles.detailLabel}>Location</Text>
+                          <Text style={styles.detailValue}>{user.location}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* Interests */}
+                  {user?.interests && user.interests.length > 0 && (
+                    <View style={styles.interestsSection}>
+                      <Text style={styles.sectionTitle}>Interests</Text>
+                      <View style={styles.interestsContainer}>
+                        {user.interests.map((interest, index) => (
+                          <View key={index} style={styles.interestTag}>
+                            <Text style={styles.interestTagText}>{interest}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Habits */}
+                  {(user?.smoking || user?.drinking) && (
+                    <View style={styles.habitsSection}>
+                      <View style={styles.twoColumnGrid}>
+                        {user?.smoking && (
+                          <View style={styles.detailItem}>
+                            <Text style={styles.detailLabel}>Smoking</Text>
+                            <Text style={styles.detailValue}>
+                              {user.smoking === 'Never' || user.smoking === 'No' ? 'No' : user.smoking}
+                            </Text>
+                          </View>
+                        )}
+                        {user?.drinking && (
+                          <View style={styles.detailItem}>
+                            <Text style={styles.detailLabel}>Drinking</Text>
+                            <Text style={styles.detailValue}>{user.drinking}</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  )}
                 </View>
               )}
 
@@ -1037,18 +1144,99 @@ const styles = StyleSheet.create({
   },
   tabTriggerTextActive: { color: Theme.colors.foreground },
   tabContent: { padding: 16 },
+  // Edit Button
+  editButtonContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignItems: "flex-end",
+  },
+  editButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Theme.colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 8,
+  },
+  editIcon: {
+    marginRight: 0,
+  },
+  editButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+  },
   sectionTitle: {
     color: Theme.colors.foreground,
     fontSize: 16,
     fontWeight: "bold",
     marginBottom: 16,
+    marginTop: 8,
   },
   bioText: {
     color: Theme.colors.mutedForeground,
     lineHeight: 22,
     marginBottom: 16,
+    fontSize: 14,
   },
   detailsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
+  twoColumnGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 16,
+    marginBottom: 24,
+  },
+  // Looking For Section
+  lookingForSection: {
+    marginBottom: 24,
+  },
+  lookingForButtons: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  lookingForButton: {
+    backgroundColor: Theme.colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  lookingForButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  // Personal Details Section
+  personalDetailsSection: {
+    marginBottom: 24,
+  },
+  // Interests Section
+  interestsSection: {
+    marginBottom: 24,
+  },
+  interestsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  interestTag: {
+    borderWidth: 1,
+    borderColor: Theme.colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "transparent",
+  },
+  interestTagText: {
+    color: Theme.colors.foreground,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  // Habits Section
+  habitsSection: {
+    marginBottom: 24,
+  },
   // Photos Tab
   photoGrid: {
     flexDirection: "row",
@@ -1168,7 +1356,8 @@ const styles = StyleSheet.create({
   fullSizePhoto: { width: "100%", height: "100%", borderRadius: 8 },
   // Details
   detailItem: {
-    width: (width - 48) / 2 - 8,
+    flex: 1,
+    minWidth: (width - 64) / 2,
     backgroundColor: Theme.colors.muted,
     padding: 12,
     borderRadius: Theme.radius.md,
