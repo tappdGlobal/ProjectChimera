@@ -15,7 +15,7 @@ import { ExploreTabContent } from "../components/explore/ExploreTabContent";
 import { MapTabContent } from "../components/explore/MapTabContent";
 import { BookingTabContent } from "../components/explore/BookingTabContent";
 
-import { ExploreStackParamList } from "../navigation/Routes";
+import { ExploreStackParamList, SCREEN_NAMES } from "../navigation/Routes";
 
 type ExploreNavigationProp = NativeStackNavigationProp<
   ExploreStackParamList,
@@ -61,9 +61,9 @@ export function ExploreScreen() {
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
         {/* HEADER */}
         <Header
-          onProfileClick={() => console.log("Navigate to Profile")}
-          onSettingsClick={() => console.log("Navigate to Settings")}
-          onNotificationClick={() => console.log("Navigate to Notifications")}
+          onProfileClick={() => navigation.navigate(SCREEN_NAMES.PROFILE)}
+          onSettingsClick={() => navigation.navigate(SCREEN_NAMES.EDIT_PROFILE)}
+          onNotificationClick={() => navigation.getParent()?.navigate(SCREEN_NAMES.NOTIFICATIONS)}
         />
 
         <View style={{ paddingHorizontal: Theme.spacing.m }}>
