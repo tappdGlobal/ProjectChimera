@@ -466,25 +466,30 @@ export function ProfileScreen() {
               {/* Profile Photo */}
               <View style={styles.photoWrapper}>
                 <View style={styles.avatarBorder}>
-                  <Avatar style={styles.avatarStyle}>
+                                  <Avatar style={styles.avatarStyle}>
+                  {profilePicUrl?.trim() || profileImage?.trim() ? (
                     <AvatarImage
-                      src={profilePicUrl ?? profileImage}
+                      src={profilePicUrl?.trim() || profileImage?.trim()}
                       alt={name ?? "User Profile"}
                     />
-
+                  ) : (
                     <AvatarFallback>
                       <Text style={{ color: Theme.colors.foreground }}>
-                        {name
+                        {name?.trim()
                           ? name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")
-                            .substring(0, 2)
-                            .toUpperCase()
+                              .trim()
+                              .split(" ")
+                              .map(n => n[0])
+                              .join("")
+                              .substring(0, 2)
+                              .toUpperCase()
                           : "HA"}
                       </Text>
                     </AvatarFallback>
-                  </Avatar>
+                  )}
+                </Avatar>
+
+
                 </View>
 
                 <Button
