@@ -623,14 +623,22 @@ export function ProfileScreen() {
                           <Card key={connection.id} style={styles.connectionCard}>
                             {/* FIX: Use Avatar components here */}
                             <Avatar style={styles.connectionAvatarWrapper}>
-                              <AvatarImage
-                                src={connection.profilePicUrl || connection.photo}
-                                alt={connection.name}
-                              />
-                              <AvatarFallback>
-                                <Text>{connection.name.charAt(0)}</Text>
-                              </AvatarFallback>
+                              {connection?.profilePicUrl?.trim() || connection?.photo?.trim() ? (
+                                <AvatarImage
+                                  src={connection.profilePicUrl?.trim() || connection.photo?.trim()}
+                                  alt={connection?.name ?? "User"}
+                                />
+                              ) : (
+                                <AvatarFallback>
+                                  <Text>
+                                    {connection?.name?.trim()
+                                      ? connection.name.trim().charAt(0).toUpperCase()
+                                      : "U"}
+                                  </Text>
+                                </AvatarFallback>
+                              )}
                             </Avatar>
+
                             <Text style={styles.connectionName}>
                               {connection.name}
                             </Text>
