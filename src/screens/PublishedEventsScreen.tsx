@@ -48,6 +48,8 @@ import {
   DialogDescription,
 } from "../components/ui/Dialog";
 // Progress component is missing. We will use a basic View/Animated.View as a placeholder.
+import { StatusBar } from "react-native";
+
 
 interface PublishedEvent {
   id: string;
@@ -586,7 +588,17 @@ export function PublishedEventsScreen() {
 
   // --- MAIN RENDER ---
   return (
-    <SafeAreaView style={styles.flex1} edges={["top", "bottom"]}>
+    <SafeAreaView
+      style={[styles.flex1, { backgroundColor: Theme.colors.background }]}
+      edges={["top", "bottom"]}
+    >
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={Theme.colors.background}
+        translucent={false}
+      />
+
+
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.mainHeader}>
