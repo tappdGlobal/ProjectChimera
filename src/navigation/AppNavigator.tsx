@@ -3,9 +3,12 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Platform } from "react-native";
 import { SCREEN_NAMES, RootTabParamList, AppStackParamList } from "./Routes";
-import Icon from "react-native-vector-icons/Ionicons"; // Example icon library
+// Icons are handled by BottomNavigation component, so we use a simple placeholder
+const Icon = ({ name, color, size }: any) => (
+  <View style={{ width: size, height: size, backgroundColor: color }} />
+);
 import { ExploreScreen } from "../screens/ExploreScreen";
 import { HostStackScreen } from "./HostStack";
 import { ProfileScreen } from "../screens/ProfileScreen";
@@ -13,6 +16,7 @@ import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { ReconnectScreen } from "../screens/ReconnectScreen";
 import { BottomNavigation } from "./BottomNavigation";
 import { EditProfileScreen } from "../screens/EditProfileScreen";
+import { EventDetailsScreen } from "../screens/EventDetailsScreen";
 import ExploreStack from "./ExploreStack";
 import EngageStack from "./EngageStack";
 
@@ -59,10 +63,10 @@ const MainTabs = () => {
       />
       <Tab.Screen
         name={SCREEN_NAMES.NOTIFICATIONS}
-        component={ReconnectScreen}
+        component={NotificationsScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Icon name="people-outline" color={color} size={size} />
+            <Icon name="bell" color={color} size={size} />
           ),
         }}
       />
@@ -86,6 +90,10 @@ const AppNavigator = () => {
       <Stack.Screen
         name={SCREEN_NAMES.EDIT_PROFILE}
         component={EditProfileScreen}
+      />
+      <Stack.Screen
+        name={SCREEN_NAMES.EVENT_DETAILS_SCREEN}
+        component={EventDetailsScreen}
       />
     </Stack.Navigator>
   );

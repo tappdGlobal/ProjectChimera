@@ -9,6 +9,7 @@ interface UserState {
   error: string | null;
 
   fetchUser: () => Promise<void>;
+  updateUser: (data: Partial<User>) => Promise<void>;
   uploadPhotos: (photos: string[]) => Promise<void>;
   clearUser: () => void;
 }
@@ -33,6 +34,25 @@ export const useUserStore = create<UserState>((set, get) => ({
         isLoading: false,
         error: error?.message || "Failed to load user",
       });
+    }
+  },
+
+  /* ================= UPDATE USER ================= */
+  updateUser: async (data: Partial<User>) => {
+    const userId = useAuthStore.getState().userId;
+    if (!userId) return;
+
+    set({ isLoading: true, error: null });
+
+    try {
+      const updatedUser = await userApi.updateUserProfile(userId, data);
+      set({ user: updatedUser, isLoading: false });
+    } catch (error: any) {
+      set({
+        isLoading: false,
+        error: error?.message || "Failed to update profile",
+      });
+      throw error;
     }
   },
 

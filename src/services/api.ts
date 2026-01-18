@@ -10,10 +10,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /* ================= CONFIG ================= */
 
-const USE_PRODUCTION = true;
+const USE_PRODUCTION = false;
 const PRODUCTION_URL = "https://tappd-backend.onrender.com/api/v1";
 const PORT = 3000;
-const LOCAL_MACHINE_IP = "192.168.1.100";
+const LOCAL_MACHINE_IP = "127.0.0.1";
 
 /* ================= BASE URL ================= */
 
@@ -50,10 +50,7 @@ api.interceptors.request.use(
     const token = await AsyncStorage.getItem("token");
 
     if (token) {
-      config.headers = {
-        ...config.headers,
-        Authorization: `Bearer ${token}`,
-      };
+      config.headers['Authorization'] = `Bearer ${token}`;
     }
 
     return config;

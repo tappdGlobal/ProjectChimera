@@ -2,11 +2,15 @@ import React, { useState } from "react";
 import {
   View,
   Text,
+  StyleSheet,
   ScrollView,
   Image,
   TouchableOpacity,
   FlatList,
-  StyleSheet,
+  TextInput,
+  Share,
+  Modal,
+  SafeAreaView,
 } from "react-native";
 import { Theme } from "../../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
@@ -14,110 +18,154 @@ import {
   Plus,
   Heart,
   MessageCircle,
-  Send,
   MoreHorizontal,
   Music,
+  ChevronLeft,
+  Upload,
 } from "lucide-react-native";
-import { CreateStoryModal } from "./CreateStoryModal";
+import StoryViewer from "./StoryViewer";
 
-import { UploadContentSheet } from "./UploadContentSheet";
+/* ---------------- MOCK DATA ---------------- */
 
-// ---------------- MOCK DATA ----------------
+const DEFAULT_AVATAR =
+  "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
 
 const STORIES = [
-  { id: "new", name: "Add Story", isUser: true, image: "" },
+  { id: "new", name: "Add Story", isUser: true, image: DEFAULT_AVATAR },
   { id: "1", name: "Emma", image: "https://i.pravatar.cc/150?u=emma" },
   { id: "2", name: "Michael", image: "https://i.pravatar.cc/150?u=michael" },
   { id: "3", name: "Sarah", image: "https://i.pravatar.cc/150?u=sarah" },
-  { id: "4", name: "David", image: "https://i.pravatar.cc/150?u=david" },
-  { id: "5", name: "Olivia", image: "https://i.pravatar.cc/150?u=olivia" },
 ];
 
 const POSTS = [
   {
     id: "1",
-    user: {
-      name: "Emma Johnson",
-      avatar: "https://i.pravatar.cc/150?u=emma",
-    },
+    user: { name: "Emma Johnson", avatar: "https://i.pravatar.cc/150?u=emma" },
     time: "2h ago",
-    media: "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4",
+    media:
+      "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4",
     likes: 127,
-    caption: "Amazing jazz performance tonight!",
-    comments: 23,
+    caption: "Amazing jazz performance tonight! 🎷✨",
+    comments: [
+      { username: "Michael", text: "Wow, looks amazing!", time: "1h" },
+      { username: "Sarah", text: "I wish I was there 🎷", time: "45m" },
+    ],
     music: "Smooth Operator - Sade",
   },
   {
     id: "2",
-    user: {
-      name: "Michael Smith",
-      avatar: "https://i.pravatar.cc/150?u=michael",
-    },
+    user: { name: "Michael Smith", avatar: "https://i.pravatar.cc/150?u=michael" },
     time: "4h ago",
-    media: "https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec",
+    media:
+      "https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec",
     likes: 89,
-    caption: "Great vibes at the rooftop party!",
-    comments: 12,
+    caption: "Great vibes at the rooftop party! 🍹🌇",
+    comments: [{ username: "Emma", text: "Looks fun!", time: "30m" }],
     music: "Summer - Calvin Harris",
   },
 ];
 
-// ---------------- STORY ITEM ----------------
 
-const StoryItem = ({
-  item,
-  onAddStory,
-}: {
-  item: typeof STORIES[0];
-  onAddStory: () => void;
-}) => {
-  return (
-    <View style={styles.storyItem}>
-      {item.isUser ? (
-        <TouchableOpacity onPress={onAddStory} style={styles.addStoryWrapper}>
-          <View style={styles.addStoryDashedCircle}>
-            <Plus size={26} color={Theme.colors.foreground} />
-          </View>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity>
-          <LinearGradient
-            colors={[
-              Theme.colors.primary || "#c451c9",
-              "#740182",
-            ]}
-            style={styles.storyGradient}
-          >
-            <Image source={{ uri: item.image }} style={styles.storyImage} />
-          </LinearGradient>
-        </TouchableOpacity>
-      )}
-      <Text style={styles.storyName}>{item.name}</Text>
-    </View>
+/* ---------------- STORY ITEM ---------------- */
+
+const StoryItem = ({ item, onPress }) => (
+  <View style={styles.storyItem}>
+    {item.isUser ? (
+      <TouchableOpacity style={styles.addStoryContainer}>
+        <Plus size={24} color={Theme.colors.foreground} />
+      </TouchableOpacity>
+    ) : (
+      <TouchableOpacity onPress={onPress}>
+        <LinearGradient
+          colors={["#c451c9", "#740182"]}
+          style={styles.storyGradient}
+        >
+          <Image source={{ uri: item.image }} style={styles.storyImage} />
+        </LinearGradient>
+      </TouchableOpacity>
+    )}
+    <Text style={styles.storyName}>{item.name}</Text>
+  </View>
+);
+
+/* ---------------- FEED POST ---------------- */
+
+const FeedPost = ({ item }) => {
+  const [liked, setLiked] = useState(false);
+  const [likes, setLikes] = useState(item.likes);
+
+  const [comments, setComments] = useState(
+    item.comments.map((c, i) => ({
+      ...c,
+      id: i.toString(),
+      liked: false,
+      likeCount: 0,
+    }))
   );
+  const handleShare = async () => {
+  try {
+    await Share.share({
+      message: `${item.user.name}: ${item.caption}`,
+    });
+  } catch (error) {
+    console.log("Share error:", error);
+  }
 };
 
-// ---------------- FEED POST ----------------
+  const [commentText, setCommentText] = useState("");
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
+  const [showInlineComments, setShowInlineComments] = useState(false);
 
-const FeedPost = ({ item }: { item: typeof POSTS[0] }) => {
+  const handleLike = () => {
+    setLiked(!liked);
+    setLikes(p => (liked ? p - 1 : p + 1));
+  };
+
+  const toggleCommentLike = id => {
+    setComments(prev =>
+      prev.map(c =>
+        c.id === id
+          ? {
+              ...c,
+              liked: !c.liked,
+              likeCount: c.liked ? c.likeCount - 1 : c.likeCount + 1,
+            }
+          : c
+      )
+    );
+  };
+
+  const addComment = () => {
+    if (!commentText.trim()) return;
+    setComments(p => [
+      ...p,
+      {
+        id: Date.now().toString(),
+        username: "You",
+        text: commentText,
+        time: "now",
+        liked: false,
+        likeCount: 0,
+      },
+    ]);
+    setCommentText("");
+  };
+
   return (
     <View style={styles.postContainer}>
       {/* Header */}
       <View style={styles.postHeader}>
         <Image source={{ uri: item.user.avatar }} style={styles.avatar} />
-        <View style={styles.postHeaderText}>
+        <View style={{ flex: 1 }}>
           <Text style={styles.userName}>{item.user.name}</Text>
           <Text style={styles.postTime}>{item.time}</Text>
         </View>
-        <TouchableOpacity>
-          <MoreHorizontal size={20} color={Theme.colors.mutedForeground} />
-        </TouchableOpacity>
+        <MoreHorizontal size={20} color={Theme.colors.mutedForeground} />
       </View>
 
       {/* Media */}
       <View style={styles.postMediaContainer}>
         <Image source={{ uri: item.media }} style={styles.postMedia} />
-
         <View style={styles.musicPill}>
           <Music size={12} color="#c451c9" />
           <Text style={styles.musicText}>{item.music}</Text>
@@ -126,65 +174,184 @@ const FeedPost = ({ item }: { item: typeof POSTS[0] }) => {
 
       {/* Actions */}
       <View style={styles.actionRow}>
-        <TouchableOpacity style={styles.actionButton}>
-          <Heart size={24} color={Theme.colors.destructive} />
+        <TouchableOpacity onPress={handleLike} style={styles.actionButton}>
+          <Heart
+            size={24}
+            color={liked ? "red" : Theme.colors.foreground}
+            fill={liked ? "red" : "transparent"}
+          />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton}>
+
+        <TouchableOpacity
+          onPress={() => setShowCommentsModal(true)}
+          style={styles.actionButton}
+        >
           <MessageCircle size={24} color={Theme.colors.foreground} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton}>
-          <Send size={24} color={Theme.colors.foreground} />
+
+        <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
+          <Upload size={24} color={Theme.colors.foreground} />
         </TouchableOpacity>
       </View>
 
       {/* Footer */}
       <View style={styles.postFooter}>
-        <Text style={styles.likesText}>{item.likes} likes</Text>
+        <Text style={styles.likesText}>{likes} likes</Text>
+
         <Text style={styles.caption}>
           <Text style={styles.captionUser}>{item.user.name} </Text>
           {item.caption}
         </Text>
-        <Text style={styles.viewComments}>
-          View all {item.comments} comments
-        </Text>
+
+        <TouchableOpacity onPress={() => setShowInlineComments(true)}>
+          <Text style={styles.viewAllComments}>
+            View all {comments.length} comments
+          </Text>
+        </TouchableOpacity>
+
+        {/* INLINE COMMENTS */}
+        {showInlineComments && (
+          <View style={{ marginTop: 12 }}>
+            <View style={styles.commentBox}>
+              <TextInput
+                placeholder="Add a comment..."
+                placeholderTextColor="#999"
+                value={commentText}
+                onChangeText={setCommentText}
+                style={styles.commentInput}
+              />
+              <TouchableOpacity onPress={addComment}>
+                <Text style={styles.postButton}>Post</Text>
+              </TouchableOpacity>
+            </View>
+
+            {comments.map(c => (
+              <View key={c.id} style={styles.commentRow}>
+                <Image source={{ uri: DEFAULT_AVATAR }} style={styles.commentAvatar} />
+                <View style={{ flex: 1 }}>
+                  <View style={styles.commentBubble}>
+                    <Text style={styles.commentText}>
+                      <Text style={styles.captionUser}>{c.username} </Text>
+                      {c.text}
+                    </Text>
+                  </View>
+
+                  <View style={styles.commentActions}>
+                    <Text style={styles.commentTime}>{c.time}</Text>
+
+                    <TouchableOpacity
+                      style={{ flexDirection: "row", gap: 4 }}
+                      onPress={() => toggleCommentLike(c.id)}
+                    >
+                      <Heart
+                        size={14}
+                        color={c.liked ? "red" : Theme.colors.mutedForeground}
+                        fill={c.liked ? "red" : "transparent"}
+                      />
+                      <Text style={styles.commentTime}>{c.likeCount}</Text>
+                    </TouchableOpacity>
+
+                    <Text style={styles.replyText}>Reply</Text>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
+
+      {/* MODAL COMMENTS */}
+      <Modal visible={showCommentsModal} animationType="slide">
+        <SafeAreaView style={{ flex: 1, backgroundColor: Theme.colors.background }}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowCommentsModal(false)}>
+              <ChevronLeft size={28} color={Theme.colors.foreground} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Comments</Text>
+          </View>
+
+          <FlatList
+            data={comments}
+            keyExtractor={c => c.id}
+            renderItem={({ item }) => (
+              <View style={styles.commentRow}>
+                <Image source={{ uri: DEFAULT_AVATAR }} style={styles.commentAvatar} />
+                <View style={{ flex: 1 }}>
+                  <View style={styles.commentBubble}>
+                    <Text style={styles.commentText}>
+                      <Text style={styles.captionUser}>{item.username} </Text>
+                      {item.text}
+                    </Text>
+                  </View>
+
+                  <View style={styles.commentActions}>
+                    <Text style={styles.commentTime}>{item.time}</Text>
+
+                    <TouchableOpacity
+                      style={{ flexDirection: "row", gap: 4 }}
+                      onPress={() => toggleCommentLike(item.id)}
+                    >
+                      <Heart
+                        size={14}
+                        color={item.liked ? "red" : Theme.colors.mutedForeground}
+                        fill={item.liked ? "red" : "transparent"}
+                      />
+                      <Text style={styles.commentTime}>{item.likeCount}</Text>
+                    </TouchableOpacity>
+
+                    <Text style={styles.replyText}>Reply</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+          />
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 };
 
-// ---------------- MAIN SECTION ----------------
+/* ---------------- MAIN SECTION ---------------- */
 
 export function EventInteractionSection() {
-  const [stories, setStories] = useState(STORIES);
-  const [showUpload, setShowUpload] = useState(false);
-  const [showCreateStory, setShowCreateStory] = useState(false);
-  const [storyImage, setStoryImage] = useState<string | null>(null);
+  const [showStoryModal, setShowStoryModal] = useState(false);
+  const [storyIndex, setStoryIndex] = useState(0);
 
   return (
     <View style={styles.container}>
       <FlatList
         data={POSTS}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         renderItem={({ item }) => <FeedPost item={item} />}
         ListHeaderComponent={
-          <View style={styles.storiesContainer}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.storiesContent}
-            >
-              {stories.map((story) => (
-                <StoryItem
-                  key={story.id}
-                  item={story}
-                  onAddStory={() => setShowUpload(true)}
-                />
-              ))}
-            </ScrollView>
-          </View>
+          <ScrollView horizontal style={{ padding: 16 }}>
+            {STORIES.map((story, index) => (
+              <StoryItem
+                key={story.id}
+                item={story}
+                onPress={() => {
+                  if (!story.isUser) {
+                    setStoryIndex(index - 1);
+                    setShowStoryModal(true);
+                  }
+                }}
+              />
+            ))}
+          </ScrollView>
         }
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
+      />
+
+      <StoryViewer
+        visible={showStoryModal}
+        stories={STORIES.filter(s => !s.isUser).map(s => ({
+          id: s.id,
+          username: s.name,
+          profileImage: s.image,
+          image: s.image,
+          time: "Just now",
+        }))}
+        initialIndex={storyIndex}
+        onClose={() => setShowStoryModal(false)}
       />
 
       <UploadContentSheet
@@ -209,152 +376,73 @@ export function EventInteractionSection() {
   );
 }
 
-// ---------------- STYLES ----------------
+/* ---------------- STYLES ---------------- */
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Theme.colors.background,
-  },
-  listContent: {
-    paddingBottom: 80,
-  },
+  container: { flex: 1, backgroundColor: Theme.colors.background },
 
-  storiesContainer: {
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Theme.colors.muted,
-  },
-  storiesContent: {
-    paddingHorizontal: 16,
-  },
-  storyItem: {
-    alignItems: "center",
-    marginRight: 16,
-    width: 72,
-  },
-  addStoryWrapper: {
-    width: 68,
-    height: 68,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 6,
-  },
-  addStoryDashedCircle: {
+  storyItem: { alignItems: "center", marginRight: 16 },
+  addStoryContainer: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    borderWidth: 1.5,
-    borderStyle: "dashed",
-    borderColor: Theme.colors.mutedForeground,
-    alignItems: "center",
     justifyContent: "center",
-  },
-  storyGradient: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    padding: 2,
     alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: Theme.colors.muted,
   },
-  storyImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 2,
-    borderColor: Theme.colors.background,
-  },
-  storyName: {
-    color: Theme.colors.foreground,
-    fontSize: 12,
-    fontWeight: "500",
-    textAlign: "center",
+  storyGradient: { width: 68, height: 68, borderRadius: 34, padding: 2 },
+  storyImage: { width: 60, height: 60, borderRadius: 30 },
+  storyName: { color: Theme.colors.foreground, fontSize: 12 },
+
+  postContainer: { marginBottom: 24 },
+  postHeader: { flexDirection: "row", padding: 16 },
+  avatar: { width: 32, height: 32, borderRadius: 16, marginRight: 10 },
+  userName: { color: Theme.colors.foreground, fontWeight: "600" },
+  postTime: { color: Theme.colors.mutedForeground, fontSize: 12 },
+
+  postMediaContainer: { aspectRatio: 4 / 5 },
+  postMedia: { width: "100%", height: "100%" },
+  musicPill: { position: "absolute", bottom: 12, left: 12, flexDirection: "row" },
+  musicText: { color: "#c451c9", marginLeft: 6 },
+
+  actionRow: { flexDirection: "row", paddingHorizontal: 16, paddingTop: 14 },
+  actionButton: { marginRight: 16 },
+
+  postFooter: { paddingHorizontal: 16 },
+  likesText: { fontWeight: "700", color: Theme.colors.foreground },
+  caption: { color: Theme.colors.foreground },
+  captionUser: { fontWeight: "600" },
+
+  viewAllComments: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 13,
+    marginTop: 2,
   },
 
-  postContainer: {
-    marginBottom: 24,
+  commentRow: { flexDirection: "row", marginBottom: 16 },
+  commentAvatar: { width: 32, height: 32, borderRadius: 16, marginRight: 10 },
+  commentBubble: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+    padding: 10,
+    borderRadius: 12,
   },
-  postHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    marginBottom: 12,
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginRight: 10,
-  },
-  postHeaderText: {
+  commentText: { color: Theme.colors.foreground },
+  commentActions: { flexDirection: "row", gap: 12, marginTop: 4 },
+  commentTime: { fontSize: 12, color: Theme.colors.mutedForeground },
+  replyText: { fontSize: 12, color: Theme.colors.mutedForeground },
+
+  commentBox: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
+  commentInput: {
     flex: 1,
-  },
-  userName: {
+    backgroundColor: "rgba(255,255,255,0.05)",
     color: Theme.colors.foreground,
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  postTime: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 12,
-  },
-
-  postMediaContainer: {
-    position: "relative",
-    width: "100%",
-    aspectRatio: 4 / 5,
-  },
-  postMedia: {
-    width: "100%",
-    height: "100%",
-  },
-  musicPill: {
-    position: "absolute",
-    bottom: 12,
-    left: 12,
-    backgroundColor: "rgba(20,10,30,0.8)",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
+    borderRadius: 20,
+    paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
   },
-  musicText: {
-    color: "#c451c9",
-    fontSize: 12,
-    marginLeft: 6,
-    fontWeight: "500",
-  },
+  postButton: { marginLeft: 8, color: Theme.colors.primary },
 
-  actionRow: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  actionButton: {
-    marginRight: 16,
-  },
-
-  postFooter: {
-    paddingHorizontal: 16,
-  },
-  likesText: {
-    color: Theme.colors.foreground,
-    fontWeight: "700",
-    marginBottom: 6,
-  },
-  caption: {
-    color: Theme.colors.foreground,
-    fontSize: 14,
-    marginBottom: 6,
-  },
-  captionUser: {
-    fontWeight: "600",
-  },
-  viewComments: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 14,
-  },
+  modalHeader: { flexDirection: "row", padding: 16 },
+  modalTitle: { color: Theme.colors.foreground, fontSize: 16 },
 });

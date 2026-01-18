@@ -29,7 +29,9 @@ import {
   Mail,
 } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
+import Toast from "react-native-toast-message";
 import { useAuthStore } from "../store/authStore";
+import { SCREEN_NAMES } from "../navigation/Routes";
 
 const TOTAL_STEPS = 6;
 
@@ -87,7 +89,7 @@ export const ProfileCreationScreen = () => {
   // Step 6 State
   const [verificationCode, setVerificationCode] = useState("");
 
-  const { signup, isLoading, error, clearError } = useAuthStore();
+  const { signup, verifyEmail, isLoading, error, clearError } = useAuthStore();
 
   useEffect(() => {
     if (error) {
@@ -158,7 +160,7 @@ export const ProfileCreationScreen = () => {
     if (!agreedToTerms) {
       Alert.alert(
         "Error",
-        "You must agree to the Terms of Service and Privacy Policy"
+        "You must agree to the Terms of Service and Privacy Policy",
       );
       return false;
     }
@@ -173,6 +175,42 @@ export const ProfileCreationScreen = () => {
     return true;
   };
 
+  const performSignup = async () => {
+    const formData = new FormData();
+    formData.append("name", `${firstName} ${lastName}`.trim());
+    formData.append("email", email);
+    formData.append("username", username);
+    formData.append("password", password);
+    formData.append("phoneNumber", phone);
+    formData.append("age", age);
+    formData.append("bio", bio);
+    formData.append("interests", JSON.stringify(selectedInterests));
+
+    if (location.country) formData.append("country", location.country);
+    if (location.city) formData.append("city", location.city);
+
+    formData.append("eventNotifications", String(notifications.events));
+    formData.append("messageNotifications", String(notifications.messages));
+    formData.append("marketingNotifications", String(notifications.marketing));
+
+    if (profileImage) {
+      const filename = profileImage.split("/").pop() || "profile.jpg";
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : `image/jpeg`;
+
+      const fileObj = {
+        uri: profileImage,
+        name: filename,
+        type,
+      };
+      console.log("Appending file to FormData:", JSON.stringify(fileObj));
+
+      formData.append("profileImage", fileObj as any);
+    }
+
+    await signup(formData);
+  };
+
   const handleNext = async () => {
     if (currentStep === 1) {
       if (validateStep1()) setCurrentStep(2);
@@ -183,20 +221,41 @@ export const ProfileCreationScreen = () => {
     } else if (currentStep === 4) {
       setCurrentStep(5);
     } else if (currentStep === 5) {
-      if (validateStep5()) setCurrentStep(6);
-    } else if (currentStep === TOTAL_STEPS) {
-      if (!validateStep6()) return;
-      // Final Submit
-      try {
-        await signup({
-          name: `${firstName} ${lastName}`.trim(),
-          email,
-          username,
-          password,
-        });
-        // Navigation handled by auth store listener usually, or we can nav manually if needed
-      } catch (err) {
-        console.error(err);
+      if (validateStep5()) {
+        try {
+          await performSignup();
+          setCurrentStep(6);
+        } catch (err) {
+          console.error("Signup error:", err);
+          // Error alert is handled by useEffect
+        }
+      }
+    } else if (currentStep === 6) {
+      if (validateStep6()) {
+        try {
+          await verifyEmail({ email, otp: verificationCode });
+
+          Toast.show({
+            type: "success",
+            text1: "Welcome to TAPPD!",
+            text2: "Email verified successfully.",
+          });
+
+          // Navigate to Engage screen after a short delay
+          setTimeout(() => {
+            navigation.reset({
+              index: 0,
+              routes: [
+                {
+                  name: SCREEN_NAMES.MAIN_TABS,
+                  params: { screen: SCREEN_NAMES.ENGAGE },
+                },
+              ],
+            });
+          }, 1000);
+        } catch (err) {
+          console.error("Verification error:", err);
+        }
       }
     } else {
       setCurrentStep(currentStep + 1);
@@ -450,22 +509,28 @@ export const ProfileCreationScreen = () => {
 
       <View style={styles.inputGroup}>
         <Text style={styles.inputLabel}>Country</Text>
-        <TouchableOpacity style={styles.dropdownButton}>
-          <Text style={styles.dropdownText}>
-            {location.country || "Select your country"}
-          </Text>
-          <ChevronDown color="#FFFFFF" size={20} />
-        </TouchableOpacity>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter your country"
+          placeholderTextColor="rgba(255,255,255,0.4)"
+          value={location.country}
+          onChangeText={(text) =>
+            setLocation((prev) => ({ ...prev, country: text }))
+          }
+        />
       </View>
 
       <View style={styles.inputGroup}>
         <Text style={styles.inputLabel}>City</Text>
-        <TouchableOpacity style={styles.dropdownButton}>
-          <Text style={styles.dropdownText}>
-            {location.city || "Select country first"}
-          </Text>
-          <ChevronDown color="#FFFFFF" size={20} />
-        </TouchableOpacity>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter your city"
+          placeholderTextColor="rgba(255,255,255,0.4)"
+          value={location.city}
+          onChangeText={(text) =>
+            setLocation((prev) => ({ ...prev, city: text }))
+          }
+        />
       </View>
 
       <View style={styles.permissionContainer}>
@@ -666,7 +731,11 @@ export const ProfileCreationScreen = () => {
           </ScrollView>
 
           <View style={styles.footer}>
-            <TouchableOpacity onPress={handleNext} style={styles.nextButton}>
+            <TouchableOpacity
+              onPress={handleNext}
+              style={[styles.nextButton, isLoading && { opacity: 0.7 }]}
+              disabled={isLoading}
+            >
               <LinearGradient
                 colors={["#C026D3", "#DB2777"]}
                 style={styles.gradientButton}

@@ -17,7 +17,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.tappd.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "This app uses your location to show events near you."
+        "NSLocationWhenInUseUsageDescription": "This app uses your location to show events near you.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

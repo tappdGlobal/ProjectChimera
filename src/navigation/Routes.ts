@@ -28,6 +28,9 @@ export const SCREEN_NAMES = {
   // Host Stack
   PUBLISHED_EVENTS: "PublishedEvents",
   DRAFT_EVENTS: "DraftEvents",
+  
+  // Standalone
+  EVENT_DETAILS_SCREEN: "EventDetailsScreen",
 } as const;
 
 
@@ -53,7 +56,8 @@ export type AppStackParamList = {
     name: string;
     avatar: string;
   };
-  [SCREEN_NAMES.CHAT_SETTINGS]: undefined; // ✅ Added
+  [SCREEN_NAMES.CHAT_SETTINGS]: undefined;
+  [SCREEN_NAMES.EVENT_DETAILS_SCREEN]: undefined;
 };
 
 export type ExploreStackParamList = {

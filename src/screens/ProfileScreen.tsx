@@ -1,5 +1,3 @@
-// src/screens/ProfileScreen.tsx
-
 import React, { useState } from "react";
 import {
   View,
@@ -51,6 +49,8 @@ import { Theme } from "../styles/Theme";
 import { SCREEN_NAMES } from "../navigation/Routes";
 import { StatusBar } from "react-native";
 import { useUserStore } from "../store/userStore";
+import { useAppNavigation } from "../hooks/useAppNavigation";
+import Toast from "react-native-toast-message";
 import { TappdBandPopup } from "../components/profile/TappdBandPopup";
 import { ManageBandPopup } from "../components/profile/ManageBandPopup";
 import { ChangeEmailPopup } from "../components/profile/ChangeEmailPopup";
@@ -113,8 +113,10 @@ import { useAuthStore } from "../store/authStore";
 import { userApi } from "../api/userApi";
 
 export function ProfileScreen() {
-  const navigation = useNavigation();
-  const { user, logout, toggleSettings } = useAuthStore();
+  const navigation = useAppNavigation();
+  const { logout } = useAuthStore();
+  const { user, fetchUser, updateUser, uploadPhotos, isLoading } =
+    useUserStore();
   const [activeTab, setActiveTab] = useState("about");
   const [showSettings, setShowSettings] = useState(false);
   const [showOnlineStatus, setShowOnlineStatus] = useState(false);
@@ -122,8 +124,13 @@ export function ProfileScreen() {
     "all" | "friends" | "matches" | "business"
   >("all");
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
-  const [profileImage, setProfileImage] = useState(user?.avatar || harshPhotos[0]);
+  // Use user avatar or profilePicUrl, fallback to a default placeholder instead of mock photos
+  const defaultAvatar = "https://via.placeholder.com/400x400?text=No+Photo";
+  const [profileImage, setProfileImage] = useState(
+    user?.avatar || user?.profilePicUrl || defaultAvatar,
+  );
   const [connections, setConnections] = useState<any[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const [isLoadingConnections, setIsLoadingConnections] = useState(false);
   const [showTappdBandPopup, setShowTappdBandPopup] = useState(false);
   const [showManageBandPopup, setShowManageBandPopup] = useState(false);
@@ -131,34 +138,53 @@ export function ProfileScreen() {
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
 
-
-  type PaymentFlow =
-    | "NONE"
-    | "MANAGE"
-    | "ACCOUNT_TYPE"
-    | "DETAIL_FORM";
+  type PaymentFlow = "NONE" | "MANAGE" | "ACCOUNT_TYPE" | "DETAIL_FORM";
 
   const [paymentFlow, setPaymentFlow] = useState<PaymentFlow>("NONE");
   const [paymentType, setPaymentType] = useState<
     "Individual" | "Business" | null
   >(null);
 
+  // Fetch user data on mount
+  React.useEffect(() => {
+    fetchUser();
+  }, []);
+
+  const handleToggleSettings = async (key: string) => {
+    if (!user) return;
+
+    if (key === "notifications") {
+      const newValue = !user.eventNotifications;
+      await updateUser({
+        eventNotifications: newValue,
+        messageNotifications: newValue,
+        marketingNotifications: newValue,
+      });
+    } else if (key === "privacy") {
+      await updateUser({ locationVisibility: !user.locationVisibility });
+    }
+  };
+
   // Update profile image if user avatar changes
   React.useEffect(() => {
-    if (user?.avatar) {
-      setProfileImage(user.avatar);
-    }
-  }, [user?.avatar]);
+    const newAvatar = user?.avatar || user?.profilePicUrl || defaultAvatar;
+    setProfileImage(newAvatar);
+  }, [user?.avatar, user?.profilePicUrl]);
 
   // Fetch connections on mount
   React.useEffect(() => {
     const fetchConnections = async () => {
+      if (!user?.id) return;
       setIsLoadingConnections(true);
       try {
-        const data = await userApi.getConnections();
-        setConnections(data);
+        const [connectionsData, requestsData] = await Promise.all([
+          userApi.getConnections(user.id),
+          userApi.getPendingConnectionRequests(user.id),
+        ]);
+        setConnections(connectionsData);
+        setPendingRequests(requestsData);
       } catch (error) {
-        console.error('Failed to fetch connections:', error);
+        console.error("Failed to fetch connections:", error);
         // Fallback to mock data if API fails
         setConnections(mockConnections);
       } finally {
@@ -167,7 +193,7 @@ export function ProfileScreen() {
     };
 
     fetchConnections();
-  }, []);
+  }, [user?.id]);
 
   // Permissions check for Image Picker (required for newer Expo SDKs)
   React.useEffect(() => {
@@ -181,13 +207,13 @@ export function ProfileScreen() {
       }
     })();
   }, []);
-  const name = useUserStore((state) => state.user?.data?.name);
-  const bio = useUserStore((state) => state.user?.data?.bio);
-  const profilePicUrl = useUserStore((state) => state.user?.profilePicUrl);
-  const photos = useUserStore((state) => state.user?.photos);
-  const uploadPhotos = useUserStore((state) => state.uploadPhotos);
+  const name = user?.name;
+  const bio = user?.bio;
+  const profilePicUrl = user?.profilePicUrl;
+  const photos = user?.photos;
+  // const uploadPhotos = useUserStore((state) => state.uploadPhotos); // Already destructured
 
-  console.log(profilePicUrl)
+  console.log(profilePicUrl);
   const filteredConnections = connections;
 
   const pickImage = async (isProfile: boolean = false) => {
@@ -212,7 +238,6 @@ export function ProfileScreen() {
       console.error("ImagePicker Error:", error);
     }
   };
-
 
   // --- SUB COMPONENTS ---
 
@@ -246,11 +271,9 @@ export function ProfileScreen() {
               <ChevronRight size={18} color={Theme.colors.mutedForeground} />
             </TouchableOpacity>
 
-
             <TouchableOpacity
               style={styles.settingsRow}
               onPress={() => setShowManageBandPopup(true)}
-
             >
               <Smartphone
                 size={18}
@@ -293,9 +316,7 @@ export function ProfileScreen() {
 
             <TouchableOpacity
               style={styles.settingsRow}
-              onPress={() =>
-                setPaymentFlow("MANAGE")
-              }
+              onPress={() => setPaymentFlow("MANAGE")}
             >
               <CreditCard
                 size={18}
@@ -313,11 +334,15 @@ export function ProfileScreen() {
               onPress={() =>
                 Alert.alert(
                   "Delete Account",
-                  "This is a destructive action. Hook it up to backend before enabling."
+                  "This is a destructive action. Hook it up to backend before enabling.",
                 )
               }
             >
-              <Trash2 size={18} color={"#F87171"} style={styles.settingsRowIcon} />
+              <Trash2
+                size={18}
+                color={"#F87171"}
+                style={styles.settingsRowIcon}
+              />
               <Text style={[styles.settingsRowText, { color: "#F87171" }]}>
                 Delete Account
               </Text>
@@ -338,8 +363,8 @@ export function ProfileScreen() {
                 <Text style={styles.settingsRowText}>Push Notifications</Text>
               </View>
               <Switch
-                value={user?.settings?.notifications ?? true}
-                onValueChange={() => toggleSettings("notifications")}
+                value={user?.eventNotifications ?? true}
+                onValueChange={() => handleToggleSettings("notifications")}
                 trackColor={{ true: Theme.colors.primary }}
                 thumbColor={Theme.colors.foreground}
               />
@@ -372,8 +397,8 @@ export function ProfileScreen() {
                 <Text style={styles.settingsRowText}>Private Profile</Text>
               </View>
               <Switch
-                value={user?.settings?.privacy ?? false}
-                onValueChange={() => toggleSettings("privacy")}
+                value={!user?.locationVisibility} // Private means NOT visible
+                onValueChange={() => handleToggleSettings("privacy")}
                 trackColor={{ true: Theme.colors.primary }}
                 thumbColor={Theme.colors.foreground}
               />
@@ -408,7 +433,11 @@ export function ProfileScreen() {
                 await logout();
               }}
             >
-              <LogOut size={16} color={Theme.colors.foreground} style={styles.mr2} />
+              <LogOut
+                size={16}
+                color={Theme.colors.foreground}
+                style={styles.mr2}
+              />
               Logout
             </Button>
           </View>
@@ -435,10 +464,10 @@ export function ProfileScreen() {
   return (
     <SafeAreaView style={styles.flex1} edges={["left", "right"]}>
       <StatusBar
-    barStyle="light-content"
-    backgroundColor={Theme.colors.background}
-    translucent={false}
-  />
+        barStyle="light-content"
+        backgroundColor={Theme.colors.background}
+        translucent={false}
+      />
 
       <View style={styles.mainContainer}>
         {/* Header */}
@@ -466,23 +495,26 @@ export function ProfileScreen() {
               <View style={styles.photoWrapper}>
                 <View style={styles.avatarBorder}>
                   <Avatar style={styles.avatarStyle}>
-                    <AvatarImage
-                      src={profilePicUrl ?? profileImage}
-                      alt={name ?? "User Profile"}
-                    />
-
-                    <AvatarFallback>
-                      <Text style={{ color: Theme.colors.foreground }}>
-                        {name
-                          ? name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")
-                            .substring(0, 2)
-                            .toUpperCase()
-                          : "HA"}
-                      </Text>
-                    </AvatarFallback>
+                    {profilePicUrl?.trim() || profileImage?.trim() ? (
+                      <AvatarImage
+                        src={profilePicUrl?.trim() || profileImage?.trim()}
+                        alt={name ?? "User Profile"}
+                      />
+                    ) : (
+                      <AvatarFallback>
+                        <Text style={{ color: Theme.colors.foreground }}>
+                          {name?.trim()
+                            ? name
+                                .trim()
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")
+                                .substring(0, 2)
+                                .toUpperCase()
+                            : "HA"}
+                        </Text>
+                      </AvatarFallback>
+                    )}
                   </Avatar>
                 </View>
 
@@ -495,7 +527,6 @@ export function ProfileScreen() {
                 </Button>
               </View>
 
-
               {/* Name & Info */}
               <Text style={styles.userName}>{name ?? "Guest"}</Text>
               {user?.bio && (
@@ -505,15 +536,18 @@ export function ProfileScreen() {
               )}
               <View style={styles.infoRow}>
                 {[
-                  user?.gender && `${user.gender.charAt(0).toUpperCase()}${user.gender.slice(1).toLowerCase()}`,
+                  user?.gender &&
+                    `${user.gender.charAt(0).toUpperCase()}${user.gender.slice(1).toLowerCase()}`,
                   user?.location,
                   user?.occupation,
-                ].filter(Boolean).map((item) => (
-                  <View key={item} style={styles.infoPill}>
-                    <View style={styles.infoDot} />
-                    <Text style={styles.infoText}>{item}</Text>
-                  </View>
-                ))}
+                ]
+                  .filter(Boolean)
+                  .map((item) => (
+                    <View key={item} style={styles.infoPill}>
+                      <View style={styles.infoDot} />
+                      <Text style={styles.infoText}>{item}</Text>
+                    </View>
+                  ))}
               </View>
             </View>
 
@@ -541,6 +575,17 @@ export function ProfileScreen() {
                 ))}
               </View>
 
+              {/* Edit Details Button */}
+              <View style={styles.editButtonContainer}>
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={() => navigation.navigate(SCREEN_NAMES.EDIT_PROFILE)}
+                >
+                  <Edit size={16} color="#FFFFFF" style={styles.editIcon} />
+                  <Text style={styles.editButtonText}>Edit Details</Text>
+                </TouchableOpacity>
+              </View>
+
               {/* Tab Contents */}
               {activeTab === "about" && (
                 <View style={styles.tabContent}>
@@ -548,32 +593,287 @@ export function ProfileScreen() {
                   <Text style={styles.bioText}>
                     {bio ?? "No bio available."}
                   </Text>
-                  <View style={styles.detailsGrid}>
+
+                  {/* Occupation & Education */}
+                  <View style={styles.twoColumnGrid}>
+                    {user?.occupation && (
+                      <View style={styles.detailItem}>
+                        <Text style={styles.detailLabel}>Occupation</Text>
+                        <Text style={styles.detailValue}>
+                          {user.occupation}
+                        </Text>
+                      </View>
+                    )}
                     {user?.education && (
                       <View style={styles.detailItem}>
                         <Text style={styles.detailLabel}>Education</Text>
                         <Text style={styles.detailValue}>{user.education}</Text>
                       </View>
                     )}
-                    {user?.occupation && (
-                      <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Occupation</Text>
-                        <Text style={styles.detailValue}>{user.occupation}</Text>
-                      </View>
-                    )}
-                    {user?.lookingFor && (
-                      <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Looking For</Text>
-                        <Text style={styles.detailValue}>{user.lookingFor}</Text>
-                      </View>
-                    )}
-                    {user?.age && (
-                      <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Age</Text>
-                        <Text style={styles.detailValue}>{user.age} years old</Text>
-                      </View>
-                    )}
                   </View>
+
+                  {/* Looking For */}
+                  {user?.lookingFor && (
+                    <View style={styles.lookingForSection}>
+                      <Text style={styles.sectionTitle}>Looking For</Text>
+                      <View style={styles.lookingForButtons}>
+                        {typeof user.lookingFor === "string" ? (
+                          user.lookingFor.split(",").map((item, index) => (
+                            <View key={index} style={styles.lookingForButton}>
+                              <Text style={styles.lookingForButtonText}>
+                                {item.trim()}
+                              </Text>
+                            </View>
+                          ))
+                        ) : Array.isArray(user.lookingFor) ? (
+                          user.lookingFor.map((item, index) => (
+                            <View key={index} style={styles.lookingForButton}>
+                              <Text style={styles.lookingForButtonText}>
+                                {item}
+                              </Text>
+                            </View>
+                          ))
+                        ) : (
+                          <View style={styles.lookingForButton}>
+                            <Text style={styles.lookingForButtonText}>
+                              {user.lookingFor}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Personal Details */}
+                  <View style={styles.personalDetailsSection}>
+                    <View style={styles.twoColumnGrid}>
+                      {user?.age && (
+                        <View style={styles.detailItem}>
+                          <Text style={styles.detailLabel}>Age</Text>
+                          <Text style={styles.detailValue}>{user.age}</Text>
+                        </View>
+                      )}
+                      {user?.height && (
+                        <View style={styles.detailItem}>
+                          <Text style={styles.detailLabel}>Height</Text>
+                          <Text style={styles.detailValue}>
+                            {typeof user.height === "number" &&
+                            user.height >= 30 &&
+                            user.height <= 300
+                              ? `${Math.floor(user.height / 30.48)}'${Math.round((user.height % 30.48) / 2.54)}"`
+                              : user.height}
+                          </Text>
+                        </View>
+                      )}
+                      {user?.gender && (
+                        <View style={styles.detailItem}>
+                          <Text style={styles.detailLabel}>Gender</Text>
+                          <Text style={styles.detailValue}>
+                            {user.gender.charAt(0).toUpperCase() +
+                              user.gender.slice(1).toLowerCase()}
+                          </Text>
+                        </View>
+                      )}
+                      {user?.location && (
+                        <View style={styles.detailItem}>
+                          <Text style={styles.detailLabel}>Location</Text>
+                          <Text style={styles.detailValue}>
+                            {user.location}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* Interests */}
+                  {user?.interests && user.interests.length > 0 && (
+                    <View style={styles.interestsSection}>
+                      <Text style={styles.sectionTitle}>Interests</Text>
+                      <View style={styles.interestsContainer}>
+                        {user.interests.map((interest, index) => (
+                          <View key={index} style={styles.interestTag}>
+                            <Text style={styles.interestTagText}>
+                              {interest}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Habits */}
+                  {(user?.smoking || user?.drinking) && (
+                    <View style={styles.habitsSection}>
+                      <View style={styles.twoColumnGrid}>
+                        {user?.smoking && (
+                          <View style={styles.detailItem}>
+                            <Text style={styles.detailLabel}>Smoking</Text>
+                            <Text style={styles.detailValue}>
+                              {user.smoking === "Never" || user.smoking === "No"
+                                ? "No"
+                                : user.smoking}
+                            </Text>
+                          </View>
+                        )}
+                        {user?.drinking && (
+                          <View style={styles.detailItem}>
+                            <Text style={styles.detailLabel}>Drinking</Text>
+                            <Text style={styles.detailValue}>
+                              {user.drinking}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {activeTab === "connections" && (
+                <View style={styles.tabContent}>
+                  <Text style={styles.sectionTitle}>Connections</Text>
+
+                  {/* Pending Requests Section */}
+                  {pendingRequests.length > 0 && (
+                    <View style={{ marginBottom: 24 }}>
+                      <Text
+                        style={[
+                          styles.sectionTitle,
+                          { fontSize: 16, marginBottom: 12 },
+                        ]}
+                      >
+                        Pending Requests ({pendingRequests.length})
+                      </Text>
+                      {pendingRequests.map((req) => (
+                        <View key={req.id} style={styles.connectionCard}>
+                          <View style={styles.connectionAvatarWrapper}>
+                            <Image
+                              source={{
+                                uri:
+                                  req.fromUser.profilePicUrl || defaultAvatar,
+                              }}
+                              style={styles.connectionAvatar}
+                            />
+                          </View>
+                          <View style={{ flex: 1, paddingLeft: 10 }}>
+                            <Text style={styles.connectionName}>
+                              {req.fromUser.name}
+                            </Text>
+                            <Text style={styles.connectionAge}>
+                              {req.fromUser.occupation}
+                            </Text>
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                gap: 8,
+                                marginTop: 8,
+                              }}
+                            >
+                              <Button
+                                size="sm"
+                                style={{
+                                  backgroundColor: Theme.colors.primary,
+                                  flex: 1,
+                                }}
+                                onClick={async () => {
+                                  try {
+                                    await userApi.acceptConnectionRequest(
+                                      req.id,
+                                    );
+                                    Toast.show({
+                                      type: "success",
+                                      text1: "Request Accepted",
+                                    });
+                                    // Refresh
+                                    const requests =
+                                      await userApi.getPendingConnectionRequests(
+                                        user!.id,
+                                      );
+                                    const newConns =
+                                      await userApi.getConnections(user!.id);
+                                    setPendingRequests(requests);
+                                    setConnections(newConns);
+                                  } catch (e) {
+                                    console.error(e);
+                                  }
+                                }}
+                              >
+                                Accept
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                style={{ flex: 1 }}
+                                onClick={async () => {
+                                  try {
+                                    await userApi.rejectConnectionRequest(
+                                      req.id,
+                                    );
+                                    Toast.show({
+                                      type: "info",
+                                      text1: "Request Rejected",
+                                    });
+                                    setPendingRequests((prev) =>
+                                      prev.filter((p) => p.id !== req.id),
+                                    );
+                                  } catch (e) {
+                                    console.error(e);
+                                  }
+                                }}
+                              >
+                                Decline
+                              </Button>
+                            </View>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {isLoadingConnections ? (
+                    <View style={{ padding: 20 }}>
+                      <ActivityIndicator
+                        size="large"
+                        color={Theme.colors.primary}
+                      />
+                    </View>
+                  ) : (
+                    <View style={styles.connectionsGrid}>
+                      {connections.map((connection, index) => (
+                        <View
+                          key={connection.id || index}
+                          style={styles.connectionCard}
+                        >
+                          <View style={styles.connectionAvatarWrapper}>
+                            <Image
+                              source={{
+                                uri:
+                                  connection.photo ||
+                                  connection.profilePicUrl ||
+                                  defaultAvatar,
+                              }}
+                              style={styles.connectionAvatar}
+                            />
+                          </View>
+                          <View style={{ alignItems: "center", marginTop: 8 }}>
+                            <Text style={styles.connectionName}>
+                              {connection.name}
+                            </Text>
+                            <Text style={styles.connectionAge}>
+                              {connection.type ||
+                                connection.occupation ||
+                                "Friend"}
+                            </Text>
+                            <TouchableOpacity
+                              style={[styles.editButton, { marginTop: 8 }]}
+                            >
+                              <Text style={styles.editButtonText}>Message</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  )}
                 </View>
               )}
 
@@ -587,61 +887,15 @@ export function ProfileScreen() {
                       <Plus size={24} color={Theme.colors.mutedForeground} />
                     </TouchableOpacity>
 
-                    {(photos ?? []).map((photo, index) => (
-                      <TouchableOpacity key={index}>
-                        <Image source={{ uri: photo }} />
+                    {(user?.photos ?? []).map((photo, index) => (
+                      <TouchableOpacity key={index} style={styles.photoItem}>
+                        <Image
+                          source={{ uri: photo }}
+                          style={styles.photoGridImage}
+                        />
                       </TouchableOpacity>
                     ))}
-
                   </View>
-                </View>
-
-              )}
-
-              {activeTab === "connections" && (
-                <View style={styles.tabContent}>
-                  {isLoadingConnections ? (
-                    <ActivityIndicator size="large" color={Theme.colors.primary} />
-                  ) : (
-                    <>
-                      <View style={styles.filterBar}>
-                        {["all"].map((key) => (
-                          <Button
-                            key={key}
-                            size="sm"
-                            variant={
-                              connectionFilter === key ? "default" : "outline"
-                            }
-                            onClick={() => setConnectionFilter(key as any)}
-                          >
-                            {key.charAt(0).toUpperCase() + key.slice(1)}
-                          </Button>
-                        ))}
-                      </View>
-                      <View style={styles.connectionsGrid}>
-                        {filteredConnections.map((connection) => (
-                          <Card key={connection.id} style={styles.connectionCard}>
-                            {/* FIX: Use Avatar components here */}
-                            <Avatar style={styles.connectionAvatarWrapper}>
-                              <AvatarImage
-                                src={connection.profilePicUrl || connection.photo}
-                                alt={connection.name}
-                              />
-                              <AvatarFallback>
-                                <Text>{connection.name.charAt(0)}</Text>
-                              </AvatarFallback>
-                            </Avatar>
-                            <Text style={styles.connectionName}>
-                              {connection.name}
-                            </Text>
-                            <Text style={styles.connectionAge}>
-                              {connection.age ? `${connection.age} years old` : ""}
-                            </Text>
-                          </Card>
-                        ))}
-                      </View>
-                    </>
-                  )}
                 </View>
               )}
 
@@ -651,17 +905,20 @@ export function ProfileScreen() {
                   <View style={styles.settingsList}>
                     <TouchableOpacity
                       style={styles.settingsRow}
-                      onPress={
-                        () => setShowTappdBandPopup(true)
-                      }
+                      onPress={() => setShowTappdBandPopup(true)}
                     >
                       <Smartphone
                         size={18}
                         color={Theme.colors.mutedForeground}
                         style={styles.settingsRowIcon}
                       />
-                      <Text style={styles.settingsRowText}>Register TAPPD Band</Text>
-                      <ChevronRight size={18} color={Theme.colors.mutedForeground} />
+                      <Text style={styles.settingsRowText}>
+                        Register TAPPD Band
+                      </Text>
+                      <ChevronRight
+                        size={18}
+                        color={Theme.colors.mutedForeground}
+                      />
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.settingsRow}
@@ -673,11 +930,16 @@ export function ProfileScreen() {
                         style={styles.settingsRowIcon}
                       />
                       <Text style={styles.settingsRowText}>Manage Bands</Text>
-                      <ChevronRight size={18} color={Theme.colors.mutedForeground} />
+                      <ChevronRight
+                        size={18}
+                        color={Theme.colors.mutedForeground}
+                      />
                     </TouchableOpacity>
                   </View>
 
-                  <Text style={styles.settingsSectionTitle}>Account Settings</Text>
+                  <Text style={styles.settingsSectionTitle}>
+                    Account Settings
+                  </Text>
                   <View style={styles.settingsList}>
                     <TouchableOpacity
                       style={styles.settingsRow}
@@ -689,7 +951,10 @@ export function ProfileScreen() {
                         style={styles.settingsRowIcon}
                       />
                       <Text style={styles.settingsRowText}>Change Email</Text>
-                      <ChevronRight size={18} color={Theme.colors.mutedForeground} />
+                      <ChevronRight
+                        size={18}
+                        color={Theme.colors.mutedForeground}
+                      />
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.settingsRow}
@@ -700,14 +965,17 @@ export function ProfileScreen() {
                         color={Theme.colors.mutedForeground}
                         style={styles.settingsRowIcon}
                       />
-                      <Text style={styles.settingsRowText}>Change Password</Text>
-                      <ChevronRight size={18} color={Theme.colors.mutedForeground} />
+                      <Text style={styles.settingsRowText}>
+                        Change Password
+                      </Text>
+                      <ChevronRight
+                        size={18}
+                        color={Theme.colors.mutedForeground}
+                      />
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.settingsRow}
-                      onPress={() =>
-                        setPaymentFlow("MANAGE")
-                      }
+                      onPress={() => setPaymentFlow("MANAGE")}
                     >
                       <CreditCard
                         size={18}
@@ -717,22 +985,34 @@ export function ProfileScreen() {
                       <Text style={styles.settingsRowText}>
                         Manage Payment Information
                       </Text>
-                      <ChevronRight size={18} color={Theme.colors.mutedForeground} />
+                      <ChevronRight
+                        size={18}
+                        color={Theme.colors.mutedForeground}
+                      />
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.settingsRow}
                       onPress={() =>
                         Alert.alert(
                           "Delete Account",
-                          "This is a destructive action. Hook it up to backend before enabling."
+                          "This is a destructive action. Hook it up to backend before enabling.",
                         )
                       }
                     >
-                      <Trash2 size={18} color={"#F87171"} style={styles.settingsRowIcon} />
-                      <Text style={[styles.settingsRowText, { color: "#F87171" }]}>
+                      <Trash2
+                        size={18}
+                        color={"#F87171"}
+                        style={styles.settingsRowIcon}
+                      />
+                      <Text
+                        style={[styles.settingsRowText, { color: "#F87171" }]}
+                      >
                         Delete Account
                       </Text>
-                      <ChevronRight size={18} color={Theme.colors.mutedForeground} />
+                      <ChevronRight
+                        size={18}
+                        color={Theme.colors.mutedForeground}
+                      />
                     </TouchableOpacity>
                   </View>
 
@@ -745,11 +1025,15 @@ export function ProfileScreen() {
                           color={Theme.colors.mutedForeground}
                           style={styles.settingsRowIcon}
                         />
-                        <Text style={styles.settingsRowText}>Push Notifications</Text>
+                        <Text style={styles.settingsRowText}>
+                          Push Notifications
+                        </Text>
                       </View>
                       <Switch
-                        value={user?.settings?.notifications ?? true}
-                        onValueChange={() => toggleSettings("notifications")}
+                        value={user?.eventNotifications ?? true}
+                        onValueChange={() =>
+                          handleToggleSettings("notifications")
+                        }
                         trackColor={{ true: Theme.colors.primary }}
                         thumbColor={Theme.colors.foreground}
                       />
@@ -761,7 +1045,9 @@ export function ProfileScreen() {
                           color={Theme.colors.mutedForeground}
                           style={styles.settingsRowIcon}
                         />
-                        <Text style={styles.settingsRowText}>Show Online Status</Text>
+                        <Text style={styles.settingsRowText}>
+                          Show Online Status
+                        </Text>
                       </View>
                       <Switch
                         value={showOnlineStatus}
@@ -777,30 +1063,41 @@ export function ProfileScreen() {
                           color={Theme.colors.mutedForeground}
                           style={styles.settingsRowIcon}
                         />
-                        <Text style={styles.settingsRowText}>Private Profile</Text>
+                        <Text style={styles.settingsRowText}>
+                          Private Profile
+                        </Text>
                       </View>
                       <Switch
-                        value={user?.settings?.privacy ?? false}
-                        onValueChange={() => toggleSettings("privacy")}
+                        value={!user?.locationVisibility}
+                        onValueChange={() => handleToggleSettings("privacy")}
                         trackColor={{ true: Theme.colors.primary }}
                         thumbColor={Theme.colors.foreground}
                       />
                     </View>
                   </View>
 
-                  <Text style={styles.settingsSectionTitle}>Help & Support</Text>
+                  <Text style={styles.settingsSectionTitle}>
+                    Help & Support
+                  </Text>
                   <View style={styles.settingsList}>
                     <TouchableOpacity
                       style={styles.settingsRow}
-                      onPress={() => Alert.alert("Contact Support", "support@tappd.co.in")}
+                      onPress={() =>
+                        Alert.alert("Contact Support", "support@tappd.co.in")
+                      }
                     >
                       <HelpCircle
                         size={18}
                         color={Theme.colors.mutedForeground}
                         style={styles.settingsRowIcon}
                       />
-                      <Text style={styles.settingsRowText}>Contact Support</Text>
-                      <ChevronRight size={18} color={Theme.colors.mutedForeground} />
+                      <Text style={styles.settingsRowText}>
+                        Contact Support
+                      </Text>
+                      <ChevronRight
+                        size={18}
+                        color={Theme.colors.mutedForeground}
+                      />
                     </TouchableOpacity>
                   </View>
 
@@ -885,7 +1182,6 @@ export function ProfileScreen() {
             setEditingPaymentId(id);
             setPaymentFlow("DETAIL_FORM");
           }}
-
           onDelete={(id) => console.log("Delete", id)}
         />
       )}
@@ -930,28 +1226,26 @@ export function ProfileScreen() {
           }}
         />
       )}
-
     </SafeAreaView>
   );
 }
-
 
 // --- STYLESHEET ---
 const styles = StyleSheet.create({
   flex1: { flex: 1 },
   mainContainer: { flex: 1, backgroundColor: Theme.colors.background },
   // Header
- header: {
-  paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
-  backgroundColor: Theme.colors.background,
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "space-between",
-  paddingHorizontal: 16,
-  paddingBottom: 16,
-  borderBottomWidth: 1,
-  borderColor: Theme.colors.border,
-},
+  header: {
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+    backgroundColor: Theme.colors.background,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderColor: Theme.colors.border,
+  },
 
   backButton: { padding: 4 },
   headerTitle: {
@@ -1029,18 +1323,99 @@ const styles = StyleSheet.create({
   },
   tabTriggerTextActive: { color: Theme.colors.foreground },
   tabContent: { padding: 16 },
+  // Edit Button
+  editButtonContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignItems: "flex-end",
+  },
+  editButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Theme.colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 8,
+  },
+  editIcon: {
+    marginRight: 0,
+  },
+  editButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+  },
   sectionTitle: {
     color: Theme.colors.foreground,
     fontSize: 16,
     fontWeight: "bold",
     marginBottom: 16,
+    marginTop: 8,
   },
   bioText: {
     color: Theme.colors.mutedForeground,
     lineHeight: 22,
     marginBottom: 16,
+    fontSize: 14,
   },
   detailsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
+  twoColumnGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 16,
+    marginBottom: 24,
+  },
+  // Looking For Section
+  lookingForSection: {
+    marginBottom: 24,
+  },
+  lookingForButtons: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  lookingForButton: {
+    backgroundColor: Theme.colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  lookingForButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  // Personal Details Section
+  personalDetailsSection: {
+    marginBottom: 24,
+  },
+  // Interests Section
+  interestsSection: {
+    marginBottom: 24,
+  },
+  interestsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  interestTag: {
+    borderWidth: 1,
+    borderColor: Theme.colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "transparent",
+  },
+  interestTagText: {
+    color: Theme.colors.foreground,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  // Habits Section
+  habitsSection: {
+    marginBottom: 24,
+  },
   // Photos Tab
   photoGrid: {
     flexDirection: "row",
@@ -1160,7 +1535,8 @@ const styles = StyleSheet.create({
   fullSizePhoto: { width: "100%", height: "100%", borderRadius: 8 },
   // Details
   detailItem: {
-    width: (width - 48) / 2 - 8,
+    flex: 1,
+    minWidth: (width - 64) / 2,
     backgroundColor: Theme.colors.muted,
     padding: 12,
     borderRadius: Theme.radius.md,
