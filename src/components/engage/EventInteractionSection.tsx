@@ -24,6 +24,8 @@ import {
   Upload,
 } from "lucide-react-native";
 import StoryViewer from "./StoryViewer";
+import { UploadContentSheet } from "./UploadContentSheet";
+import { CreateStoryModal } from "./CreateStoryModal";
 
 /* ---------------- MOCK DATA ---------------- */
 
@@ -42,8 +44,7 @@ const POSTS = [
     id: "1",
     user: { name: "Emma Johnson", avatar: "https://i.pravatar.cc/150?u=emma" },
     time: "2h ago",
-    media:
-      "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4",
+    media: "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4",
     likes: 127,
     caption: "Amazing jazz performance tonight! 🎷✨",
     comments: [
@@ -54,10 +55,12 @@ const POSTS = [
   },
   {
     id: "2",
-    user: { name: "Michael Smith", avatar: "https://i.pravatar.cc/150?u=michael" },
+    user: {
+      name: "Michael Smith",
+      avatar: "https://i.pravatar.cc/150?u=michael",
+    },
     time: "4h ago",
-    media:
-      "https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec",
+    media: "https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec",
     likes: 89,
     caption: "Great vibes at the rooftop party! 🍹🌇",
     comments: [{ username: "Emma", text: "Looks fun!", time: "30m" }],
@@ -65,13 +68,12 @@ const POSTS = [
   },
 ];
 
-
 /* ---------------- STORY ITEM ---------------- */
 
 const StoryItem = ({ item, onPress }) => (
   <View style={styles.storyItem}>
     {item.isUser ? (
-      <TouchableOpacity style={styles.addStoryContainer}>
+      <TouchableOpacity style={styles.addStoryContainer} onPress={onPress}>
         <Plus size={24} color={Theme.colors.foreground} />
       </TouchableOpacity>
     ) : (
@@ -100,17 +102,17 @@ const FeedPost = ({ item }) => {
       id: i.toString(),
       liked: false,
       likeCount: 0,
-    }))
+    })),
   );
   const handleShare = async () => {
-  try {
-    await Share.share({
-      message: `${item.user.name}: ${item.caption}`,
-    });
-  } catch (error) {
-    console.log("Share error:", error);
-  }
-};
+    try {
+      await Share.share({
+        message: `${item.user.name}: ${item.caption}`,
+      });
+    } catch (error) {
+      console.log("Share error:", error);
+    }
+  };
 
   const [commentText, setCommentText] = useState("");
   const [showCommentsModal, setShowCommentsModal] = useState(false);
@@ -118,26 +120,26 @@ const FeedPost = ({ item }) => {
 
   const handleLike = () => {
     setLiked(!liked);
-    setLikes(p => (liked ? p - 1 : p + 1));
+    setLikes((p) => (liked ? p - 1 : p + 1));
   };
 
-  const toggleCommentLike = id => {
-    setComments(prev =>
-      prev.map(c =>
+  const toggleCommentLike = (id) => {
+    setComments((prev) =>
+      prev.map((c) =>
         c.id === id
           ? {
               ...c,
               liked: !c.liked,
               likeCount: c.liked ? c.likeCount - 1 : c.likeCount + 1,
             }
-          : c
-      )
+          : c,
+      ),
     );
   };
 
   const addComment = () => {
     if (!commentText.trim()) return;
-    setComments(p => [
+    setComments((p) => [
       ...p,
       {
         id: Date.now().toString(),
@@ -225,9 +227,12 @@ const FeedPost = ({ item }) => {
               </TouchableOpacity>
             </View>
 
-            {comments.map(c => (
+            {comments.map((c) => (
               <View key={c.id} style={styles.commentRow}>
-                <Image source={{ uri: DEFAULT_AVATAR }} style={styles.commentAvatar} />
+                <Image
+                  source={{ uri: DEFAULT_AVATAR }}
+                  style={styles.commentAvatar}
+                />
                 <View style={{ flex: 1 }}>
                   <View style={styles.commentBubble}>
                     <Text style={styles.commentText}>
@@ -262,7 +267,9 @@ const FeedPost = ({ item }) => {
 
       {/* MODAL COMMENTS */}
       <Modal visible={showCommentsModal} animationType="slide">
-        <SafeAreaView style={{ flex: 1, backgroundColor: Theme.colors.background }}>
+        <SafeAreaView
+          style={{ flex: 1, backgroundColor: Theme.colors.background }}
+        >
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setShowCommentsModal(false)}>
               <ChevronLeft size={28} color={Theme.colors.foreground} />
@@ -272,10 +279,13 @@ const FeedPost = ({ item }) => {
 
           <FlatList
             data={comments}
-            keyExtractor={c => c.id}
+            keyExtractor={(c) => c.id}
             renderItem={({ item }) => (
               <View style={styles.commentRow}>
-                <Image source={{ uri: DEFAULT_AVATAR }} style={styles.commentAvatar} />
+                <Image
+                  source={{ uri: DEFAULT_AVATAR }}
+                  style={styles.commentAvatar}
+                />
                 <View style={{ flex: 1 }}>
                   <View style={styles.commentBubble}>
                     <Text style={styles.commentText}>
@@ -293,7 +303,9 @@ const FeedPost = ({ item }) => {
                     >
                       <Heart
                         size={14}
-                        color={item.liked ? "red" : Theme.colors.mutedForeground}
+                        color={
+                          item.liked ? "red" : Theme.colors.mutedForeground
+                        }
                         fill={item.liked ? "red" : "transparent"}
                       />
                       <Text style={styles.commentTime}>{item.likeCount}</Text>
@@ -317,21 +329,33 @@ export function EventInteractionSection() {
   const [showStoryModal, setShowStoryModal] = useState(false);
   const [storyIndex, setStoryIndex] = useState(0);
 
+  // Missing State Variables
+  const [showUpload, setShowUpload] = useState(false);
+  const [showCreateStory, setShowCreateStory] = useState(false);
+  const [storyImage, setStoryImage] = useState<string | null>(null);
+  const [stories, setStories] = useState(STORIES);
+
   return (
     <View style={styles.container}>
       <FlatList
         data={POSTS}
-        keyExtractor={item => item.id}
+        keyExtractor={(item) => item.id}
         renderItem={({ item }) => <FeedPost item={item} />}
         ListHeaderComponent={
           <ScrollView horizontal style={{ padding: 16 }}>
-            {STORIES.map((story, index) => (
+            {stories.map((story, index) => (
               <StoryItem
                 key={story.id}
                 item={story}
                 onPress={() => {
-                  if (!story.isUser) {
-                    setStoryIndex(index - 1);
+                  if (story.isUser) {
+                    setShowUpload(true);
+                  } else {
+                    // Calculate index ignoring the "Add Story" button
+                    const filteredIndex = stories
+                      .filter((s) => !s.isUser)
+                      .findIndex((s) => s.id === story.id);
+                    setStoryIndex(filteredIndex >= 0 ? filteredIndex : 0);
                     setShowStoryModal(true);
                   }
                 }}
@@ -343,13 +367,15 @@ export function EventInteractionSection() {
 
       <StoryViewer
         visible={showStoryModal}
-        stories={STORIES.filter(s => !s.isUser).map(s => ({
-          id: s.id,
-          username: s.name,
-          profileImage: s.image,
-          image: s.image,
-          time: "Just now",
-        }))}
+        stories={stories
+          .filter((s) => !s.isUser)
+          .map((s) => ({
+            id: s.id,
+            username: s.name,
+            profileImage: s.image,
+            image: s.image,
+            time: "Just now",
+          }))}
         initialIndex={storyIndex}
         onClose={() => setShowStoryModal(false)}
       />
@@ -371,7 +397,6 @@ export function EventInteractionSection() {
           setStories((prev) => [newStory, ...prev]);
         }}
       />
-
     </View>
   );
 }
@@ -403,7 +428,12 @@ const styles = StyleSheet.create({
 
   postMediaContainer: { aspectRatio: 4 / 5 },
   postMedia: { width: "100%", height: "100%" },
-  musicPill: { position: "absolute", bottom: 12, left: 12, flexDirection: "row" },
+  musicPill: {
+    position: "absolute",
+    bottom: 12,
+    left: 12,
+    flexDirection: "row",
+  },
   musicText: { color: "#c451c9", marginLeft: 6 },
 
   actionRow: { flexDirection: "row", paddingHorizontal: 16, paddingTop: 14 },

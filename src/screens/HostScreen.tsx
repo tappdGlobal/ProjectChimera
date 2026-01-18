@@ -102,8 +102,8 @@ interface HostProps {
   onShowPublished?: () => void;
   onBack?: () => void;
   editingDraft?:
-  | (EventForm & { id: string; createdAt: string; lastModified: string })
-  | null;
+    | (EventForm & { id: string; createdAt: string; lastModified: string })
+    | null;
 }
 
 const eventGenres = [
@@ -603,27 +603,52 @@ export function HostScreen({
               {/* Event Name */}
               <View>
                 <Text style={styles.label}>Event Name</Text>
-                <Input
-                  style={styles.field}
-                  placeholder="Enter event name"
-                />
+                <Input style={styles.field} placeholder="Enter event name" />
               </View>
 
               {/* Genre + Category */}
               <View style={styles.grid2Col}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.label}>Genre</Text>
-                  <TouchableOpacity style={styles.fieldRow}>
-                    <Text style={styles.placeholderText}>Select genre</Text>
-                    <ChevronDown size={18} color={Theme.colors.mutedForeground} />
+                  <TouchableOpacity
+                    style={styles.fieldRow}
+                    onPress={() => setGenreOpen(true)}
+                  >
+                    <Text
+                      style={
+                        localFormData.genre
+                          ? styles.fieldText
+                          : styles.placeholderText
+                      }
+                    >
+                      {localFormData.genre || "Select genre"}
+                    </Text>
+                    <ChevronDown
+                      size={18}
+                      color={Theme.colors.mutedForeground}
+                    />
                   </TouchableOpacity>
                 </View>
 
                 <View style={{ flex: 1 }}>
                   <Text style={styles.label}>Category</Text>
-                  <TouchableOpacity style={styles.fieldRow}>
-                    <Text style={styles.placeholderText}>Select category</Text>
-                    <ChevronDown size={18} color={Theme.colors.mutedForeground} />
+                  <TouchableOpacity
+                    style={styles.fieldRow}
+                    onPress={() => setCategoryOpen(true)}
+                  >
+                    <Text
+                      style={
+                        localFormData.category
+                          ? styles.fieldText
+                          : styles.placeholderText
+                      }
+                    >
+                      {localFormData.category || "Select category"}
+                    </Text>
+                    <ChevronDown
+                      size={18}
+                      color={Theme.colors.mutedForeground}
+                    />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -635,8 +660,22 @@ export function HostScreen({
                     <Calendar size={16} color={Theme.colors.foreground} />
                     <Text style={styles.label}>Date</Text>
                   </View>
-                  <TouchableOpacity style={styles.fieldRow}>
-                    <Text style={styles.fieldText}>dd-mm-yyyy</Text>
+                  <TouchableOpacity
+                    style={styles.fieldRow}
+                    onPress={() => {
+                      console.log("Date picker pressed");
+                      setShowDatePicker(true);
+                    }}
+                  >
+                    <Text
+                      style={
+                        localFormData.date
+                          ? styles.fieldText
+                          : styles.placeholderText
+                      }
+                    >
+                      {localFormData.date || "dd-mm-yyyy"}
+                    </Text>
                     <Calendar size={18} color={Theme.colors.mutedForeground} />
                   </TouchableOpacity>
                 </View>
@@ -646,8 +685,22 @@ export function HostScreen({
                     <Clock size={16} color={Theme.colors.foreground} />
                     <Text style={styles.label}>Time</Text>
                   </View>
-                  <TouchableOpacity style={styles.fieldRow}>
-                    <Text style={styles.fieldText}>--:--</Text>
+                  <TouchableOpacity
+                    style={styles.fieldRow}
+                    onPress={() => {
+                      console.log("Time picker pressed");
+                      setShowTimePicker(true);
+                    }}
+                  >
+                    <Text
+                      style={
+                        localFormData.time
+                          ? styles.fieldText
+                          : styles.placeholderText
+                      }
+                    >
+                      {localFormData.time || "--:--"}
+                    </Text>
                     <Clock size={18} color={Theme.colors.mutedForeground} />
                   </TouchableOpacity>
                 </View>
@@ -691,7 +744,10 @@ export function HostScreen({
                 {/* Age */}
                 <View style={styles.equalCol}>
                   <Text style={styles.label}>Age Restrictions</Text>
-                  <TouchableOpacity style={styles.inlineSelect}>
+                  <TouchableOpacity
+                    style={styles.inlineSelect}
+                    onPress={() => setAgeOpen(true)}
+                  >
                     <Text style={styles.placeholderText}>
                       {localFormData.ageRestriction || "Select age limit"}
                     </Text>
@@ -702,7 +758,10 @@ export function HostScreen({
                 {/* Gender */}
                 <View style={styles.equalCol}>
                   <Text style={styles.label}>Gender Allowance</Text>
-                  <TouchableOpacity style={styles.inlineSelect}>
+                  <TouchableOpacity
+                    style={styles.inlineSelect}
+                    onPress={() => setGenderOpen(true)}
+                  >
                     <Text style={styles.placeholderText}>
                       {localFormData.genderAllowance || "Select allowance"}
                     </Text>
@@ -736,9 +795,7 @@ export function HostScreen({
               <View style={styles.permissionRow}>
                 <View>
                   <Text style={styles.permissionTitle}>Smoking Allowed</Text>
-                  <Text style={styles.permissionSub}>
-                    Allow smoking areas
-                  </Text>
+                  <Text style={styles.permissionSub}>Allow smoking areas</Text>
                 </View>
                 <Switch
                   value={localFormData.smokingAllowed}
@@ -756,10 +813,7 @@ export function HostScreen({
             <CardHeader style={styles.ticketHeader}>
               <CardTitle>Availability & Tickets</CardTitle>
 
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={addTicketType}
-              >
+              <TouchableOpacity activeOpacity={0.85} onPress={addTicketType}>
                 <LinearGradient
                   colors={GRADIENT_COLORS.primary as [string, string]}
                   start={{ x: 0, y: 0 }}
@@ -770,7 +824,6 @@ export function HostScreen({
                   <Text style={styles.addTicketText}>Add Ticket</Text>
                 </LinearGradient>
               </TouchableOpacity>
-
             </CardHeader>
 
             <CardContent style={styles.cardContentPadding}>
@@ -823,7 +876,6 @@ export function HostScreen({
                     <Text style={styles.serviceChargeNetValue}>₹400</Text>
                   </View>
                 </LinearGradient>
-
               </View>
             </CardContent>
           </Card>
@@ -842,9 +894,7 @@ export function HostScreen({
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.label}>
-                  Event Photos (Up to 5)
-                </Text>
+                <Text style={styles.label}>Event Photos (Up to 5)</Text>
 
                 <TouchableOpacity style={styles.uploadBox}>
                   <Upload
@@ -862,7 +912,6 @@ export function HostScreen({
               </View>
             </CardContent>
           </Card>
-
         </View>
 
         <View style={styles.bottomSpacer} />
@@ -892,9 +941,7 @@ export function HostScreen({
                     }}
                   >
                     <Text style={styles.dropdownItemText}>{g}</Text>
-                    {selected && (
-                      <CheckCircle2 size={16} color="#FFFFFF" />
-                    )}
+                    {selected && <CheckCircle2 size={16} color="#FFFFFF" />}
                   </TouchableOpacity>
                 );
               })}
@@ -927,9 +974,7 @@ export function HostScreen({
                     }}
                   >
                     <Text style={styles.dropdownItemText}>{c}</Text>
-                    {selected && (
-                      <CheckCircle2 size={16} color="#FFFFFF" />
-                    )}
+                    {selected && <CheckCircle2 size={16} color="#FFFFFF" />}
                   </TouchableOpacity>
                 );
               })}
@@ -960,9 +1005,7 @@ export function HostScreen({
                     }}
                   >
                     <Text style={styles.dropdownItemText}>{age}</Text>
-                    {selected && (
-                      <CheckCircle2 size={16} color="#FFFFFF" />
-                    )}
+                    {selected && <CheckCircle2 size={16} color="#FFFFFF" />}
                   </TouchableOpacity>
                 );
               })}
@@ -993,9 +1036,7 @@ export function HostScreen({
                     }}
                   >
                     <Text style={styles.dropdownItemText}>{g}</Text>
-                    {selected && (
-                      <CheckCircle2 size={16} color="#FFFFFF" />
-                    )}
+                    {selected && <CheckCircle2 size={16} color="#FFFFFF" />}
                   </TouchableOpacity>
                 );
               })}
@@ -1003,7 +1044,6 @@ export function HostScreen({
           </View>
         </TouchableOpacity>
       </Modal>
-
     </>
   );
 
@@ -1712,38 +1752,37 @@ export function HostScreen({
           </TouchableOpacity>
 
           <TouchableOpacity
-  onPress={handlePublicTabClick}
-  style={[
-    styles.tabButton,
-    activeTab === "public" && styles.tabButtonActive,
-  ]}
->
-  <LinearGradient
-    colors={
-      activeTab === "public"
-        ? ["#D11A87", "#7F1AB2"]
-        : ["transparent", "transparent"]
-    }
-    start={{ x: 0, y: 0 }}
-    end={{ x: 1, y: 0 }}
-    style={styles.tabButtonGradient}
-  >
-    <Text
-      style={activeTab === "public" ? styles.tabTextActive : styles.tabText}
-    >
-      Public Event
-    </Text>
+            onPress={handlePublicTabClick}
+            style={[
+              styles.tabButton,
+              activeTab === "public" && styles.tabButtonActive,
+            ]}
+          >
+            <LinearGradient
+              colors={
+                activeTab === "public"
+                  ? ["#D11A87", "#7F1AB2"]
+                  : ["transparent", "transparent"]
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.tabButtonGradient}
+            >
+              <Text
+                style={
+                  activeTab === "public" ? styles.tabTextActive : styles.tabText
+                }
+              >
+                Public Event
+              </Text>
 
-    {isVerified && (
-      <View style={styles.verifiedBadgeCorner}>
-        <Text style={styles.verifiedBadgeText}>Verified</Text>
-      </View>
-    )}
-  </LinearGradient>
-</TouchableOpacity>
-
-
-
+              {isVerified && (
+                <View style={styles.verifiedBadgeCorner}>
+                  <Text style={styles.verifiedBadgeText}>Verified</Text>
+                </View>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
 
           <TouchableOpacity
             onPress={handlePublishedTabClick}
@@ -1781,7 +1820,6 @@ export function HostScreen({
             ]}
           >
             <View style={styles.bottomActionBarInner}>
-
               {/* SAVE AS DRAFT */}
               <TouchableOpacity
                 activeOpacity={0.85}
@@ -1808,9 +1846,7 @@ export function HostScreen({
                   <Text style={styles.publishButtonText}>Publish Event</Text>
                 </LinearGradient>
               </TouchableOpacity>
-
             </View>
-
           </View>
         )}
       </View>
@@ -1821,9 +1857,9 @@ export function HostScreen({
       <DateTimePickerModal
         isVisible={showDatePicker}
         mode="date"
-        display="spinner"
         themeVariant="dark"
         onConfirm={(selectedDate) => {
+          console.log("Date confirmed:", selectedDate);
           setShowDatePicker(false);
           const dd = String(selectedDate.getDate()).padStart(2, "0");
           const mm = String(selectedDate.getMonth() + 1).padStart(2, "0");
@@ -1837,9 +1873,9 @@ export function HostScreen({
       <DateTimePickerModal
         isVisible={showTimePicker}
         mode="time"
-        display="spinner"
         themeVariant="dark"
         onConfirm={(selectedTime) => {
+          console.log("Time confirmed:", selectedTime);
           setShowTimePicker(false);
           const hh = String(selectedTime.getHours()).padStart(2, "0");
           const mm = String(selectedTime.getMinutes()).padStart(2, "0");
@@ -1913,19 +1949,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderColor: Theme.colors.primary,
   },
-tabButtonGradient: {
-  width: "100%",
-  height: 44,
-  borderRadius: 10,
-  position: "relative",
+  tabButtonGradient: {
+    width: "100%",
+    height: 44,
+    borderRadius: 10,
+    position: "relative",
 
-  // 🔑 allow space for badge
-  paddingTop: 8,
-  alignItems: "center",
-  justifyContent: "center",
-},
-
-
+    // 🔑 allow space for badge
+    paddingTop: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
   verifiedBadge: {
     backgroundColor: "#22c55e", // Green color for verified badge
@@ -1934,13 +1968,12 @@ tabButtonGradient: {
     paddingVertical: 2,
     borderRadius: 4,
   },
-verifiedBadgeText: {
-  color: "#FFFFFF",
-  fontSize: 9,
-  fontWeight: "700",
-  lineHeight: 11,
-},
-
+  verifiedBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "700",
+    lineHeight: 11,
+  },
 
   tabText: {
     color: Theme.colors.mutedForeground,
@@ -1956,7 +1989,7 @@ verifiedBadgeText: {
   // for date-time dropdown
 
   dateBoxWrapper: {
-    height: 52,                 // 🔑 SAME HEIGHT
+    height: 52, // 🔑 SAME HEIGHT
     paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: Theme.colors.border,
@@ -1972,7 +2005,7 @@ verifiedBadgeText: {
     fontSize: 14,
   },
   timeBoxWrapper: {
-    height: 52,                 // 🔑 SAME HEIGHT
+    height: 52, // 🔑 SAME HEIGHT
     paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: Theme.colors.border,
@@ -2021,15 +2054,12 @@ verifiedBadgeText: {
     overflow: "hidden",
   },
 
-
   selectLeft: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     flex: 1,
   },
-
-
 
   popupTabInner: {
     flexDirection: "row",
@@ -2457,8 +2487,6 @@ verifiedBadgeText: {
   },
   // Service Charge
 
-
-
   serviceChargeDetails: {
     gap: 4,
     fontSize: 14,
@@ -2662,7 +2690,6 @@ verifiedBadgeText: {
     fontSize: 14,
     fontWeight: "500",
   },
-
 
   selectTrigger: {
     height: 52,
@@ -2916,7 +2943,6 @@ verifiedBadgeText: {
     shadowRadius: 12,
   },
 
-
   publishButtonText: {
     color: Theme.colors.primaryForeground,
     fontSize: 16,
@@ -2939,28 +2965,26 @@ verifiedBadgeText: {
   },
   tabButtonContent: {
     flexDirection: "row",
-    alignItems: "center",        // vertical centering
+    alignItems: "center", // vertical centering
     justifyContent: "center",
     gap: 8,
-    height: 24,                 // 🔑 lock baseline height
+    height: 24, // 🔑 lock baseline height
   },
-
 
   inlineVerifiedBadge: {
     backgroundColor: "#22c55e",
     paddingHorizontal: 8,
-    height: 18,                 // 🔑 fixed height
+    height: 18, // 🔑 fixed height
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
   },
 
-
   inlineVerifiedText: {
     color: "#FFFFFF",
     fontSize: 10,
     fontWeight: "700",
-    lineHeight: 12,             // 🔑 text sits dead-center
+    lineHeight: 12, // 🔑 text sits dead-center
   },
   tabButtonRelative: {
     width: "100%",
@@ -2979,20 +3003,17 @@ verifiedBadgeText: {
     alignItems: "center",
     justifyContent: "center",
   },
-verifiedBadgeCorner: {
-  position: "absolute",
-  top: 0,
-  right: 0,
+  verifiedBadgeCorner: {
+    position: "absolute",
+    top: 0,
+    right: 0,
 
-  backgroundColor: "#22c55e",
-  height: 16,
-  paddingHorizontal: 8,
-  borderRadius: 999,
+    backgroundColor: "#22c55e",
+    height: 16,
+    paddingHorizontal: 8,
+    borderRadius: 999,
 
-  alignItems: "center",
-  justifyContent: "center",
-},
-
-
-
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });
