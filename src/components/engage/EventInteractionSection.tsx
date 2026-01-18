@@ -353,6 +353,25 @@ export function EventInteractionSection() {
         initialIndex={storyIndex}
         onClose={() => setShowStoryModal(false)}
       />
+
+      <UploadContentSheet
+        visible={showUpload}
+        onClose={() => setShowUpload(false)}
+        onCreateStory={(uri) => {
+          setStoryImage(uri);
+          setShowUpload(false);
+          setShowCreateStory(true);
+        }}
+      />
+      <CreateStoryModal
+        visible={showCreateStory}
+        imageUri={storyImage}
+        onClose={() => setShowCreateStory(false)}
+        onPublish={(newStory) => {
+          setStories((prev) => [newStory, ...prev]);
+        }}
+      />
+
     </View>
   );
 }

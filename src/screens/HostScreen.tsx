@@ -45,7 +45,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import * as ImagePicker from "expo-image-picker";
+import { ChevronDown, Layers } from "lucide-react-native";
 
 // Migrated UI Components
 import { Button } from "../components/ui/Button";
@@ -64,7 +64,7 @@ import { Badge } from "../components/ui/Badge";
 import { Theme } from "../styles/Theme";
 import { useNavigation } from "@react-navigation/native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
-
+import { GRADIENT_COLORS } from "../styles/Theme";
 import { createStackNavigator } from "@react-navigation/stack";
 // import { HostScreen } from "../screens/HostScreen"; // Removed to fix naming conflict
 // import { PublishedEventsScreen } from "../screens/PublishedEventsScreen";
@@ -72,6 +72,7 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { PublishedEventsScreen } from "./PublishedEventsScreen";
 import { SCREEN_NAMES } from "../navigation/Routes";
 import { DraftsScreen } from "./DraftsScreen";
+import { StatusBar } from "expo-status-bar";
 
 interface TicketType {
   id: string;
@@ -101,8 +102,8 @@ interface HostProps {
   onShowPublished?: () => void;
   onBack?: () => void;
   editingDraft?:
-    | (EventForm & { id: string; createdAt: string; lastModified: string })
-    | null;
+  | (EventForm & { id: string; createdAt: string; lastModified: string })
+  | null;
 }
 
 const eventGenres = [
@@ -195,6 +196,7 @@ export function HostScreen({
   const [activeTab, setActiveTab] = useState<
     "private" | "public" | "published"
   >("private");
+
   const [showPublicVerification, setShowPublicVerification] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
 
@@ -215,12 +217,10 @@ export function HostScreen({
   const [popupActiveTab, setPopupActiveTab] = useState("analytics");
   const [cameraOpen, setCameraOpen] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
-
-  // API integration state
-  const [isLoading, setIsLoading] = useState(false);
-  const [draftId, setDraftId] = useState<string | null>(
-    editingDraft?.id || null,
-  );
+  const [genreOpen, setGenreOpen] = useState(false);
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const [ageOpen, setAgeOpen] = useState(false);
+  const [genderOpen, setGenderOpen] = useState(false);
 
   const localDateObj = localFormData.date
     ? new Date(localFormData.date)
@@ -589,459 +589,422 @@ export function HostScreen({
   );
 
   const EventFormContent = () => (
-    <View style={styles.formContentContainer}>
-      <View style={styles.formSection}>
-        {/* Event Basics */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Event Basics</CardTitle>
-          </CardHeader>
-          <CardContent style={styles.cardContentPadding}>
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Event Name</Text>
-              <Input
-                value={localFormData.name}
-                onChangeText={(value) => handleLocalFieldChange("name", value)}
-                placeholder="Enter event name"
-              />
-              {errors.name && (
-                <Text style={styles.errorText}>{errors.name}</Text>
-              )}
-            </View>
-            <View style={styles.grid2Col}>
-              <View style={[styles.formGroup, { flex: 1 }]}>
-                <Text style={styles.label}>Genre</Text>
-                <Select
-                  value={localFormData.genre}
-                  onValueChange={(value) =>
-                    handleLocalFieldChange("genre", value)
-                  }
-                >
-                  <SelectValue placeholder="Select genre" />
-                  {eventGenres.map((genre) => (
-                    <SelectItem key={genre} value={genre}>
-                      {genre}
-                    </SelectItem>
-                  ))}
-                </Select>
-                {errors.genre && (
-                  <Text style={styles.errorText}>{errors.genre}</Text>
-                )}
+    <>
+      {/* ===================== FORM CONTENT ===================== */}
+      <View style={styles.formContentContainer}>
+        <View style={styles.formSection}>
+          {/* ---------- Event Basics ---------- */}
+          <Card style={styles.eventBasicsCard}>
+            <CardHeader>
+              <CardTitle>Event Basics</CardTitle>
+            </CardHeader>
+
+            <CardContent style={styles.eventBasicsContent}>
+              {/* Event Name */}
+              <View>
+                <Text style={styles.label}>Event Name</Text>
+                <Input
+                  style={styles.field}
+                  placeholder="Enter event name"
+                />
               </View>
 
-              <View style={[styles.formGroup, { flex: 1 }]}>
-                <Text style={styles.label}>Category</Text>
-                <Select
-                  value={localFormData.category}
-                  onValueChange={(value) =>
-                    handleLocalFieldChange("category", value)
-                  }
-                >
-                  <SelectValue placeholder="Select category" />
-                  {eventCategories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </Select>
-                {errors.category && (
-                  <Text style={styles.errorText}>{errors.category}</Text>
-                )}
-              </View>
-            </View>
+              {/* Genre + Category */}
+              <View style={styles.grid2Col}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.label}>Genre</Text>
+                  <TouchableOpacity style={styles.fieldRow}>
+                    <Text style={styles.placeholderText}>Select genre</Text>
+                    <ChevronDown size={18} color={Theme.colors.mutedForeground} />
+                  </TouchableOpacity>
+                </View>
 
-            <View style={styles.grid2Col}>
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <Calendar
-                      style={styles.iconInline}
-                      size={16}
-                      color={Theme.colors.foreground}
-                    />
-                    <Text style={{ color: Theme.colors.foreground }}>
-                      {" "}
-                      Date
-                    </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.label}>Category</Text>
+                  <TouchableOpacity style={styles.fieldRow}>
+                    <Text style={styles.placeholderText}>Select category</Text>
+                    <ChevronDown size={18} color={Theme.colors.mutedForeground} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Date + Time */}
+              <View style={styles.grid2Col}>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.iconLabel}>
+                    <Calendar size={16} color={Theme.colors.foreground} />
+                    <Text style={styles.label}>Date</Text>
                   </View>
-                </Text>
-                {/* Note: RN TextInput type="date" is not directly supported, requires external DatePicker */}
-                <TouchableOpacity
-                  onPress={() => setShowDatePicker(true)}
-                  style={styles.dateBoxWrapper}
-                >
-                  <Text style={styles.dateText}>
-                    {localFormData.date ? localFormData.date : "dd-mm-yyyy"}
-                  </Text>
+                  <TouchableOpacity style={styles.fieldRow}>
+                    <Text style={styles.fieldText}>dd-mm-yyyy</Text>
+                    <Calendar size={18} color={Theme.colors.mutedForeground} />
+                  </TouchableOpacity>
+                </View>
 
-                  <Calendar
-                    size={20}
-                    color={Theme.colors.foreground}
-                    style={{ marginLeft: 8 }}
-                  />
-                </TouchableOpacity>
-
-                {errors.date && (
-                  <Text style={styles.errorText}>{errors.date}</Text>
-                )}
+                <View style={{ flex: 1 }}>
+                  <View style={styles.iconLabel}>
+                    <Clock size={16} color={Theme.colors.foreground} />
+                    <Text style={styles.label}>Time</Text>
+                  </View>
+                  <TouchableOpacity style={styles.fieldRow}>
+                    <Text style={styles.fieldText}>--:--</Text>
+                    <Clock size={18} color={Theme.colors.mutedForeground} />
+                  </TouchableOpacity>
+                </View>
               </View>
 
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>
-                  <Clock
-                    style={styles.iconInline}
-                    size={16}
-                    color={Theme.colors.foreground}
-                  />{" "}
-                  Time
-                </Text>
-                <TouchableOpacity
-                  onPress={() => setShowTimePicker(true)}
-                  style={styles.timeBoxWrapper}
-                >
-                  <Text style={styles.timeText}>
-                    {localFormData.time ? localFormData.time : "--:--"}
-                  </Text>
-
-                  <Clock
-                    size={20}
-                    color={Theme.colors.foreground}
-                    style={{ marginLeft: 8 }}
-                  />
-                </TouchableOpacity>
-
-                {errors.time && (
-                  <Text style={styles.errorText}>{errors.time}</Text>
-                )}
-              </View>
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>
-                <MapPin
-                  style={styles.iconInline}
-                  size={16}
-                  color={Theme.colors.foreground}
-                />{" "}
-                Location
-              </Text>
-              <Input
-                value={localFormData.location}
-                onChangeText={(value) =>
-                  handleLocalFieldChange("location", value)
-                }
-                placeholder="Enter event location"
-              />
-              {errors.location && (
-                <Text style={styles.errorText}>{errors.location}</Text>
-              )}
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>
-                <Users
-                  style={styles.iconInline}
-                  size={16}
-                  color={Theme.colors.foreground}
-                />{" "}
-                Max Occupancy
-              </Text>
-              <Input
-                keyboardType="numeric"
-                value={
-                  localFormData.maxOccupancy > 0
-                    ? String(localFormData.maxOccupancy)
-                    : ""
-                }
-                onChangeText={(value) =>
-                  handleLocalFieldChange("maxOccupancy", parseInt(value) || 0)
-                }
-                placeholder="Enter maximum capacity"
-              />
-              {errors.maxOccupancy && (
-                <Text style={styles.errorText}>{errors.maxOccupancy}</Text>
-              )}
-            </View>
-          </CardContent>
-        </Card>
-
-        {/* Restrictions & Permissions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Restrictions & Permissions</CardTitle>
-          </CardHeader>
-          <CardContent style={styles.cardContentPadding}>
-            <View style={styles.grid2Col}>
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Age Restrictions</Text>
-                <Select
-                  value={localFormData.ageRestriction}
-                  onValueChange={(value) =>
-                    handleLocalFieldChange("ageRestriction", value)
-                  }
-                >
-                  <SelectValue placeholder="Select age limit" />
-                  {ageRestrictions.map((age) => (
-                    <SelectItem key={age} value={age}>
-                      {age}
-                    </SelectItem>
-                  ))}
-                </Select>
-                {errors.ageRestriction && (
-                  <Text style={styles.errorText}>{errors.ageRestriction}</Text>
-                )}
+              {/* Location */}
+              <View>
+                <View style={styles.iconLabel}>
+                  <MapPin size={16} color={Theme.colors.foreground} />
+                  <Text style={styles.label}>Location</Text>
+                </View>
+                <Input
+                  style={styles.field}
+                  placeholder="Enter event location"
+                />
               </View>
 
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Gender Allowance</Text>
-                <Select
-                  value={localFormData.genderAllowance}
-                  onValueChange={(value) =>
-                    handleLocalFieldChange("genderAllowance", value)
-                  }
-                >
-                  <SelectValue placeholder="Select allowance" />
-                  {genderOptions.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </Select>
-                {errors.genderAllowance && (
-                  <Text style={styles.errorText}>{errors.genderAllowance}</Text>
-                )}
+              {/* Max Occupancy */}
+              <View>
+                <View style={styles.iconLabel}>
+                  <Users size={16} color={Theme.colors.foreground} />
+                  <Text style={styles.label}>Max Occupancy</Text>
+                </View>
+                <Input
+                  style={styles.field}
+                  placeholder="Enter maximum capacity"
+                  keyboardType="numeric"
+                />
               </View>
-            </View>
+            </CardContent>
+          </Card>
 
-            <View style={{ gap: 16 }}>
-              <View style={styles.switchWrapper}>
-                <View style={styles.switchTextGroup}>
-                  <Text style={styles.label}>Alcohol Allowed</Text>
-                  <Text style={styles.switchSubText}>
+          <Card style={styles.restrictionCard}>
+            <CardHeader>
+              <CardTitle>Restrictions & Permissions</CardTitle>
+            </CardHeader>
+
+            <CardContent style={{ gap: 20 }}>
+              {/* AGE + GENDER */}
+              <View style={styles.equalRow}>
+                {/* Age */}
+                <View style={styles.equalCol}>
+                  <Text style={styles.label}>Age Restrictions</Text>
+                  <TouchableOpacity style={styles.inlineSelect}>
+                    <Text style={styles.placeholderText}>
+                      {localFormData.ageRestriction || "Select age limit"}
+                    </Text>
+                    <ChevronDown size={18} color="#B9B5D6" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Gender */}
+                <View style={styles.equalCol}>
+                  <Text style={styles.label}>Gender Allowance</Text>
+                  <TouchableOpacity style={styles.inlineSelect}>
+                    <Text style={styles.placeholderText}>
+                      {localFormData.genderAllowance || "Select allowance"}
+                    </Text>
+                    <ChevronDown size={18} color="#B9B5D6" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* DIVIDER */}
+              <View style={styles.softDivider} />
+
+              {/* ALCOHOL */}
+              <View style={styles.permissionRow}>
+                <View>
+                  <Text style={styles.permissionTitle}>Alcohol Allowed</Text>
+                  <Text style={styles.permissionSub}>
                     Allow alcoholic beverages
                   </Text>
                 </View>
                 <Switch
                   value={localFormData.alcoholAllowed}
-                  onValueChange={(checked) =>
-                    handleLocalFieldChange("alcoholAllowed", checked)
+                  onValueChange={(v) =>
+                    handleLocalFieldChange("alcoholAllowed", v)
                   }
-                  trackColor={{
-                    false: Theme.colors.muted,
-                    true: Theme.colors.primary,
-                  }}
-                  thumbColor={Theme.colors.foreground}
+                  trackColor={{ false: "#2A2444", true: "#7F1AB2" }}
+                  thumbColor="#FFFFFF"
                 />
               </View>
 
-              <View style={styles.switchWrapper}>
-                <View style={styles.switchTextGroup}>
-                  <Text style={styles.label}>Smoking Allowed</Text>
-                  <Text style={styles.switchSubText}>Allow smoking areas</Text>
+              {/* SMOKING */}
+              <View style={styles.permissionRow}>
+                <View>
+                  <Text style={styles.permissionTitle}>Smoking Allowed</Text>
+                  <Text style={styles.permissionSub}>
+                    Allow smoking areas
+                  </Text>
                 </View>
                 <Switch
                   value={localFormData.smokingAllowed}
-                  onValueChange={(checked) =>
-                    handleLocalFieldChange("smokingAllowed", checked)
+                  onValueChange={(v) =>
+                    handleLocalFieldChange("smokingAllowed", v)
                   }
-                  trackColor={{
-                    false: Theme.colors.muted,
-                    true: Theme.colors.primary,
-                  }}
-                  thumbColor={Theme.colors.foreground}
+                  trackColor={{ false: "#2A2444", true: "#7F1AB2" }}
+                  thumbColor="#FFFFFF"
                 />
               </View>
-            </View>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {/* Availability & Tickets */}
-        <Card>
-          <CardHeader style={styles.ticketHeader}>
-            <CardTitle>Availability & Tickets</CardTitle>
-            <Button onClick={addTicketType} size="sm">
-              <Plus size={16} color={Theme.colors.primaryForeground} />
-              <Text style={{ color: Theme.colors.primaryForeground }}>
-                Add Ticket
-              </Text>
-            </Button>
-          </CardHeader>
-          <CardContent style={styles.cardContentPadding}>
-            {localFormData.tickets.map((ticket, index) => (
-              <View key={ticket.id} style={styles.ticketCard}>
-                <View style={styles.ticketCardHeader}>
-                  <Text style={styles.ticketTitle}>
-                    Ticket Type {index + 1}
-                  </Text>
-                  {localFormData.tickets.length > 1 && (
-                    <Button
-                      onClick={() => removeTicket(ticket.id)}
-                      size="icon"
-                      variant="destructive" // Use destructive variant for delete
-                    >
-                      <X size={16} color={Theme.colors.foreground} />
-                    </Button>
-                  )}
-                </View>
+          <Card>
+            <CardHeader style={styles.ticketHeader}>
+              <CardTitle>Availability & Tickets</CardTitle>
 
-                <View style={styles.grid2Col}>
-                  <View style={[styles.formGroup, { flex: 1 }]}>
-                    <Text style={styles.label}>Ticket Name</Text>
-                    <Input
-                      value={ticket.name}
-                      onChangeText={(value) =>
-                        handleLocalTicketChange(ticket.id, "name", value)
-                      }
-                      placeholder="e.g., Standard, Premium, VIP"
-                    />
-                    {errors[`ticket_name_${index}`] && (
-                      <Text style={styles.errorText}>
-                        {errors[`ticket_name_${index}`]}
-                      </Text>
-                    )}
-                  </View>
-
-                  <View style={[styles.formGroup, { flex: 1 }]}>
-                    <Text style={styles.label}>Price (₹)</Text>
-                    <Input
-                      keyboardType="numeric"
-                      value={ticket.price > 0 ? String(ticket.price) : ""}
-                      onChangeText={(value) =>
-                        handleLocalTicketChange(ticket.id, "price", value)
-                      }
-                      placeholder="500"
-                    />
-                    {errors[`ticket_price_${index}`] && (
-                      <Text style={styles.errorText}>
-                        {errors[`ticket_price_${index}`]}
-                      </Text>
-                    )}
-                  </View>
-                </View>
-
-                {ticket.price >= 500 && (
-                  <View style={styles.serviceChargeBox}>
-                    <View style={styles.serviceChargeHeader}>
-                      <TouchableOpacity
-                        onPress={() =>
-                          Alert.alert(
-                            "Service Charge",
-                            "TAPPD charges 20% service fee to maintain platform quality, secure payments, and provide customer support.",
-                          )
-                        }
-                      >
-                        <Info size={16} color={Theme.colors.primary} />
-                      </TouchableOpacity>
-                      <Text style={styles.serviceChargeTitle}>
-                        Service Charge Breakdown
-                      </Text>
-                    </View>
-                    <View style={styles.serviceChargeDetails}>
-                      <View style={styles.serviceChargeRow}>
-                        <Text style={styles.serviceChargeDetailText}>
-                          Ticket Price:
-                        </Text>
-                        <Text style={styles.serviceChargeDetailText}>
-                          ₹{ticket.price}
-                        </Text>
-                      </View>
-                      <View style={styles.serviceChargeRow}>
-                        <Text style={styles.serviceChargeDetailText}>
-                          TAPPD Service Charge (20%):
-                        </Text>
-                        <Text
-                          style={[
-                            styles.serviceChargeDetailText,
-                            { color: Theme.colors.destructive },
-                          ]}
-                        >
-                          -₹{calculateServiceCharge(ticket.price).serviceCharge}
-                        </Text>
-                      </View>
-                      <Separator style={styles.serviceChargeSeparator} />
-                      <View style={styles.serviceChargeRow}>
-                        <Text style={styles.serviceChargeNetText}>
-                          You will receive:
-                        </Text>
-                        <Text style={styles.serviceChargeNetText}>
-                          ₹{calculateServiceCharge(ticket.price).hostReceives}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                )}
-              </View>
-            ))}
-          </CardContent>
-        </Card>
-
-        {/* More Event Details */}
-        <Card>
-          <CardHeader>
-            <CardTitle>More Event Details</CardTitle>
-          </CardHeader>
-          <CardContent style={styles.cardContentPadding}>
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Event Description</Text>
-              <Textarea
-                value={localFormData.description}
-                onChangeText={(value) =>
-                  handleLocalFieldChange("description", value)
-                }
-                placeholder="Describe your event in detail..."
-                rows={4}
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>
-                <Upload
-                  style={styles.iconInline}
-                  size={16}
-                  color={Theme.colors.foreground}
-                />{" "}
-                Event Photos (Up to 5)
-              </Text>
-              <TouchableOpacity style={styles.uploadBox} onPress={pickImage}>
-                <Upload
-                  size={32}
-                  color={Theme.colors.mutedForeground}
-                  style={styles.uploadIcon}
-                />
-                <Text style={styles.uploadText}>
-                  Click to upload or drag & drop
-                </Text>
-                <Text style={styles.uploadSubText}>
-                  PNG, JPG up to 5MB each ({localFormData.photos.length}/5)
-                </Text>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={addTicketType}
+              >
+                <LinearGradient
+                  colors={GRADIENT_COLORS.primary as [string, string]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.addTicketGradient}
+                >
+                  <Plus size={16} color="#FFFFFF" />
+                  <Text style={styles.addTicketText}>Add Ticket</Text>
+                </LinearGradient>
               </TouchableOpacity>
 
-              {/* Photo Preview */}
-              {localFormData.photos.length > 0 && (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.photoPreviewContainer}
+            </CardHeader>
+
+            <CardContent style={styles.cardContentPadding}>
+              <View style={styles.ticketCard}>
+                <Text style={styles.ticketTitle}>Ticket Type 1</Text>
+
+                <View style={styles.grid2Col}>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Ticket Name</Text>
+                    <Input placeholder="Standard" />
+                  </View>
+
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Price (₹)</Text>
+                    <Input placeholder="500" />
+                  </View>
+                </View>
+
+                <LinearGradient
+                  colors={["rgba(196,81,201,0.25)", "rgba(116,1,130,0.35)"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.serviceChargeBox}
                 >
-                  {localFormData.photos.map((uri, index) => (
-                    <View key={index} style={styles.photoPreviewItem}>
-                      <Image source={{ uri }} style={styles.previewImage} />
-                      <TouchableOpacity
-                        style={styles.removePhotoButton}
-                        onPress={() => removePhoto(index)}
-                      >
-                        <X size={12} color="white" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </ScrollView>
-              )}
-            </View>
-          </CardContent>
-        </Card>
+                  <View style={styles.serviceChargeHeader}>
+                    <Info size={16} color="#E879F9" />
+                    <Text style={styles.serviceChargeTitle}>
+                      Service Charge Breakdown
+                    </Text>
+                  </View>
+
+                  <View style={styles.serviceChargeRow}>
+                    <Text style={styles.serviceChargeLabel}>Ticket Price:</Text>
+                    <Text style={styles.serviceChargeValue}>₹500</Text>
+                  </View>
+
+                  <View style={styles.serviceChargeRow}>
+                    <Text style={styles.serviceChargeLabel}>
+                      TAPPD Service Charge (20%):
+                    </Text>
+                    <Text style={styles.serviceChargeNegative}>₹100</Text>
+                  </View>
+
+                  <View style={styles.serviceChargeDivider} />
+
+                  <View style={styles.serviceChargeRow}>
+                    <Text style={styles.serviceChargeNetLabel}>
+                      You will receive:
+                    </Text>
+                    <Text style={styles.serviceChargeNetValue}>₹400</Text>
+                  </View>
+                </LinearGradient>
+
+              </View>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>More Event Details</CardTitle>
+            </CardHeader>
+
+            <CardContent style={styles.cardContentPadding}>
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Event Description</Text>
+                <Textarea
+                  placeholder="Describe your event in detail..."
+                  rows={4}
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>
+                  Event Photos (Up to 5)
+                </Text>
+
+                <TouchableOpacity style={styles.uploadBox}>
+                  <Upload
+                    size={32}
+                    color={Theme.colors.mutedForeground}
+                    style={{ marginBottom: 8 }}
+                  />
+                  <Text style={styles.uploadText}>
+                    Click to upload or drag & drop
+                  </Text>
+                  <Text style={styles.uploadSubText}>
+                    PNG, JPG up to 5MB each
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </CardContent>
+          </Card>
+
+        </View>
+
+        <View style={styles.bottomSpacer} />
       </View>
-      <View style={styles.bottomSpacer} />
-    </View>
+
+      {/* ===================== GENRE MODAL ===================== */}
+      <Modal transparent visible={genreOpen} animationType="fade">
+        <TouchableOpacity
+          style={styles.dropdownOverlay}
+          activeOpacity={1}
+          onPress={() => setGenreOpen(false)}
+        >
+          <View style={styles.dropdownBox}>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              {eventGenres.map((g) => {
+                const selected = g === localFormData.genre;
+                return (
+                  <TouchableOpacity
+                    key={g}
+                    style={[
+                      styles.dropdownItem,
+                      selected && styles.dropdownItemSelected,
+                    ]}
+                    onPress={() => {
+                      handleLocalFieldChange("genre", g);
+                      setGenreOpen(false);
+                    }}
+                  >
+                    <Text style={styles.dropdownItemText}>{g}</Text>
+                    {selected && (
+                      <CheckCircle2 size={16} color="#FFFFFF" />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ===================== CATEGORY MODAL ===================== */}
+      <Modal transparent visible={categoryOpen} animationType="fade">
+        <TouchableOpacity
+          style={styles.dropdownOverlay}
+          activeOpacity={1}
+          onPress={() => setCategoryOpen(false)}
+        >
+          <View style={styles.dropdownBox}>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              {eventCategories.map((c) => {
+                const selected = c === localFormData.category;
+                return (
+                  <TouchableOpacity
+                    key={c}
+                    style={[
+                      styles.dropdownItem,
+                      selected && styles.dropdownItemSelected,
+                    ]}
+                    onPress={() => {
+                      handleLocalFieldChange("category", c);
+                      setCategoryOpen(false);
+                    }}
+                  >
+                    <Text style={styles.dropdownItemText}>{c}</Text>
+                    {selected && (
+                      <CheckCircle2 size={16} color="#FFFFFF" />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+      <Modal transparent visible={ageOpen} animationType="fade">
+        <TouchableOpacity
+          style={styles.dropdownOverlay}
+          activeOpacity={1}
+          onPress={() => setAgeOpen(false)}
+        >
+          <View style={styles.dropdownBox}>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              {ageRestrictions.map((age) => {
+                const selected = age === localFormData.ageRestriction;
+                return (
+                  <TouchableOpacity
+                    key={age}
+                    style={[
+                      styles.dropdownItem,
+                      selected && styles.dropdownItemSelected,
+                    ]}
+                    onPress={() => {
+                      handleLocalFieldChange("ageRestriction", age);
+                      setAgeOpen(false);
+                    }}
+                  >
+                    <Text style={styles.dropdownItemText}>{age}</Text>
+                    {selected && (
+                      <CheckCircle2 size={16} color="#FFFFFF" />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+      <Modal transparent visible={genderOpen} animationType="fade">
+        <TouchableOpacity
+          style={styles.dropdownOverlay}
+          activeOpacity={1}
+          onPress={() => setGenderOpen(false)}
+        >
+          <View style={styles.dropdownBox}>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              {genderOptions.map((g) => {
+                const selected = g === localFormData.genderAllowance;
+                return (
+                  <TouchableOpacity
+                    key={g}
+                    style={[
+                      styles.dropdownItem,
+                      selected && styles.dropdownItemSelected,
+                    ]}
+                    onPress={() => {
+                      handleLocalFieldChange("genderAllowance", g);
+                      setGenderOpen(false);
+                    }}
+                  >
+                    <Text style={styles.dropdownItemText}>{g}</Text>
+                    {selected && (
+                      <CheckCircle2 size={16} color="#FFFFFF" />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+    </>
   );
 
   // CLICK HANDLERS FOR POPUP BUTTONS
@@ -1687,7 +1650,12 @@ export function HostScreen({
 
   // --- MAIN RENDER ---
   return (
-    <SafeAreaView style={styles.flex1} edges={["top"]}>
+    <SafeAreaView
+      style={[styles.flex1, { backgroundColor: Theme.colors.background }]}
+      edges={["top"]}
+    >
+      <StatusBar style="light" backgroundColor={Theme.colors.background} />
+
       <View style={styles.mainContainer}>
         {/* HEADER */}
         <View style={styles.mainHeader}>
@@ -1744,51 +1712,38 @@ export function HostScreen({
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={handlePublicTabClick}
-            style={[
-              styles.tabButton,
-              activeTab === "public" && styles.tabButtonActive,
-            ]}
-          >
-            {activeTab === "public" ? (
-              <LinearGradient
-                colors={["#D11A87", "#7F1AB2"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.tabButtonGradient}
-              >
-                <View style={styles.tabButtonContent}>
-                  <Text style={styles.tabTextActive}>Public Event</Text>
-                  {isVerified && (
-                    <View style={styles.verifiedBadgeContainer}>
-                      <Badge
-                        variant="default"
-                        style={styles.verifiedBadge}
-                        textStyle={styles.verifiedBadgeText}
-                      >
-                        Verified
-                      </Badge>
-                    </View>
-                  )}
-                </View>
-              </LinearGradient>
-            ) : (
-              <View style={styles.tabButtonContent}>
-                <Text style={styles.tabText}>Public Event</Text>
-                {isVerified && (
-                  <View style={styles.verifiedBadgeContainer}>
-                    <Badge
-                      variant="default"
-                      style={styles.verifiedBadge}
-                      textStyle={styles.verifiedBadgeText}
-                    >
-                      Verified
-                    </Badge>
-                  </View>
-                )}
-              </View>
-            )}
-          </TouchableOpacity>
+  onPress={handlePublicTabClick}
+  style={[
+    styles.tabButton,
+    activeTab === "public" && styles.tabButtonActive,
+  ]}
+>
+  <LinearGradient
+    colors={
+      activeTab === "public"
+        ? ["#D11A87", "#7F1AB2"]
+        : ["transparent", "transparent"]
+    }
+    start={{ x: 0, y: 0 }}
+    end={{ x: 1, y: 0 }}
+    style={styles.tabButtonGradient}
+  >
+    <Text
+      style={activeTab === "public" ? styles.tabTextActive : styles.tabText}
+    >
+      Public Event
+    </Text>
+
+    {isVerified && (
+      <View style={styles.verifiedBadgeCorner}>
+        <Text style={styles.verifiedBadgeText}>Verified</Text>
+      </View>
+    )}
+  </LinearGradient>
+</TouchableOpacity>
+
+
+
 
           <TouchableOpacity
             onPress={handlePublishedTabClick}
@@ -1826,21 +1781,36 @@ export function HostScreen({
             ]}
           >
             <View style={styles.bottomActionBarInner}>
-              <Button
-                onClick={handleSaveDraft}
-                variant="outline"
-                style={styles.bottomButtonOutline}
-              >
-                Save as Draft
-              </Button>
 
-              <Button
-                onClick={handlePublishEvent}
-                style={styles.bottomButtonPrimary}
+              {/* SAVE AS DRAFT */}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={handleSaveDraft}
+                style={{ flex: 1 }}
               >
-                Publish Event
-              </Button>
+                <View style={styles.draftButton}>
+                  <Text style={styles.draftButtonText}>Save as Draft</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* PUBLISH EVENT */}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={handlePublishEvent}
+                style={{ flex: 1 }}
+              >
+                <LinearGradient
+                  colors={GRADIENT_COLORS.primary as [string, string]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.publishButton}
+                >
+                  <Text style={styles.publishButtonText}>Publish Event</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
             </View>
+
           </View>
         )}
       </View>
@@ -1943,28 +1913,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderColor: Theme.colors.primary,
   },
-  tabButtonGradient: {
-    width: "100%",
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 8,
-    position: "relative",
-  },
-  tabButtonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-    width: "100%",
-  },
-  verifiedBadgeContainer: {
-    position: "absolute",
-    top: -8,
-    right: -4,
-    zIndex: 10,
-  },
+tabButtonGradient: {
+  width: "100%",
+  height: 44,
+  borderRadius: 10,
+  position: "relative",
+
+  // 🔑 allow space for badge
+  paddingTop: 8,
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+
+
   verifiedBadge: {
     backgroundColor: "#22c55e", // Green color for verified badge
     borderColor: "transparent",
@@ -1972,14 +1934,14 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 4,
   },
-  verifiedBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "bold",
-  },
-  tabButtonRelative: {
-    position: "relative",
-  },
+verifiedBadgeText: {
+  color: "#FFFFFF",
+  fontSize: 9,
+  fontWeight: "700",
+  lineHeight: 11,
+},
+
+
   tabText: {
     color: Theme.colors.mutedForeground,
     fontSize: 14,
@@ -1994,10 +1956,11 @@ const styles = StyleSheet.create({
   // for date-time dropdown
 
   dateBoxWrapper: {
-    padding: 12,
+    height: 52,                 // 🔑 SAME HEIGHT
+    paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: Theme.colors.border,
-    borderRadius: Theme.radius.md,
+    borderRadius: Theme.radius.lg,
     backgroundColor: Theme.colors.muted,
     flexDirection: "row",
     alignItems: "center",
@@ -2009,10 +1972,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   timeBoxWrapper: {
-    padding: 12,
+    height: 52,                 // 🔑 SAME HEIGHT
+    paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: Theme.colors.border,
-    borderRadius: Theme.radius.md,
+    borderRadius: Theme.radius.lg,
     backgroundColor: Theme.colors.muted,
     flexDirection: "row",
     alignItems: "center",
@@ -2057,6 +2021,16 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
 
+
+  selectLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+
+
+
   popupTabInner: {
     flexDirection: "row",
     alignItems: "center",
@@ -2093,6 +2067,17 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     padding: 6,
     justifyContent: "space-between",
+  },
+  selectBoxText: {
+    height: 52,
+    borderRadius: Theme.radius.lg,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+    backgroundColor: Theme.colors.muted,
+    paddingHorizontal: 14,
+    textAlignVertical: "center",
+    color: Theme.colors.foreground,
+    fontSize: 14,
   },
 
   popupTab: {
@@ -2471,32 +2456,14 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   // Service Charge
-  serviceChargeBox: {
-    padding: 12,
-    backgroundColor: Theme.colors.primary, // bg-primary/10 (using solid color for simplicity)
-    borderRadius: Theme.radius.md,
-    borderWidth: 1,
-    borderColor: Theme.colors.primary, // border-primary/20
-  },
-  serviceChargeHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 8,
-  },
-  serviceChargeTitle: {
-    color: Theme.colors.primaryForeground,
-    fontSize: 14,
-    fontWeight: "bold",
-  },
+
+
+
   serviceChargeDetails: {
     gap: 4,
     fontSize: 14,
   },
-  serviceChargeRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
+
   serviceChargeDetailText: {
     color: Theme.colors.mutedForeground,
     fontSize: 14,
@@ -2521,17 +2488,16 @@ const styles = StyleSheet.create({
     backgroundColor: Theme.colors.background,
     borderTopWidth: 1,
     borderColor: Theme.colors.border,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    // Use SafeAreaView padding in the root to handle iPhone X/notch padding
+    paddingHorizontal: Theme.spacing.m,
+    paddingVertical: Theme.spacing.m,
   },
+
   bottomActionBarInner: {
     flexDirection: "row",
-    gap: 12,
-    maxWidth: 600, // Optional max width for tablet view
-    alignSelf: "center",
+    gap: Theme.spacing.m,
     width: "100%",
   },
+
   bottomButtonOutline: {
     flex: 1,
     borderColor: Theme.colors.border,
@@ -2662,4 +2628,371 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "bold",
   },
+
+  dropdownOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+
+  dropdownBox: {
+    backgroundColor: "#120C2E",
+    borderRadius: 18,
+    paddingVertical: 6,
+    maxHeight: 320,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+
+  dropdownItem: {
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  dropdownItemSelected: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+
+  dropdownItemText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+
+
+  selectTrigger: {
+    height: 52,
+    backgroundColor: "#221C3D",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  selectValue: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    flex: 1,
+  },
+
+  selectDropdown: {
+    backgroundColor: "#120C2E",
+    borderRadius: 18,
+    paddingVertical: 6,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    maxHeight: 260,
+  },
+
+  selectItem: {
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    marginVertical: 2,
+  },
+
+  selectItemSelected: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+
+  selectItemText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  serviceChargeBox: {
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(196,81,201,0.35)",
+  },
+
+  serviceChargeHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+
+  serviceChargeTitle: {
+    color: "#E879F9",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+
+  serviceChargeRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+
+  serviceChargeLabel: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 13,
+  },
+
+  serviceChargeValue: {
+    color: "#FFFFFF",
+    fontSize: 13,
+  },
+
+  serviceChargeNegative: {
+    color: "#F472B6",
+    fontSize: 13,
+  },
+
+  serviceChargeDivider: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    marginVertical: 10,
+  },
+
+  serviceChargeNetLabel: {
+    color: "#F0ABFC",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+
+  serviceChargeNetValue: {
+    color: "#F0ABFC",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  publishGradientButton: {
+    height: 52,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  publishGradientText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  addTicketGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    height: 44,
+    paddingHorizontal: 18,
+    borderRadius: 999, // pill shape
+  },
+
+  addTicketText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+
+  restrictionCard: {
+    backgroundColor: "#140E2F",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+
+  equalRow: {
+    flexDirection: "row",
+    gap: 16,
+  },
+
+  equalCol: {
+    flex: 1,
+  },
+
+  inlineSelect: {
+    height: 52,
+    backgroundColor: "#221C3D",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  softDivider: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+
+  permissionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    backgroundColor: "#1E1838",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
+  },
+
+  permissionTitle: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+
+  permissionSub: {
+    color: "#B3AFCF",
+    fontSize: 12,
+    marginTop: 2,
+  },
+  eventBasicsCard: {
+    backgroundColor: Theme.colors.card,
+    borderRadius: Theme.radius.xl,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+    shadowColor: Theme.colors.primary,
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+  },
+
+  eventBasicsContent: {
+    gap: Theme.spacing.l,
+  },
+
+  iconLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 6,
+  },
+
+  field: {
+    height: 52,
+    backgroundColor: Theme.colors.inputBackground,
+    borderRadius: Theme.radius.xl,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+    paddingHorizontal: Theme.spacing.m,
+    color: Theme.colors.foreground,
+    fontSize: 14,
+  },
+
+  fieldRow: {
+    height: 52,
+    backgroundColor: Theme.colors.inputBackground,
+    borderRadius: Theme.radius.xl,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+    paddingHorizontal: Theme.spacing.m,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  fieldText: {
+    color: Theme.colors.foreground,
+    fontSize: 14,
+  },
+
+  placeholderText: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 14,
+  },
+  publishButtonWrapper: {
+    width: "100%",
+  },
+
+  publishButton: {
+    height: 52,
+    borderRadius: Theme.radius.xl,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: Theme.colors.primary,
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+  },
+
+
+  publishButtonText: {
+    color: Theme.colors.primaryForeground,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  draftButton: {
+    height: 52,
+    borderRadius: Theme.radius.xl,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Theme.colors.inputBackground,
+  },
+
+  draftButtonText: {
+    color: Theme.colors.foreground,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  tabButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",        // vertical centering
+    justifyContent: "center",
+    gap: 8,
+    height: 24,                 // 🔑 lock baseline height
+  },
+
+
+  inlineVerifiedBadge: {
+    backgroundColor: "#22c55e",
+    paddingHorizontal: 8,
+    height: 18,                 // 🔑 fixed height
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+
+  inlineVerifiedText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "700",
+    lineHeight: 12,             // 🔑 text sits dead-center
+  },
+  tabButtonRelative: {
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  verifiedBadgeAbsolute: {
+    position: "absolute",
+    top: -6,
+    right: 10,
+    backgroundColor: "#22c55e",
+    paddingHorizontal: 8,
+    height: 18,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+verifiedBadgeCorner: {
+  position: "absolute",
+  top: 0,
+  right: 0,
+
+  backgroundColor: "#22c55e",
+  height: 16,
+  paddingHorizontal: 8,
+  borderRadius: 999,
+
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+
+
 });
