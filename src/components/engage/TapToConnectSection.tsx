@@ -6,11 +6,23 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  Animated,
+  Easing,
+  LayoutAnimation,
+  Platform,
+  UIManager,
   Modal,
 } from "react-native";
 import { Theme } from "../../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
 import { QrCode, Smartphone, Watch, Camera, X } from "lucide-react-native";
+
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 const ConnectionCard = ({
   icon: Icon,
@@ -51,6 +63,117 @@ export function TapToConnectSection() {
   const [view, setView] = useState<"menu" | "qr" | "tap">("menu");
   const [tapMode, setTapMode] = useState<"p2p" | "p2b">("p2p"); // Phone to Phone vs Phone to Band
   const [showBandModal, setShowBandModal] = useState(false);
+  const [pairingStep, setPairingStep] = useState<
+    "initial" | "searching" | "found"
+  >("initial");
+
+  const changeView = (newView: "menu" | "qr" | "tap") => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setView(newView);
+  };
+
+  // Animation values
+  const floatAnim1 = React.useRef(new Animated.Value(0)).current;
+  const floatAnim2 = React.useRef(new Animated.Value(0)).current;
+  const pulseAnim = React.useRef(new Animated.Value(1)).current;
+  const beepAnim = React.useRef(new Animated.Value(0.3)).current;
+
+  const startPairingString = () => {
+    setPairingStep("searching");
+    // Simulate finding a band after 3 seconds
+    setTimeout(() => {
+      setPairingStep("found");
+    }, 3000);
+  };
+
+  React.useEffect(() => {
+    if (pairingStep === "searching") {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(beepAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          Animated.timing(beepAnim, {
+            toValue: 0.3,
+            duration: 500,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease),
+          }),
+        ]),
+      ).start();
+    } else {
+      beepAnim.setValue(0.3);
+    }
+  }, [pairingStep]);
+
+  React.useEffect(() => {
+    if (!showBandModal) {
+      setPairingStep("initial");
+    }
+  }, [showBandModal]);
+
+  React.useEffect(() => {
+    if (view === "tap") {
+      // Extended floating animation
+      const createFloatAnim = (anim: Animated.Value, delay: number) => {
+        return Animated.loop(
+          Animated.sequence([
+            Animated.timing(anim, {
+              toValue: -15,
+              duration: 2000,
+              delay: delay,
+              useNativeDriver: true,
+              easing: Easing.inOut(Easing.sin),
+            }),
+            Animated.timing(anim, {
+              toValue: 0,
+              duration: 2000,
+              useNativeDriver: true,
+              easing: Easing.inOut(Easing.sin),
+            }),
+          ]),
+        );
+      };
+
+      // Pulsing effect for the "connection"
+      const pulseAnimation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.2,
+            duration: 1000,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease),
+          }),
+        ]),
+      );
+
+      // Start animations
+      const anim1 = createFloatAnim(floatAnim1, 0);
+      const anim2 = createFloatAnim(floatAnim2, 1000); // Offset for natural feel
+
+      anim1.start();
+      anim2.start();
+      pulseAnimation.start();
+
+      return () => {
+        anim1.stop();
+        anim2.stop();
+        pulseAnimation.stop();
+        floatAnim1.setValue(0);
+        floatAnim2.setValue(0);
+        pulseAnim.setValue(1);
+      };
+    }
+  }, [view]);
 
   if (view === "qr") {
     return (
@@ -82,7 +205,7 @@ export function TapToConnectSection() {
 
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => setView("menu")}
+              onPress={() => changeView("menu")}
             >
               <Text style={styles.backButtonText}>Back to Menu</Text>
             </TouchableOpacity>
@@ -123,34 +246,84 @@ export function TapToConnectSection() {
               flexDirection: "row",
             }}
           >
+            {/* Connection Line */}
             <View
+              style={{
+                position: "absolute",
+                width: 150,
+                height: 4,
+                backgroundColor: "#D946EF",
+                opacity: 0.3,
+                borderRadius: 2,
+              }}
+            />
+
+            {/* Connection Pulse Effect */}
+            <Animated.View
+              style={[
+                styles.pulseRing,
+                {
+                  transform: [{ scale: pulseAnim }],
+                  opacity: pulseAnim.interpolate({
+                    inputRange: [1, 1.2],
+                    outputRange: [0.1, 0],
+                  }),
+                },
+              ]}
+            />
+
+            <Animated.View
               style={[
                 styles.deviceContainer,
                 {
-                  transform: [{ rotate: "-15deg" }],
-                  marginRight: -20,
+                  transform: [{ translateY: floatAnim1 }],
+                  marginRight: 5,
                   zIndex: 1,
                 },
               ]}
             >
-              <View style={styles.deviceFrame}>
+              <View
+                style={[
+                  styles.deviceFrame,
+                  { transform: [{ rotate: "-15deg" }] },
+                ]}
+              >
                 <Smartphone size={40} color="#fff" />
               </View>
               <Text style={styles.deviceLabel}>Your Phone</Text>
-            </View>
+            </Animated.View>
 
-            <View
+            <Animated.View
               style={[
                 styles.deviceContainer,
                 {
-                  transform: [{ rotate: "15deg" }],
-                  marginLeft: -20,
-                  opacity: 0.8,
+                  transform: [{ translateY: floatAnim2 }],
+                  marginLeft: 5,
+                  opacity: 0.9,
                 },
               ]}
             >
               <View
-                style={[styles.deviceFrame, { backgroundColor: "#2D2B3B" }]}
+                style={
+                  tapMode === "p2p"
+                    ? [
+                        styles.deviceFrame,
+                        {
+                          backgroundColor: "#2D2B3B",
+                          transform: [{ rotate: "15deg" }],
+                        },
+                      ]
+                    : [
+                        styles.deviceFrameCircular,
+                        {
+                          backgroundColor: "#A855F7",
+                          width: 100,
+                          height: 100,
+                          borderRadius: 50,
+                          transform: [{ rotate: "15deg" }],
+                        },
+                      ]
+                }
               >
                 {tapMode === "p2p" ? (
                   <Smartphone size={40} color="#fff" />
@@ -161,7 +334,7 @@ export function TapToConnectSection() {
               <Text style={styles.deviceLabel}>
                 {tapMode === "p2p" ? "Other Phone" : "TAPPD Band"}
               </Text>
-            </View>
+            </Animated.View>
           </View>
 
           {/* Controls */}
@@ -203,7 +376,7 @@ export function TapToConnectSection() {
 
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => setView("menu")}
+              onPress={() => changeView("menu")}
             >
               <Text style={styles.backButtonText}>Back to Menu</Text>
             </TouchableOpacity>
@@ -228,7 +401,7 @@ export function TapToConnectSection() {
           title="Show QR Code"
           description="Display your QR code for others to scan"
           gradientIcon
-          onPress={() => setView("qr")}
+          onPress={() => changeView("qr")}
         />
 
         <ConnectionCard
@@ -236,7 +409,7 @@ export function TapToConnectSection() {
           title="Tap to Connect"
           description="Tap phones or TAPPD bands together"
           gradientIcon
-          onPress={() => setView("tap")}
+          onPress={() => changeView("tap")}
         />
 
         <ConnectionCard
@@ -268,10 +441,23 @@ export function TapToConnectSection() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>TAPPD Band Registration</Text>
-                <Text style={styles.modalSubtitle}>
-                  Connect your TAPPD band with your phone
-                </Text>
+                {pairingStep === "initial" ? (
+                  <>
+                    <Text style={styles.modalTitle}>
+                      TAPPD Band Registration
+                    </Text>
+                    <Text style={styles.modalSubtitle}>
+                      Connect your TAPPD band with your phone
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.modalTitle}>Connecting to Band...</Text>
+                    <Text style={styles.modalSubtitle}>
+                      Keep holding until connection is established
+                    </Text>
+                  </>
+                )}
               </View>
               <TouchableOpacity onPress={() => setShowBandModal(false)}>
                 <X size={20} color={Theme.colors.mutedForeground} />
@@ -279,46 +465,124 @@ export function TapToConnectSection() {
             </View>
 
             <View style={styles.modalBody}>
-              <Text style={styles.bodyTitle}>Register TAPPD Band</Text>
-              <Text style={styles.bodySubtitle}>
-                Tap and hold band until it shows up
-              </Text>
+              {pairingStep === "initial" ? (
+                <>
+                  <Text style={styles.bodyTitle}>Register TAPPD Band</Text>
+                  <Text style={styles.bodySubtitle}>
+                    Tap and hold band until it shows up
+                  </Text>
 
-              <View style={styles.pairingVisuals}>
-                <View
-                  style={[
-                    styles.deviceFrame,
-                    { transform: [{ rotate: "-10deg" }], marginRight: -10 },
-                  ]}
-                >
-                  <Smartphone size={32} color="#fff" />
-                  <Text style={styles.smallDeviceLabel}>Your Phone</Text>
-                </View>
-                <View
-                  style={[
-                    styles.deviceFrameCircular,
-                    {
-                      transform: [{ rotate: "10deg" }],
-                      marginLeft: -10,
-                      backgroundColor: "#A855F7",
-                    },
-                  ]}
-                >
-                  <Watch size={32} color="#fff" />
-                  <Text style={styles.smallDeviceLabel}>TAPPD Band</Text>
-                </View>
-              </View>
+                  <View style={styles.pairingVisuals}>
+                    <View
+                      style={[
+                        styles.deviceFrame,
+                        { transform: [{ rotate: "-10deg" }], marginRight: -10 },
+                      ]}
+                    >
+                      <Smartphone size={32} color="#fff" />
+                      <Text style={styles.smallDeviceLabel}>Your Phone</Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.deviceFrameCircular,
+                        {
+                          transform: [{ rotate: "10deg" }],
+                          marginLeft: -10,
+                          backgroundColor: "#A855F7",
+                        },
+                      ]}
+                    >
+                      <Watch size={32} color="#fff" />
+                      <Text style={styles.smallDeviceLabel}>TAPPD Band</Text>
+                    </View>
+                  </View>
 
-              <TouchableOpacity style={styles.primaryButton}>
-                <LinearGradient
-                  colors={["#be185d", "#831843"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.gradientButton}
-                >
-                  <Text style={styles.primaryButtonText}>Start Pairing</Text>
-                </LinearGradient>
-              </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.primaryButton}
+                    onPress={startPairingString}
+                  >
+                    <LinearGradient
+                      colors={["#be185d", "#831843"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.gradientButton}
+                    >
+                      <Text style={styles.primaryButtonText}>
+                        Start Pairing
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <View style={styles.pairingVisuals}>
+                    {/* Connection Line */}
+                    <View
+                      style={{
+                        position: "absolute",
+                        width: 120,
+                        height: 4,
+                        backgroundColor: "rgba(217, 70, 239, 0.3)",
+                        borderRadius: 2,
+                      }}
+                    >
+                      {/* Beeping Dot */}
+                      <Animated.View
+                        style={{
+                          position: "absolute",
+                          width: 12,
+                          height: 12,
+                          borderRadius: 6,
+                          backgroundColor: "#D946EF",
+                          top: -4,
+                          left: "50%",
+                          marginLeft: -6,
+                          opacity: beepAnim,
+                          shadowColor: "#D946EF",
+                          shadowOffset: { width: 0, height: 0 },
+                          shadowOpacity: 0.8,
+                          shadowRadius: 10,
+                          transform: [
+                            {
+                              scale: beepAnim.interpolate({
+                                inputRange: [0.3, 1],
+                                outputRange: [0.8, 1.4],
+                              }),
+                            },
+                          ],
+                        }}
+                      />
+                    </View>
+                    <View
+                      style={[
+                        styles.deviceFrame,
+                        { transform: [{ rotate: "-10deg" }], marginRight: 10 },
+                      ]}
+                    >
+                      <Smartphone size={32} color="#fff" />
+                      <Text style={styles.smallDeviceLabel}>Your Phone</Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.deviceFrameCircular,
+                        {
+                          transform: [{ rotate: "10deg" }],
+                          marginLeft: 10,
+                          backgroundColor: "#A855F7",
+                        },
+                      ]}
+                    >
+                      <Watch size={32} color="#fff" />
+                      <Text style={styles.smallDeviceLabel}>TAPPD Band</Text>
+                    </View>
+                  </View>
+                  <View style={{ marginTop: 20, marginBottom: 20 }}>
+                    <Text style={{ color: Theme.colors.mutedForeground }}>
+                      Searching for band...
+                    </Text>
+                  </View>
+                </>
+              )}
             </View>
           </View>
         </View>
@@ -577,6 +841,84 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   primaryButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  pulseRing: {
+    position: "absolute",
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    borderWidth: 2,
+    borderColor: "#D946EF",
+    top: "50%",
+    left: "50%",
+    marginTop: -150,
+    marginLeft: -150,
+  },
+  successIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(16, 185, 129, 0.1)", // Green tint
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.2)",
+  },
+  inputContainer: {
+    width: "100%",
+    marginBottom: 16,
+    gap: 8,
+  },
+  inputLabel: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#1F1B2E",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 12,
+    padding: 16,
+    height: 56,
+  },
+  inputText: {
+    color: "#fff",
+    fontSize: 15,
+    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+    fontWeight: "600",
+  },
+  inputIconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#A855F7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 16,
+    width: "100%",
+  },
+  outlineButton: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  outlineButtonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
