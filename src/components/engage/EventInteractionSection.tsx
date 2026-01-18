@@ -1,12 +1,31 @@
-import React from "react";
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, FlatList, ImageSourcePropType } from "react-native";
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  FlatList,
+  StyleSheet,
+} from "react-native";
 import { Theme } from "../../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
-import { Plus, Heart, MessageCircle, Send, MoreHorizontal, Music } from "lucide-react-native";
+import {
+  Plus,
+  Heart,
+  MessageCircle,
+  Send,
+  MoreHorizontal,
+  Music,
+} from "lucide-react-native";
+import { CreateStoryModal } from "./CreateStoryModal";
 
-// Mock Data
+import { UploadContentSheet } from "./UploadContentSheet";
+
+// ---------------- MOCK DATA ----------------
+
 const STORIES = [
-  { id: "new", name: "Add Story", isUser: true, image: "https://i.pravatar.cc/150?u=user" },
+  { id: "new", name: "Add Story", isUser: true, image: "" },
   { id: "1", name: "Emma", image: "https://i.pravatar.cc/150?u=emma" },
   { id: "2", name: "Michael", image: "https://i.pravatar.cc/150?u=michael" },
   { id: "3", name: "Sarah", image: "https://i.pravatar.cc/150?u=sarah" },
@@ -22,9 +41,9 @@ const POSTS = [
       avatar: "https://i.pravatar.cc/150?u=emma",
     },
     time: "2h ago",
-    media: "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80", // Concert image
+    media: "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4",
     likes: 127,
-    caption: "Amazing jazz performance tonight! The energy in the room is incredible 🎷✨ #JazzNight #LiveMusic",
+    caption: "Amazing jazz performance tonight!",
     comments: 23,
     music: "Smooth Operator - Sade",
   },
@@ -35,36 +54,41 @@ const POSTS = [
       avatar: "https://i.pravatar.cc/150?u=michael",
     },
     time: "4h ago",
-    media: "https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80", // Party image
+    media: "https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec",
     likes: 89,
-    caption: "Great vibes at the rooftop party! 🍹🌇",
+    caption: "Great vibes at the rooftop party!",
     comments: 12,
     music: "Summer - Calvin Harris",
   },
 ];
 
-const StoryItem = ({ item }: { item: typeof STORIES[0] }) => {
+// ---------------- STORY ITEM ----------------
+
+const StoryItem = ({
+  item,
+  onAddStory,
+}: {
+  item: typeof STORIES[0];
+  onAddStory: () => void;
+}) => {
   return (
     <View style={styles.storyItem}>
       {item.isUser ? (
-        <TouchableOpacity style={styles.addStoryContainer}>
-          <View style={styles.addStoryCircle}>
-             <Plus size={24} color={Theme.colors.foreground} />
+        <TouchableOpacity onPress={onAddStory} style={styles.addStoryWrapper}>
+          <View style={styles.addStoryDashedCircle}>
+            <Plus size={26} color={Theme.colors.foreground} />
           </View>
         </TouchableOpacity>
       ) : (
         <TouchableOpacity>
           <LinearGradient
-            colors={Theme.colors.primary ? [Theme.colors.primary, '#740182'] : ['#c451c9', '#740182']}
+            colors={[
+              Theme.colors.primary || "#c451c9",
+              "#740182",
+            ]}
             style={styles.storyGradient}
           >
             <Image source={{ uri: item.image }} style={styles.storyImage} />
-            <View style={styles.playIconContainer}>
-                {/* Small play icon badge style from screenshot */}
-                  <View style={styles.playIconBadge}>
-                      <View style={styles.triangle} />
-                  </View>
-            </View>
           </LinearGradient>
         </TouchableOpacity>
       )}
@@ -72,6 +96,8 @@ const StoryItem = ({ item }: { item: typeof STORIES[0] }) => {
     </View>
   );
 };
+
+// ---------------- FEED POST ----------------
 
 const FeedPost = ({ item }: { item: typeof POSTS[0] }) => {
   return (
@@ -83,53 +109,57 @@ const FeedPost = ({ item }: { item: typeof POSTS[0] }) => {
           <Text style={styles.userName}>{item.user.name}</Text>
           <Text style={styles.postTime}>{item.time}</Text>
         </View>
-         <TouchableOpacity>
-             <MoreHorizontal size={20} color={Theme.colors.mutedForeground} />
-         </TouchableOpacity>
+        <TouchableOpacity>
+          <MoreHorizontal size={20} color={Theme.colors.mutedForeground} />
+        </TouchableOpacity>
       </View>
 
-      {/* Main Content */}
+      {/* Media */}
       <View style={styles.postMediaContainer}>
-        <Image source={{ uri: item.media }} style={styles.postMedia} resizeMode="cover" />
-        
-        {/* Music Pill Overlay */}
+        <Image source={{ uri: item.media }} style={styles.postMedia} />
+
         <View style={styles.musicPill}>
-            <Music size={12} color="#c451c9" />
-            <Text style={styles.musicText}>{item.music}</Text>
+          <Music size={12} color="#c451c9" />
+          <Text style={styles.musicText}>{item.music}</Text>
         </View>
       </View>
 
       {/* Actions */}
       <View style={styles.actionRow}>
-        <View style={styles.leftActions}>
-          <TouchableOpacity style={styles.actionButton}>
-            <Heart size={24} color={Theme.colors.destructive} fill={Theme.colors.destructive} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <MessageCircle size={24} color={Theme.colors.foreground} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <Send size={24} color={Theme.colors.foreground} />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.actionButton}>
+          <Heart size={24} color={Theme.colors.destructive} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionButton}>
+          <MessageCircle size={24} color={Theme.colors.foreground} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionButton}>
+          <Send size={24} color={Theme.colors.foreground} />
+        </TouchableOpacity>
       </View>
 
-      {/* Footer Info */}
+      {/* Footer */}
       <View style={styles.postFooter}>
         <Text style={styles.likesText}>{item.likes} likes</Text>
         <Text style={styles.caption}>
           <Text style={styles.captionUser}>{item.user.name} </Text>
           {item.caption}
         </Text>
-        <TouchableOpacity>
-            <Text style={styles.viewComments}>View all {item.comments} comments</Text>
-        </TouchableOpacity>
+        <Text style={styles.viewComments}>
+          View all {item.comments} comments
+        </Text>
       </View>
     </View>
   );
 };
 
+// ---------------- MAIN SECTION ----------------
+
 export function EventInteractionSection() {
+  const [stories, setStories] = useState(STORIES);
+  const [showUpload, setShowUpload] = useState(false);
+  const [showCreateStory, setShowCreateStory] = useState(false);
+  const [storyImage, setStoryImage] = useState<string | null>(null);
+
   return (
     <View style={styles.container}>
       <FlatList
@@ -138,9 +168,17 @@ export function EventInteractionSection() {
         renderItem={({ item }) => <FeedPost item={item} />}
         ListHeaderComponent={
           <View style={styles.storiesContainer}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storiesContent}>
-              {STORIES.map((story) => (
-                <StoryItem key={story.id} item={story} />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.storiesContent}
+            >
+              {stories.map((story) => (
+                <StoryItem
+                  key={story.id}
+                  item={story}
+                  onAddStory={() => setShowUpload(true)}
+                />
               ))}
             </ScrollView>
           </View>
@@ -148,9 +186,30 @@ export function EventInteractionSection() {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
+
+      <UploadContentSheet
+        visible={showUpload}
+        onClose={() => setShowUpload(false)}
+        onCreateStory={(uri) => {
+          setStoryImage(uri);
+          setShowUpload(false);
+          setShowCreateStory(true);
+        }}
+      />
+      <CreateStoryModal
+        visible={showCreateStory}
+        imageUri={storyImage}
+        onClose={() => setShowCreateStory(false)}
+        onPublish={(newStory) => {
+          setStories((prev) => [newStory, ...prev]);
+        }}
+      />
+
     </View>
   );
 }
+
+// ---------------- STYLES ----------------
 
 const styles = StyleSheet.create({
   container: {
@@ -158,8 +217,9 @@ const styles = StyleSheet.create({
     backgroundColor: Theme.colors.background,
   },
   listContent: {
-      paddingBottom: 80, // Tab bar spacer
+    paddingBottom: 80,
   },
+
   storiesContainer: {
     paddingVertical: 16,
     borderBottomWidth: 1,
@@ -173,26 +233,28 @@ const styles = StyleSheet.create({
     marginRight: 16,
     width: 72,
   },
-  addStoryContainer: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
-      borderWidth: 1,
-      borderColor: Theme.colors.muted,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 6,
-      backgroundColor: 'rgba(255,255,255,0.05)'
+  addStoryWrapper: {
+    width: 68,
+    height: 68,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 6,
   },
-  addStoryCircle: {
-      alignItems: 'center',
-      justifyContent: 'center',
+  addStoryDashedCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: Theme.colors.mutedForeground,
+    alignItems: "center",
+    justifyContent: "center",
   },
   storyGradient: {
     width: 68,
     height: 68,
     borderRadius: 34,
-    padding: 2, // Border width
+    padding: 2,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 6,
@@ -208,44 +270,9 @@ const styles = StyleSheet.create({
     color: Theme.colors.foreground,
     fontSize: 12,
     fontWeight: "500",
-    textAlign: 'center',
-  },
-  playIconContainer: {
-      position: 'absolute',
-      bottom: 0,
-      right: 0,
-      width: 20,
-      height: 20,
-      borderRadius: 10,
-      backgroundColor: Theme.colors.primary || '#c451c9',
-      borderWidth: 2,
-      borderColor: Theme.colors.background,
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 10,
-  },
-  playIconBadge: {
-      width: 8,
-      height: 8,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginLeft: 1,
-  },
-  triangle: {
-    width: 0,
-    height: 0,
-    backgroundColor: "transparent",
-    borderStyle: "solid",
-    borderLeftWidth: 3,
-    borderRightWidth: 3,
-    borderBottomWidth: 6,
-    borderLeftColor: "transparent",
-    borderRightColor: "transparent",
-    borderBottomColor: "white",
-    transform: [{ rotate: "90deg" }],
+    textAlign: "center",
   },
 
-  // Post Styles
   postContainer: {
     marginBottom: 24,
   },
@@ -273,45 +300,43 @@ const styles = StyleSheet.create({
     color: Theme.colors.mutedForeground,
     fontSize: 12,
   },
+
   postMediaContainer: {
-      position: 'relative',
-      width: '100%',
-      aspectRatio: 4/5,
+    position: "relative",
+    width: "100%",
+    aspectRatio: 4 / 5,
   },
   postMedia: {
     width: "100%",
     height: "100%",
   },
   musicPill: {
-      position: 'absolute',
-      bottom: 12,
-      left: 12,
-      backgroundColor: 'rgba(20, 10, 30, 0.8)', // Dark semi-transparent
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      borderRadius: 16,
-  },
-  musicText: {
-      color: '#c451c9',
-      fontSize: 12,
-      marginLeft: 6,
-      fontWeight: '500',
-  },
-  actionRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  leftActions: {
+    position: "absolute",
+    bottom: 12,
+    left: 12,
+    backgroundColor: "rgba(20,10,30,0.8)",
     flexDirection: "row",
     alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  musicText: {
+    color: "#c451c9",
+    fontSize: 12,
+    marginLeft: 6,
+    fontWeight: "500",
+  },
+
+  actionRow: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   actionButton: {
     marginRight: 16,
   },
+
   postFooter: {
     paddingHorizontal: 16,
   },
@@ -324,7 +349,6 @@ const styles = StyleSheet.create({
     color: Theme.colors.foreground,
     fontSize: 14,
     marginBottom: 6,
-    lineHeight: 20,
   },
   captionUser: {
     fontWeight: "600",
