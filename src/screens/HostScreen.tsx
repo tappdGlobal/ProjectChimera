@@ -10,6 +10,8 @@ import {
   Alert,
   Platform,
   Modal,
+  ActivityIndicator,
+  Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useCameraPermissions } from "expo-camera";
@@ -38,10 +40,12 @@ import {
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Toast from "react-native-toast-message"; // For toast messages
+import { eventApi } from "../api/eventApi";
 import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import * as ImagePicker from "expo-image-picker";
 
 // Migrated UI Components
 import { Button } from "../components/ui/Button";
@@ -201,7 +205,7 @@ export function HostScreen({
   const [loginErrors, setLoginErrors] = useState<Record<string, string>>({});
 
   const [localFormData, setLocalFormData] = useState<EventForm>(
-    editingDraft || initialFormData
+    editingDraft || initialFormData,
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -211,6 +215,12 @@ export function HostScreen({
   const [popupActiveTab, setPopupActiveTab] = useState("analytics");
   const [cameraOpen, setCameraOpen] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
+
+  // API integration state
+  const [isLoading, setIsLoading] = useState(false);
+  const [draftId, setDraftId] = useState<string | null>(
+    editingDraft?.id || null,
+  );
 
   const localDateObj = localFormData.date
     ? new Date(localFormData.date)
@@ -237,8 +247,38 @@ export function HostScreen({
         setErrors((prev) => ({ ...prev, [field]: "" }));
       }
     },
-    [errors]
+    [errors],
   );
+
+  // ... inside HostScreen component ...
+
+  const pickImage = async () => {
+    // No permissions request is necessary for launching the image library
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+      allowsMultipleSelection: true, // Allow multiple if supported (requires newer expo/RN)
+      selectionLimit: 5,
+    });
+
+    if (!result.canceled) {
+      // Append new photos to existing ones, up to 5 total
+      const newPhotos = result.assets.map((asset) => asset.uri);
+      setLocalFormData((prev) => {
+        const updatedPhotos = [...prev.photos, ...newPhotos].slice(0, 5);
+        return { ...prev, photos: updatedPhotos };
+      });
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setLocalFormData((prev) => ({
+      ...prev,
+      photos: prev.photos.filter((_, i) => i !== index),
+    }));
+  };
 
   // Handler for ticket changes
   const handleLocalTicketChange = useCallback(
@@ -246,11 +286,21 @@ export function HostScreen({
       setLocalFormData((prev) => ({
         ...prev,
         tickets: prev.tickets.map((ticket) =>
-          ticket.id === ticketId ? { ...ticket, [field]: value } : ticket
+          ticket.id === ticketId
+            ? {
+                ...ticket,
+                [field]:
+                  field === "price"
+                    ? value === ""
+                      ? 0 // Handle empty string as 0 internally
+                      : parseInt(String(value)) || 0
+                    : value,
+              }
+            : ticket,
         ),
       }));
     },
-    []
+    [],
   );
 
   const addTicketType = useCallback(() => {
@@ -274,7 +324,7 @@ export function HostScreen({
         }));
       }
     },
-    [localFormData.tickets.length]
+    [localFormData.tickets.length],
   );
 
   const calculateServiceCharge = (price: number) => {
@@ -310,65 +360,107 @@ export function HostScreen({
   };
 
   const handleSaveDraft = async () => {
-    // 1. Save to AsyncStorage (replaces localStorage)
-    const draftId = editingDraft?.id || `draft-${Date.now()}`;
-    const draftData = {
-      ...localFormData,
-      id: draftId,
-      createdAt: editingDraft?.createdAt || new Date().toISOString(),
-      lastModified: new Date().toISOString(),
-    };
-
+    setIsLoading(true);
     try {
-      const existingDraftsJson = await AsyncStorage.getItem("eventDrafts");
-      const existingDrafts = existingDraftsJson
-        ? JSON.parse(existingDraftsJson)
-        : [];
-
-      const updatedDrafts = existingDrafts.filter(
-        (draft: any) => draft.id !== draftId
-      );
-      updatedDrafts.push(draftData);
-
-      await AsyncStorage.setItem("eventDrafts", JSON.stringify(updatedDrafts));
-
-      Toast.show({
-        type: "success",
-        text1: "Draft saved successfully!",
-        position: "bottom",
-      });
-      console.log("Saving draft...", draftData);
-    } catch (e) {
+      if (draftId) {
+        // Update existing draft
+        const updated = await eventApi.updateDraft(draftId, localFormData);
+        Toast.show({
+          type: "success",
+          text1: "Draft updated successfully!",
+          position: "bottom",
+        });
+        console.log("Draft updated:", updated);
+      } else {
+        // Create new draft
+        const draft = await eventApi.saveDraft(localFormData);
+        setDraftId(draft.id);
+        Toast.show({
+          type: "success",
+          text1: "Draft saved successfully!",
+          position: "bottom",
+        });
+        console.log("Draft saved:", draft);
+      }
+    } catch (error: any) {
+      console.error("Error saving draft:", error);
       Toast.show({
         type: "error",
-        text1: "Failed to save draft.",
+        text1: error.message || "Failed to save draft",
         position: "bottom",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handlePublishEvent = () => {
+  const handlePublishEvent = async () => {
     const validationErrors = validateForm(localFormData);
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length === 0) {
-      // 1. Publish logic here (in a real app, this sends to a backend API)
-      const publishedData = {
-        ...localFormData,
-        id: `pub-${Date.now()}`,
-        publishedAt: new Date().toISOString(),
-        status: "upcoming",
-      };
+      setIsLoading(true);
+      try {
+        if (draftId) {
+          // Publish existing draft
+          const published = await eventApi.publishDraft(draftId);
+          Toast.show({
+            type: "success",
+            text1: "Event published successfully!",
+            position: "bottom",
+          });
+          console.log("Event published:", published);
+        } else {
+          // Create and publish directly
+          const eventData = {
+            eventName: localFormData.name,
+            genre: localFormData.genre,
+            category: localFormData.category,
+            eventDate: localFormData.date,
+            eventTime: localFormData.time,
+            location: localFormData.location,
+            maxCapacity: localFormData.maxOccupancy,
+            ageLimit: localFormData.ageRestriction,
+            allowance:
+              localFormData.genderAllowance === "All Genders"
+                ? "PUBLIC"
+                : "PRIVATE",
+            allowAlcohol: localFormData.alcoholAllowed,
+            allowSmokingAreas: localFormData.smokingAllowed,
+            description: localFormData.description,
+            images: localFormData.photos,
+            tickets: localFormData.tickets.map((t) => ({
+              ticketLabel: t.name,
+              ticketType: "PAID",
+              price: t.price,
+              currency: "INR",
+              serviceChargePercentage: 20,
+              quantityTotal: 100,
+            })),
+          };
 
-      Toast.show({
-        type: "success",
-        text1: "Event published successfully!",
-        position: "bottom",
-      });
-      console.log("Publishing event...", publishedData);
+          const published = await eventApi.createEvent(eventData);
+          Toast.show({
+            type: "success",
+            text1: "Event published successfully!",
+            position: "bottom",
+          });
+          console.log("Event created:", published);
+        }
 
-      // 2. Reset form
-      setLocalFormData(initialFormData);
+        // Reset form
+        setLocalFormData(initialFormData);
+        setDraftId(null);
+      } catch (error: any) {
+        console.error("Error publishing event:", error);
+        Toast.show({
+          type: "error",
+          text1: error.message || "Failed to publish event",
+          position: "bottom",
+        });
+      } finally {
+        setIsLoading(false);
+      }
     } else {
       Toast.show({
         type: "error",
@@ -589,25 +681,6 @@ export function HostScreen({
                   />
                 </TouchableOpacity>
 
-                <DateTimePickerModal
-                  isVisible={showDatePicker}
-                  mode="date"
-                  display="inline"
-                  themeVariant="dark"
-                  onConfirm={(selectedDate) => {
-                    setShowDatePicker(false);
-
-                    const dd = String(selectedDate.getDate()).padStart(2, "0");
-                    const mm = String(selectedDate.getMonth() + 1).padStart(
-                      2,
-                      "0"
-                    );
-                    const yyyy = selectedDate.getFullYear();
-
-                    handleLocalFieldChange("date", `${dd}-${mm}-${yyyy}`);
-                  }}
-                  onCancel={() => setShowDatePicker(false)}
-                />
                 {errors.date && (
                   <Text style={styles.errorText}>{errors.date}</Text>
                 )}
@@ -636,23 +709,6 @@ export function HostScreen({
                     style={{ marginLeft: 8 }}
                   />
                 </TouchableOpacity>
-
-                <DateTimePickerModal
-                  isVisible={showTimePicker}
-                  mode="time"
-                  display="spinner" // 👈 THIS MAKES IT A WHEEL PICKER
-                  themeVariant="dark"
-                  onConfirm={(selectedTime) => {
-                    setShowTimePicker(false);
-                    const hh = String(selectedTime.getHours()).padStart(2, "0");
-                    const mm = String(selectedTime.getMinutes()).padStart(
-                      2,
-                      "0"
-                    );
-                    handleLocalFieldChange("time", `${hh}:${mm}`);
-                  }}
-                  onCancel={() => setShowTimePicker(false)}
-                />
 
                 {errors.time && (
                   <Text style={styles.errorText}>{errors.time}</Text>
@@ -851,11 +907,7 @@ export function HostScreen({
                       keyboardType="numeric"
                       value={ticket.price > 0 ? String(ticket.price) : ""}
                       onChangeText={(value) =>
-                        handleLocalTicketChange(
-                          ticket.id,
-                          "price",
-                          parseInt(value) || 500
-                        )
+                        handleLocalTicketChange(ticket.id, "price", value)
                       }
                       placeholder="500"
                     />
@@ -874,7 +926,7 @@ export function HostScreen({
                         onPress={() =>
                           Alert.alert(
                             "Service Charge",
-                            "TAPPD charges 20% service fee to maintain platform quality, secure payments, and provide customer support."
+                            "TAPPD charges 20% service fee to maintain platform quality, secure payments, and provide customer support.",
                           )
                         }
                       >
@@ -950,10 +1002,7 @@ export function HostScreen({
                 />{" "}
                 Event Photos (Up to 5)
               </Text>
-              <TouchableOpacity
-                style={styles.uploadBox}
-                onPress={() => console.log("Open image picker")}
-              >
+              <TouchableOpacity style={styles.uploadBox} onPress={pickImage}>
                 <Upload
                   size={32}
                   color={Theme.colors.mutedForeground}
@@ -963,10 +1012,30 @@ export function HostScreen({
                   Click to upload or drag & drop
                 </Text>
                 <Text style={styles.uploadSubText}>
-                  PNG, JPG up to 5MB each
+                  PNG, JPG up to 5MB each ({localFormData.photos.length}/5)
                 </Text>
               </TouchableOpacity>
-              {/* Photo preview logic omitted for brevity */}
+
+              {/* Photo Preview */}
+              {localFormData.photos.length > 0 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.photoPreviewContainer}
+                >
+                  {localFormData.photos.map((uri, index) => (
+                    <View key={index} style={styles.photoPreviewItem}>
+                      <Image source={{ uri }} style={styles.previewImage} />
+                      <TouchableOpacity
+                        style={styles.removePhotoButton}
+                        onPress={() => removePhoto(index)}
+                      >
+                        <X size={12} color="white" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+              )}
             </View>
           </CardContent>
         </Card>
@@ -1106,8 +1175,8 @@ export function HostScreen({
 
           {/* Body: KEEP header/tabs outside, body fills remaining popup area */}
           <View style={{ flex: 1, marginTop: 8 }}>
-            {popupActiveTab === "guests" && <GuestsContent />}
-            {popupActiveTab === "scan" && <ScanContent />}
+            {popupActiveTab === "guests" && GuestsContent()}
+            {popupActiveTab === "scan" && ScanContent()}
             {popupActiveTab === "analytics" && (
               <ScrollView
                 style={{ flex: 1 }}
@@ -1647,7 +1716,7 @@ export function HostScreen({
             <LayoutDashboard size={22} color={Theme.colors.foreground} />
           </TouchableOpacity>
         </View>
-        {showEventControlPopup && <EventControlPopup />}
+        {showEventControlPopup && EventControlPopup()}
         {/* MENU TABS */}
         <View style={styles.tabMenu}>
           <TouchableOpacity
@@ -1736,7 +1805,7 @@ export function HostScreen({
             contentContainerStyle={styles.verificationScrollContainer}
             showsVerticalScrollIndicator={false}
           >
-            <PublicVerificationForm />
+            {PublicVerificationForm()}
           </ScrollView>
         ) : (
           <ScrollView
@@ -1744,7 +1813,7 @@ export function HostScreen({
             contentContainerStyle={styles.scrollPadding}
             showsVerticalScrollIndicator={false}
           >
-            <EventFormContent />
+            {EventFormContent()}
           </ScrollView>
         )}
 
@@ -1777,6 +1846,37 @@ export function HostScreen({
       </View>
 
       <Toast />
+
+      {/* Date Picker Modal */}
+      <DateTimePickerModal
+        isVisible={showDatePicker}
+        mode="date"
+        display="spinner"
+        themeVariant="dark"
+        onConfirm={(selectedDate) => {
+          setShowDatePicker(false);
+          const dd = String(selectedDate.getDate()).padStart(2, "0");
+          const mm = String(selectedDate.getMonth() + 1).padStart(2, "0");
+          const yyyy = selectedDate.getFullYear();
+          handleLocalFieldChange("date", `${dd}-${mm}-${yyyy}`);
+        }}
+        onCancel={() => setShowDatePicker(false)}
+      />
+
+      {/* Time Picker Modal */}
+      <DateTimePickerModal
+        isVisible={showTimePicker}
+        mode="time"
+        display="spinner"
+        themeVariant="dark"
+        onConfirm={(selectedTime) => {
+          setShowTimePicker(false);
+          const hh = String(selectedTime.getHours()).padStart(2, "0");
+          const mm = String(selectedTime.getMinutes()).padStart(2, "0");
+          handleLocalFieldChange("time", `${hh}:${mm}`);
+        }}
+        onCancel={() => setShowTimePicker(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -2172,6 +2272,59 @@ const styles = StyleSheet.create({
     color: Theme.colors.mutedForeground,
   },
 
+  // Photo Preview
+  photoPreviewContainer: {
+    flexDirection: "row",
+    marginTop: 12,
+  },
+  photoPreviewItem: {
+    width: 80,
+    height: 80,
+    marginRight: 10,
+    borderRadius: 8,
+    position: "relative",
+  },
+  previewImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 8,
+  },
+  removePhotoButton: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    backgroundColor: Theme.colors.destructive,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "white",
+  },
+  uploadBox: {
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+    borderStyle: "dashed",
+    borderRadius: Theme.radius.lg,
+    padding: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Theme.colors.muted,
+  },
+  uploadIcon: {
+    marginBottom: 8,
+  },
+  uploadText: {
+    color: Theme.colors.foreground,
+    fontWeight: "500",
+    marginBottom: 4,
+  },
+  uploadSubText: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 12,
+  },
+
   // --- Verification Form ---
   verificationContainer: {
     width: "100%",
@@ -2358,27 +2511,7 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   // Upload
-  uploadBox: {
-    padding: 24,
-    borderWidth: 2,
-    borderStyle: "dashed",
-    borderColor: Theme.colors.border,
-    borderRadius: Theme.radius.lg,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  uploadIcon: {
-    marginBottom: 8,
-  },
-  uploadText: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 14,
-  },
-  uploadSubText: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 12,
-    marginTop: 4,
-  },
+
   // --- Fixed Bottom Bar ---
   bottomActionBar: {
     position: "absolute",

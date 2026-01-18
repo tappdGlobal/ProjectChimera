@@ -15,7 +15,9 @@ const MUTED_COLOR_RGB = "rgba(255, 255, 255, 0.1)"; // --muted, --border
 const MUTED_FOREGROUND_RGB = "rgba(255, 255, 255, 0.7)"; // --muted-foreground
 
 // Input & Border
-const INPUT_BACKGROUND_RGB = "rgba(255, 255, 255, 0.1)"; // --input-background (Increased from 0.05)
+const INPUT_BACKGROUND_RGB = "rgba(20, 20, 30, 0.5)"; // --input-background (Darker and reduced opacity of white, or use dark color)
+// Actually, let's use a solid or semi-transparent DARK color, not white-based, to ensure it doesn't look white.
+const INPUT_BG_DARK = "#1A1A2E"; // Deep dark blue/purple
 const BORDER_COLOR_RGB = "rgba(255, 255, 255, 0.2)"; // --border (Increased from 0.1)
 
 // Chart Colors
@@ -79,7 +81,7 @@ export const Theme = {
 
     // Input Specific
     input: "transparent", // Matches CSS input: transparent
-    inputBackground: INPUT_BACKGROUND_RGB,
+    inputBackground: INPUT_BG_DARK,
     switchBackground: ACCENT_COLOR_RGB, // Using accent color for better match
 
     // Chart Colors

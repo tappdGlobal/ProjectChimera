@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   FlatList,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
@@ -18,6 +19,7 @@ import {
   Trash2,
 } from "lucide-react-native";
 import { Theme } from "../styles/Theme";
+import { eventApi } from "../api";
 
 interface DraftEvent {
   id: string;
@@ -65,14 +67,50 @@ const mockDrafts: DraftEvent[] = [
 export const DraftsScreen = () => {
   const navigation = useNavigation();
 
-  const handleEdit = (id: string) => {
-    console.log("Edit draft", id);
-    // Navigation to edit flow would go here
+  const [drafts, setDrafts] = useState<DraftEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDrafts();
+  }, []);
+
+  const fetchDrafts = async () => {
+    setLoading(true);
+    try {
+      const apiDrafts = await eventApi.getDraftEvents();
+
+      const mappedDrafts: DraftEvent[] = apiDrafts.map((d: any) => ({
+        id: d.id,
+        title: d.eventName,
+        description: d.description || "",
+        date: `${new Date(d.eventDate).toLocaleDateString()} at ${d.eventTime}`,
+        location: d.location,
+        capacity: `Up to ${d.maxCapacity} people`,
+        modifiedDate: `Modified ${new Date(d.updatedAt).toLocaleDateString()}`,
+      }));
+
+      setDrafts(mappedDrafts);
+    } catch (error) {
+      console.error("Error fetching drafts:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDelete = (id: string) => {
-    console.log("Delete draft", id);
-    // Delete logic would go here
+  const handleEdit = (id: string) => {
+    const draft = drafts.find((d) => d.id === id);
+    if (draft) {
+      (navigation as any).navigate("Host", { editingDraft: draft });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await eventApi.deleteDraft(id);
+      fetchDrafts();
+    } catch (error) {
+      console.error("Error deleting draft:", error);
+    }
   };
 
   const renderDraftItem = ({ item }: { item: DraftEvent }) => (
@@ -152,13 +190,20 @@ export const DraftsScreen = () => {
         <View style={{ width: 40 }} />
       </View>
 
-      <FlatList
-        data={mockDrafts}
-        renderItem={renderDraftItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Theme.colors.primary} />
+          <Text style={styles.loadingText}>Loading drafts...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={drafts}
+          renderItem={renderDraftItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -284,5 +329,16 @@ const styles = StyleSheet.create({
   deleteButton: {
     borderColor: "rgba(212, 24, 61, 0.3)", // destructive color border
     backgroundColor: "rgba(212, 24, 61, 0.1)",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  loadingText: {
+    color: Theme.colors.foreground,
+    marginTop: 16,
+    fontSize: 16,
   },
 });
