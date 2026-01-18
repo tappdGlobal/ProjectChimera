@@ -1,71 +1,90 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, Dimensions, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuthStore } from '../store/authStore';
-import { storageService } from '../services/storageService';
-import { syncService } from '../services/syncService';
-import { X } from 'lucide-react-native';
-import { Select } from '../components/ui/Select';
-import { Picker } from '@react-native-picker/picker';
-import { Theme } from '../styles/Theme';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  Dimensions,
+  Platform,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useUserStore } from "../store/userStore";
+import { X } from "lucide-react-native";
+import { Select } from "../components/ui/Select";
+import { Picker } from "@react-native-picker/picker";
+import { Theme } from "../styles/Theme";
+import { LinearGradient } from "expo-linear-gradient";
 
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window");
 
 export const EditProfileScreen = ({ navigation }: any) => {
-  const { user, updateUser } = useAuthStore();
-  const [bio, setBio] = useState(user?.bio || '');
-  const [occupation, setOccupation] = useState(user?.occupation || '');
-  const [education, setEducation] = useState(user?.education || '');
+  const { user, updateUser } = useUserStore();
+  const [bio, setBio] = useState(user?.bio || "");
+  const [occupation, setOccupation] = useState(user?.occupation || "");
+  const [education, setEducation] = useState(user?.education || "");
   const [lookingForTags, setLookingForTags] = useState<string[]>(
-    typeof user?.lookingFor === 'string' 
-      ? user.lookingFor.split(',').map(s => s.trim()).filter(Boolean)
-      : Array.isArray(user?.lookingFor)
+    typeof user?.lookingFor === "string"
       ? user.lookingFor
-      : []
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : Array.isArray(user?.lookingFor)
+        ? user.lookingFor
+        : [],
   );
-  const [newLookingFor, setNewLookingFor] = useState('');
-  const [age, setAge] = useState(user?.age?.toString() || '');
+  const [newLookingFor, setNewLookingFor] = useState("");
+  const [age, setAge] = useState(user?.age?.toString() || "");
   const [height, setHeight] = useState(
-    user?.height 
-      ? (typeof user.height === 'number' && user.height >= 30 && user.height <= 300
-          ? `${Math.floor(user.height / 30.48)}'${Math.round((user.height % 30.48) / 2.54)}"`
-          : user.height.toString())
-      : ''
+    user?.height
+      ? typeof user.height === "number" &&
+        user.height >= 30 &&
+        user.height <= 300
+        ? `${Math.floor(user.height / 30.48)}'${Math.round((user.height % 30.48) / 2.54)}"`
+        : user.height.toString()
+      : "",
   );
-  const [gender, setGender] = useState(user?.gender || '');
-  const [location, setLocation] = useState(user?.location || '');
+  const [gender, setGender] = useState(user?.gender || "");
+  const [location, setLocation] = useState(user?.location || "");
   const [interests, setInterests] = useState<string[]>(user?.interests || []);
-  const [newInterest, setNewInterest] = useState('');
-  const [smoking, setSmoking] = useState(user?.smoking || 'No');
-  const [drinking, setDrinking] = useState(user?.drinking || 'Socially');
+  const [newInterest, setNewInterest] = useState("");
+  const [smoking, setSmoking] = useState(user?.smoking || "No");
+  const [drinking, setDrinking] = useState(user?.drinking || "Socially");
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
-      setBio(user.bio || '');
-      setOccupation(user.occupation || '');
-      setEducation(user.education || '');
+      setBio(user.bio || "");
+      setOccupation(user.occupation || "");
+      setEducation(user.education || "");
       setLookingForTags(
-        typeof user.lookingFor === 'string' 
-          ? user.lookingFor.split(',').map(s => s.trim()).filter(Boolean)
-          : Array.isArray(user.lookingFor)
+        typeof user.lookingFor === "string"
           ? user.lookingFor
-          : []
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : Array.isArray(user.lookingFor)
+            ? user.lookingFor
+            : [],
       );
-      setAge(user.age?.toString() || '');
+      setAge(user.age?.toString() || "");
       setHeight(
-        user.height 
-          ? (typeof user.height === 'number' && user.height >= 30 && user.height <= 300
-              ? `${Math.floor(user.height / 30.48)}'${Math.round((user.height % 30.48) / 2.54)}"`
-              : user.height.toString())
-          : ''
+        user.height
+          ? typeof user.height === "number" &&
+            user.height >= 30 &&
+            user.height <= 300
+            ? `${Math.floor(user.height / 30.48)}'${Math.round((user.height % 30.48) / 2.54)}"`
+            : user.height.toString()
+          : "",
       );
-      setGender(user.gender || '');
-      setLocation(user.location || '');
+      setGender(user.gender || "");
+      setLocation(user.location || "");
       setInterests(user.interests || []);
-      setSmoking(user.smoking || 'No');
-      setDrinking(user.drinking || 'Socially');
+      setSmoking(user.smoking || "No");
+      setDrinking(user.drinking || "Socially");
     }
   }, [user]);
 
@@ -78,18 +97,17 @@ export const EditProfileScreen = ({ navigation }: any) => {
         if (feetInchesMatch) {
           const feet = parseInt(feetInchesMatch[1]);
           const inches = parseInt(feetInchesMatch[2]);
-          heightInCm = Math.round((feet * 30.48) + (inches * 2.54));
+          heightInCm = Math.round(feet * 30.48 + inches * 2.54);
         } else {
           heightInCm = parseFloat(height);
         }
       }
 
       const updatedUser = {
-        ...user!,
         bio,
         occupation,
         education,
-        lookingFor: lookingForTags.join(', '),
+        lookingFor: lookingForTags.join(", "),
         age: age ? parseInt(age) : undefined,
         height: heightInCm,
         gender,
@@ -99,16 +117,10 @@ export const EditProfileScreen = ({ navigation }: any) => {
         drinking,
       };
 
-      await syncService.queueAction('UPDATE_PROFILE', updatedUser);
-      try {
-        await syncService.syncActions();
-      } catch (error) {
-        console.log('Sync failed, will retry later:', error);
-      }
-
-      updateUser(updatedUser);
+      await updateUser(updatedUser);
       navigation.goBack();
     } catch (error) {
+      console.error("Failed to update profile", error);
       Alert.alert("Error", "Failed to update profile");
     } finally {
       setIsLoading(false);
@@ -116,36 +128,39 @@ export const EditProfileScreen = ({ navigation }: any) => {
   };
 
   const addLookingFor = () => {
-    if (newLookingFor.trim() && !lookingForTags.includes(newLookingFor.trim())) {
+    if (
+      newLookingFor.trim() &&
+      !lookingForTags.includes(newLookingFor.trim())
+    ) {
       setLookingForTags([...lookingForTags, newLookingFor.trim()]);
-      setNewLookingFor('');
+      setNewLookingFor("");
     }
   };
 
   const removeLookingFor = (tag: string) => {
-    setLookingForTags(lookingForTags.filter(t => t !== tag));
+    setLookingForTags(lookingForTags.filter((t) => t !== tag));
   };
 
   const addInterest = () => {
     if (newInterest.trim() && !interests.includes(newInterest.trim())) {
       setInterests([...interests, newInterest.trim()]);
-      setNewInterest('');
+      setNewInterest("");
     }
   };
 
   const removeInterest = (interest: string) => {
-    setInterests(interests.filter(i => i !== interest));
+    setInterests(interests.filter((i) => i !== interest));
   };
 
   // Reusable props for Picker Items
   const pickerItemProps = {
     color: Theme.colors.foreground, // Ensures text is visible (e.g., white in dark mode)
-    style: { backgroundColor: Theme.colors.background } // Attempts to set background
+    style: { backgroundColor: Theme.colors.background }, // Attempts to set background
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <ScrollView 
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+      <ScrollView
         style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
@@ -155,7 +170,10 @@ export const EditProfileScreen = ({ navigation }: any) => {
         {/* Header - Moved INSIDE ScrollView to ensure full screen scrolls */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Edit Profile</Text>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.closeButton}
+          >
             <X size={24} color={Theme.colors.foreground} />
           </TouchableOpacity>
         </View>
@@ -220,7 +238,10 @@ export const EditProfileScreen = ({ navigation }: any) => {
               {lookingForTags.map((tag, index) => (
                 <View key={index} style={styles.tag}>
                   <Text style={styles.tagText}>{tag}</Text>
-                  <TouchableOpacity onPress={() => removeLookingFor(tag)} style={styles.tagRemove}>
+                  <TouchableOpacity
+                    onPress={() => removeLookingFor(tag)}
+                    style={styles.tagRemove}
+                  >
                     <X size={14} color="#FFFFFF" />
                   </TouchableOpacity>
                 </View>
@@ -268,7 +289,11 @@ export const EditProfileScreen = ({ navigation }: any) => {
               >
                 <Picker.Item label="Select" value="" {...pickerItemProps} />
                 <Picker.Item label="Male" value="Male" {...pickerItemProps} />
-                <Picker.Item label="Female" value="Female" {...pickerItemProps} />
+                <Picker.Item
+                  label="Female"
+                  value="Female"
+                  {...pickerItemProps}
+                />
                 <Picker.Item label="Other" value="Other" {...pickerItemProps} />
               </Picker>
             </View>
@@ -305,7 +330,10 @@ export const EditProfileScreen = ({ navigation }: any) => {
             {interests.map((interest, index) => (
               <View key={index} style={styles.tag}>
                 <Text style={styles.tagText}>{interest}</Text>
-                <TouchableOpacity onPress={() => removeInterest(interest)} style={styles.tagRemove}>
+                <TouchableOpacity
+                  onPress={() => removeInterest(interest)}
+                  style={styles.tagRemove}
+                >
                   <X size={14} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>
@@ -328,7 +356,11 @@ export const EditProfileScreen = ({ navigation }: any) => {
                 <Picker.Item label="Select" value="" {...pickerItemProps} />
                 <Picker.Item label="Yes" value="Yes" {...pickerItemProps} />
                 <Picker.Item label="No" value="No" {...pickerItemProps} />
-                <Picker.Item label="Occasionally" value="Occasionally" {...pickerItemProps} />
+                <Picker.Item
+                  label="Occasionally"
+                  value="Occasionally"
+                  {...pickerItemProps}
+                />
               </Picker>
             </View>
           </View>
@@ -345,7 +377,11 @@ export const EditProfileScreen = ({ navigation }: any) => {
                 <Picker.Item label="Select" value="" {...pickerItemProps} />
                 <Picker.Item label="Yes" value="Yes" {...pickerItemProps} />
                 <Picker.Item label="No" value="No" {...pickerItemProps} />
-                <Picker.Item label="Socially" value="Socially" {...pickerItemProps} />
+                <Picker.Item
+                  label="Socially"
+                  value="Socially"
+                  {...pickerItemProps}
+                />
               </Picker>
             </View>
           </View>
@@ -353,8 +389,8 @@ export const EditProfileScreen = ({ navigation }: any) => {
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
-          <TouchableOpacity 
-            style={styles.cancelButton} 
+          <TouchableOpacity
+            style={styles.cancelButton}
             onPress={() => navigation.goBack()}
           >
             <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -371,10 +407,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
               </LinearGradient>
             </View>
           ) : (
-            <TouchableOpacity 
-              style={styles.saveButton} 
-              onPress={handleSave}
-            >
+            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
               <LinearGradient
                 colors={["#C026D3", "#DB2777"]}
                 start={{ x: 0, y: 0 }}
@@ -397,9 +430,9 @@ const styles = StyleSheet.create({
     backgroundColor: Theme.colors.background,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     padding: 16,
     marginBottom: 16, // Added margin since it's now part of scroll content
     borderBottomWidth: 1,
@@ -408,7 +441,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: Theme.colors.foreground,
   },
   closeButton: {
@@ -428,7 +461,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Theme.colors.foreground,
     marginBottom: 8,
   },
@@ -444,28 +477,28 @@ const styles = StyleSheet.create({
   },
   textArea: {
     minHeight: 120,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
     paddingTop: 12,
   },
   twoColumnSection: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 16,
     marginBottom: 24,
-    width: '100%',
+    width: "100%",
     paddingHorizontal: 24,
   },
   columnItem: {
     flex: 1,
-    minWidth: 0, 
+    minWidth: 0,
   },
   pickerContainer: {
     backgroundColor: Theme.colors.muted,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: Theme.colors.primary,
-    overflow: 'hidden',
+    overflow: "hidden",
     minHeight: 44,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   pickerStyle: {
     backgroundColor: Theme.colors.muted,
@@ -473,7 +506,7 @@ const styles = StyleSheet.create({
     height: 44,
   },
   tagInputContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
     marginBottom: 12,
   },
@@ -493,23 +526,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     minHeight: 44,
   },
   addButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   tagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 12,
   },
   tag: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: Theme.colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -517,15 +550,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   tagText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   tagRemove: {
     padding: 2,
   },
   actionButtons: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 16,
     marginTop: 32,
     marginBottom: 24,
@@ -537,27 +570,27 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: Theme.colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   cancelButtonText: {
     color: Theme.colors.foreground,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   saveButton: {
     flex: 1,
     borderRadius: 8,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   saveButtonGradient: {
     paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   saveButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });

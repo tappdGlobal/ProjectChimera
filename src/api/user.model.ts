@@ -14,6 +14,9 @@ export interface User {
   location?: string;
 
   interests: string[];
+  eventNotifications?: boolean;
+  messageNotifications?: boolean;
+  marketingNotifications?: boolean;
   smoking?: string;
   drinking?: string;
 

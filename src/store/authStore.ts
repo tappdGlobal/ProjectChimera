@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { authApi, SigninData, SignupData } from "../api/authApi";
+import { authApi, SigninData, SignupData, VerifyEmailData } from "../api/authApi";
 
 interface AuthState {
   token: string | null;
@@ -11,7 +11,8 @@ interface AuthState {
   error: string | null;
 
   login: (data: SigninData) => Promise<void>;
-  signup: (data: SignupData) => Promise<void>;
+  signup: (data: FormData | SignupData) => Promise<void>;
+  verifyEmail: (data: VerifyEmailData) => Promise<void>;
   logout: () => Promise<void>;
   hydrateAuth: () => Promise<void>;
   clearError: () => void;
@@ -75,25 +76,48 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   /* ================= SIGNUP ================= */
-  signup: async (data: SignupData) => {
+  /* ================= SIGNUP ================= */
+  signup: async (data: FormData | SignupData) => {
     set({ isLoading: true, error: null });
 
     try {
-      const { token, userId } = await authApi.signup(data);
+      await authApi.signup(data as any);
 
-      await AsyncStorage.setItem("token", token);
-      await AsyncStorage.setItem("userId", userId);
-
+      // Signup successful (OTP sent), but not authenticated yet
       set({
-        token,
-        userId,
-        isAuthenticated: true,
         isLoading: false,
       });
     } catch (error: any) {
       set({
         isLoading: false,
         error: error?.response?.data?.message || "Signup failed",
+      });
+      throw error;
+    }
+  },
+
+  /* ================= VERIFY EMAIL ================= */
+  verifyEmail: async (data: VerifyEmailData) => {
+    set({ isLoading: true, error: null });
+
+    try {
+      const response = await authApi.verifyEmail(data);
+      // Backend returns { errorCode, message, data: { user, token } }
+      const { token, user } = response.data;
+
+      await AsyncStorage.setItem("token", token);
+      await AsyncStorage.setItem("userId", user.id);
+
+      set({
+        token,
+        userId: user.id,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    } catch (error: any) {
+      set({
+        isLoading: false,
+        error: error?.response?.data?.message || "Verification failed",
       });
       throw error;
     }

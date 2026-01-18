@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuthStore } from "../store/authStore";
 import { LinearGradient } from "expo-linear-gradient";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react-native";
+import { SCREEN_NAMES } from "../navigation/Routes";
 
 export const LoginScreen = ({ navigation }: any) => {
   const [email, setEmail] = useState("");
@@ -36,7 +37,15 @@ export const LoginScreen = ({ navigation }: any) => {
 
     try {
       await login({ email, password });
-      // Navigation will be handled by auth state change in navigation
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: SCREEN_NAMES.MAIN_TABS,
+            params: { screen: SCREEN_NAMES.ENGAGE },
+          },
+        ],
+      });
     } catch (error) {
       // Error already handled in store
     }
