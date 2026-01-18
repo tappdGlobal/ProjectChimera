@@ -1,5 +1,3 @@
-// src/screens/ProfileScreen.tsx
-
 import React, { useState } from "react";
 import {
   View,
