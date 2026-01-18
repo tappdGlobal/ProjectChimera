@@ -62,7 +62,7 @@ export function ExploreScreen() {
         {/* HEADER */}
         <Header
           onProfileClick={() => navigation.navigate(SCREEN_NAMES.PROFILE)}
-          onSettingsClick={() => navigation.navigate(SCREEN_NAMES.EDIT_PROFILE)}
+          onSettingsClick={() => navigation.navigate(SCREEN_NAMES.PROFILE)}
           onNotificationClick={() => navigation.getParent()?.navigate(SCREEN_NAMES.NOTIFICATIONS)}
         />
 

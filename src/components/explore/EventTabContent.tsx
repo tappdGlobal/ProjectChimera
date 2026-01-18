@@ -1,5 +1,13 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Modal, Pressable } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Modal,
+  Pressable,
+  Image,
+} from "react-native";
 import { Theme, GRADIENT_COLORS } from "../../styles/Theme";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -12,6 +20,7 @@ const events = [
     date: "12/15/2024",
     time: "8:00 PM",
     status: "upcoming",
+    image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4",
   },
   {
     title: "Tech Startup Pitch Night",
@@ -20,6 +29,7 @@ const events = [
     time: "6:30 PM",
     status: "completed",
     rating: 5,
+    image: "https://images.unsplash.com/photo-1522199710521-72d69614c702",
   },
   {
     title: "Summer Food Festival",
@@ -27,6 +37,7 @@ const events = [
     date: "12/5/2024",
     time: "12:00 PM",
     status: "ongoing",
+    image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
   },
   {
     title: "AI Developers Meetup",
@@ -34,6 +45,7 @@ const events = [
     date: "12/18/2024",
     time: "5:00 PM",
     status: "upcoming",
+    image: "https://images.unsplash.com/photo-1551836022-d5d88e9218df",
   },
   {
     title: "Indie Music Concert",
@@ -42,11 +54,13 @@ const events = [
     time: "7:30 PM",
     status: "completed",
     rating: 4,
+    image: "https://images.unsplash.com/photo-1518972559570-7cc1309f3229",
   },
 ];
 
 export function EventTabContent() {
   const [showTicketModal, setShowTicketModal] = useState(false);
+
   return (
     <>
       <ScrollView style={styles.container}>
@@ -54,7 +68,12 @@ export function EventTabContent() {
           <View key={index} style={styles.card}>
             {/* TOP */}
             <View style={styles.topRow}>
-              <View style={styles.imagePlaceholder} />
+              {/* 🔥 IMAGE (ONLY REAL CHANGE) */}
+              <Image
+                source={{ uri: item.image }}
+                style={styles.imagePlaceholder}
+                resizeMode="cover"
+              />
 
               <View style={styles.info}>
                 <View style={styles.titleRow}>
@@ -122,7 +141,6 @@ export function EventTabContent() {
               </LinearGradient>
             </Pressable>
 
-
             {/* RATING */}
             {item.rating && (
               <View style={styles.ratingRow}>
@@ -132,9 +150,8 @@ export function EventTabContent() {
             )}
           </View>
         ))}
-
-
       </ScrollView>
+
       <Modal
         visible={showTicketModal}
         transparent
@@ -172,8 +189,8 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: Theme.radius.md,
-    backgroundColor: "rgba(255,255,255,0.15)",
     marginRight: Theme.spacing.m,
+    backgroundColor: "rgba(255,255,255,0.15)",
   },
 
   info: {
@@ -246,21 +263,14 @@ const styles = StyleSheet.create({
 
   button: {
     marginTop: Theme.spacing.m,
-
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-
     paddingVertical: 14,
     paddingHorizontal: 28,
-
     borderRadius: Theme.radius.lg,
-
     marginLeft: 64 + Theme.spacing.m,
   },
-
-
-
 
   buttonText: {
     color: Theme.colors.primaryForeground,
