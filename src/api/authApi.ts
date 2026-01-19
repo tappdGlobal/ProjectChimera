@@ -1,86 +1,53 @@
-import { apiClient } from "../services/api";
+import { apiClient } from "../services/api"; // ← your service
+import { ApiResponse, User } from "../types/authTypes";
 
-/* ===================== TYPES ===================== */
+/* ================= SIGN UP ================= */
 
-
-export interface SignupData {
+export interface SignupPayload {
   name: string;
   email: string;
   username: string;
   password: string;
-  [key: string]: any; // Allow other fields for now
 }
 
-export interface VerifyEmailData {
-  email: string;
-  otp: string;
-}
+export const signupApi = (
+  payload: SignupPayload
+): Promise<ApiResponse<{ user: User; token: string }>> => {
+  return apiClient.post("/auth/signup", payload);
+};
 
-export interface SigninData {
+/* ================= SIGN IN ================= */
+
+export interface SigninPayload {
   email: string;
   password: string;
 }
 
-/* Auth API should ONLY return auth-related data */
-export interface AuthResponse {
-  token: string;
-  userId: string;
-}
+export const signinApi = (
+  payload: SigninPayload
+): Promise<ApiResponse<{ token: string }>> => {
+  return apiClient.post("/auth/signin", payload);
+};
 
-export interface ForgotPasswordData {
-  email: string;
-}
+/* ================= FORGOT PASSWORD ================= */
 
-export interface ResetPasswordData {
+export const forgotPasswordApi = (
+  email: string
+): Promise<ApiResponse<null>> => {
+  return apiClient.post("/auth/forgot-password", { email });
+};
+
+/* ================= RESET PASSWORD ================= */
+
+export interface ResetPasswordPayload {
   email: string;
   otp: string;
   newPassword: string;
   confirmPassword: string;
 }
 
-/* ===================== API ===================== */
-
-export const authApi = {
-  signin: async (data: SigninData) => {
-    const response = await apiClient.post("/auth/signin", data);
-
-    return {
-      token: response.data.token, 
-      userId: response.data.user.id, 
-    };
-  },
-  
-  // Reverting to existing pattern but updating signup for FormData
-  signup: async (data: FormData) => {
-    const response = await apiClient.post("/auth/signup", data);
-
-    return {
-      // Signup doesn't return token immediately in new flow (returns "OTP sent"). 
-      // But we need to handle response.
-      success: true,
-      data: response.data
-    };
-  },
-
-  verifyEmail: async (data: VerifyEmailData) => {
-    const response = await apiClient.post("/auth/verify-email", data);
-    return response; // Return full body so store can access .data
-  },
-
-  forgotPassword: async (data: ForgotPasswordData) => {
-    const response = await apiClient.post(
-      "/auth/forgot-password",
-      data,
-    );
-    return response.data;
-  },
-
-  resetPassword: async (data: ResetPasswordData) => {
-    const response = await apiClient.post(
-      "/auth/reset-password",
-      data,
-    );
-    return response.data;
-  },
+export const resetPasswordApi = (
+  payload: ResetPasswordPayload
+): Promise<ApiResponse<null>> => {
+  return apiClient.post("/auth/reset-password", payload);
 };
-
