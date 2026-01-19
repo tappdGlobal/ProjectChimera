@@ -1,138 +1,94 @@
 import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { authApi, SigninData, SignupData, VerifyEmailData } from "../api/authApi";
+import {
+  signupApi,
+  signinApi,
+  forgotPasswordApi,
+  resetPasswordApi,
+  SignupPayload,
+  SigninPayload,
+  ResetPasswordPayload,
+} from "../api/authApi";
+import { User } from "../types/authTypes";
 
 interface AuthState {
+  user: User | null;
   token: string | null;
-  userId: string | null;
-  isAuthenticated: boolean;
-  isHydrated: boolean;
-  isLoading: boolean;
+  loading: boolean;
   error: string | null;
 
-  login: (data: SigninData) => Promise<void>;
-  signup: (data: FormData | SignupData) => Promise<void>;
-  verifyEmail: (data: VerifyEmailData) => Promise<void>;
+  signup: (data: SignupPayload) => Promise<void>;
+  signin: (data: SigninPayload) => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (data: ResetPasswordPayload) => Promise<void>;
   logout: () => Promise<void>;
-  hydrateAuth: () => Promise<void>;
-  clearError: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
   token: null,
-  userId: null,
-  isAuthenticated: false,
-  isHydrated: false,
-  isLoading: false,
+  loading: false,
   error: null,
 
-  /* ================= HYDRATE (APP START) ================= */
-  hydrateAuth: async () => {
+  signup: async (data) => {
     try {
-      const token = await AsyncStorage.getItem("token");
-      const userId = await AsyncStorage.getItem("userId");
+      set({ loading: true, error: null });
+      const res = await signupApi(data);
 
-      // console.log("HYDRATE AUTH → token:", token);
-      // console.log("HYDRATE AUTH → userId:", userId);
+      if (res.data?.token) {
+        await AsyncStorage.setItem("token", res.data.token);
+      }
+
       set({
-        token,
-        userId,
-        isAuthenticated: !!token && !!userId,
-        isHydrated: true,
+        user: res.data?.user ?? null,
+        token: res.data?.token ?? null,
+        loading: false,
       });
-    } catch {
-      set({
-        token: null,
-        userId: null,
-        isAuthenticated: false,
-        isHydrated: true,
-      });
+    } catch (err: any) {
+      set({ loading: false, error: err.message });
     }
   },
 
-  /* ================= LOGIN ================= */
-  login: async (data: SigninData) => {
-    set({ isLoading: true, error: null });
-
+  signin: async (data) => {
     try {
-      const { token, userId } = await authApi.signin(data);
+      set({ loading: true, error: null });
+      const res = await signinApi(data);
 
-      await AsyncStorage.setItem("token", token);
-      await AsyncStorage.setItem("userId", userId);
+      if (res.data?.token) {
+        await AsyncStorage.setItem("token", res.data.token);
+      }
 
       set({
-        token,
-        userId,
-        isAuthenticated: true,
-        isLoading: false,
+        token: res.data?.token ?? null,
+        loading: false,
       });
-    } catch (error: any) {
-      set({
-        isLoading: false,
-        error: error?.response?.data?.message || "Login failed",
-      });
-      throw error;
+    } catch (err: any) {
+      set({ loading: false, error: err.message });
     }
   },
 
-  /* ================= SIGNUP ================= */
-  /* ================= SIGNUP ================= */
-  signup: async (data: FormData | SignupData) => {
-    set({ isLoading: true, error: null });
-
+  forgotPassword: async (email) => {
     try {
-      await authApi.signup(data as any);
-
-      // Signup successful (OTP sent), but not authenticated yet
-      set({
-        isLoading: false,
-      });
-    } catch (error: any) {
-      set({
-        isLoading: false,
-        error: error?.response?.data?.message || "Signup failed",
-      });
-      throw error;
+      set({ loading: true, error: null });
+      await forgotPasswordApi(email);
+      set({ loading: false });
+    } catch (err: any) {
+      set({ loading: false, error: err.message });
     }
   },
 
-  /* ================= VERIFY EMAIL ================= */
-  verifyEmail: async (data: VerifyEmailData) => {
-    set({ isLoading: true, error: null });
-
+  resetPassword: async (data) => {
     try {
-      const response = await authApi.verifyEmail(data);
-      // Backend returns { errorCode, message, data: { user, token } }
-      const { token, user } = response.data;
-
-      await AsyncStorage.setItem("token", token);
-      await AsyncStorage.setItem("userId", user.id);
-
-      set({
-        token,
-        userId: user.id,
-        isAuthenticated: true,
-        isLoading: false,
-      });
-    } catch (error: any) {
-      set({
-        isLoading: false,
-        error: error?.response?.data?.message || "Verification failed",
-      });
-      throw error;
+      set({ loading: true, error: null });
+      await resetPasswordApi(data);
+      set({ loading: false });
+    } catch (err: any) {
+      set({ loading: false, error: err.message });
     }
   },
 
-  /* ================= LOGOUT ================= */
   logout: async () => {
-    await AsyncStorage.multiRemove(["token", "userId"]);
-
-    set({
-      token: null,
-      userId: null,
-      isAuthenticated: false,
-    });
+    await AsyncStorage.removeItem("token");
+    set({ user: null, token: null, error: null });
   },
-
-  clearError: () => set({ error: null }),
 }));
