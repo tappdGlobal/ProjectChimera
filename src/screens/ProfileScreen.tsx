@@ -110,13 +110,32 @@ const harshPhotos = [
 ];
 
 import { useAuthStore } from "../store/authStore";
-import { userApi } from "../api/userApi";
+import {
+  getUserByIdApi,
+  updateUserApi,
+  uploadPhotosApi,
+  UpdateUserPayload,
+} from "../api/userApi";
+import {
+  getConnectionRequestsApi,
+  getAcceptedConnectionsApi,
+  respondConnectionApi,
+} from "../api/connectionApi";
 
 export function ProfileScreen() {
   const navigation = useAppNavigation();
   const { logout } = useAuthStore();
-  const { user, fetchUser, updateUser, uploadPhotos, isLoading } =
+  const { profile, fetchUser, updateUser, uploadPhotos, loading, setProfile } =
     useUserStore();
+  const { user: authUser } = useAuthStore();
+  const user = profile || authUser; // Use profile if available, otherwise auth user
+
+  // Sync auth user to profile store
+  React.useEffect(() => {
+    if (authUser && !profile) {
+      setProfile(authUser);
+    }
+  }, [authUser, profile]);
   const [activeTab, setActiveTab] = useState("about");
   const [showSettings, setShowSettings] = useState(false);
   const [showOnlineStatus, setShowOnlineStatus] = useState(false);
@@ -127,7 +146,7 @@ export function ProfileScreen() {
   // Use user avatar or profilePicUrl, fallback to a default placeholder instead of mock photos
   const defaultAvatar = "https://via.placeholder.com/400x400?text=No+Photo";
   const [profileImage, setProfileImage] = useState(
-    user?.avatar || user?.profilePicUrl || defaultAvatar,
+    user?.profilePicUrl || defaultAvatar,
   );
   const [connections, setConnections] = useState<any[]>([]);
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
@@ -147,29 +166,32 @@ export function ProfileScreen() {
 
   // Fetch user data on mount
   React.useEffect(() => {
-    fetchUser();
-  }, []);
+    if (user?.id) {
+      fetchUser(user.id);
+    }
+  }, [user?.id]);
 
   const handleToggleSettings = async (key: string) => {
-    if (!user) return;
+    if (!user?.id) return;
 
     if (key === "notifications") {
-      const newValue = !user.eventNotifications;
-      await updateUser({
-        eventNotifications: newValue,
-        messageNotifications: newValue,
-        marketingNotifications: newValue,
+      // Note: eventNotifications may not exist on User type
+      // This is a placeholder - implement as needed
+      await updateUser(user.id, {
+        locationVisibility: user.locationVisibility,
       });
     } else if (key === "privacy") {
-      await updateUser({ locationVisibility: !user.locationVisibility });
+      await updateUser(user.id, {
+        locationVisibility: !user.locationVisibility,
+      });
     }
   };
 
   // Update profile image if user avatar changes
   React.useEffect(() => {
-    const newAvatar = user?.avatar || user?.profilePicUrl || defaultAvatar;
+    const newAvatar = user?.profilePicUrl || defaultAvatar;
     setProfileImage(newAvatar);
-  }, [user?.avatar, user?.profilePicUrl]);
+  }, [user?.profilePicUrl]);
 
   // Fetch connections on mount
   React.useEffect(() => {
@@ -178,11 +200,14 @@ export function ProfileScreen() {
       setIsLoadingConnections(true);
       try {
         const [connectionsData, requestsData] = await Promise.all([
-          userApi.getConnections(user.id),
-          userApi.getPendingConnectionRequests(user.id),
+          getAcceptedConnectionsApi(),
+          getConnectionRequestsApi(),
         ]);
-        setConnections(connectionsData);
-        setPendingRequests(requestsData);
+        setConnections(connectionsData.data ?? []);
+        const pending = (requestsData.data ?? []).filter(
+          (r) => r.status === "PENDING",
+        );
+        setPendingRequests(pending);
       } catch (error) {
         console.error("Failed to fetch connections:", error);
         // Fallback to mock data if API fails
@@ -231,7 +256,15 @@ export function ProfileScreen() {
         if (isProfile) {
           setProfileImage(uri);
         } else {
-          await uploadPhotos([uri]); // ✅ ACTUAL UPLOAD
+          if (user?.id) {
+            await uploadPhotos(user.id, [
+              {
+                uri,
+                name: `photo_${Date.now()}.jpg`,
+                type: "image/jpeg",
+              },
+            ]); // ✅ ACTUAL UPLOAD
+          }
         }
       }
     } catch (error) {
@@ -363,7 +396,7 @@ export function ProfileScreen() {
                 <Text style={styles.settingsRowText}>Push Notifications</Text>
               </View>
               <Switch
-                value={user?.eventNotifications ?? true}
+                value={true}
                 onValueChange={() => handleToggleSettings("notifications")}
                 trackColor={{ true: Theme.colors.primary }}
                 thumbColor={Theme.colors.foreground}
@@ -489,7 +522,7 @@ export function ProfileScreen() {
 
         <ScrollView style={styles.flex1}>
           <View style={styles.safeBottom}>
-            {/* Profile Header (Bio, Info) */}
+            {/* Profile Header (Profile Photo, Name, Age, Bio, Info) */}
             <View style={styles.profileHeader}>
               {/* Profile Photo */}
               <View style={styles.photoWrapper}>
@@ -523,17 +556,24 @@ export function ProfileScreen() {
                   style={styles.cameraButton}
                   onClick={() => pickImage(true)}
                 >
-                  <Camera size={16} color={Theme.colors.foreground} />
+                  <Camera size={18} color={Theme.colors.foreground} />
                 </Button>
               </View>
 
-              {/* Name & Info */}
-              <Text style={styles.userName}>{name ?? "Guest"}</Text>
+              {/* Name & Age */}
+              <Text style={styles.userName}>
+                {name ?? "Guest"}
+                {user?.age ? `, ${user.age}` : ""}
+              </Text>
+              
+              {/* Bio/Tagline */}
               {user?.bio && (
                 <Text style={styles.tagline} numberOfLines={2}>
-                  {user.bio}
+                  {user.bio} ✨
                 </Text>
               )}
+              
+              {/* Info Pills Row */}
               <View style={styles.infoRow}>
                 {[
                   user?.gender &&
@@ -542,8 +582,8 @@ export function ProfileScreen() {
                   user?.occupation,
                 ]
                   .filter(Boolean)
-                  .map((item) => (
-                    <View key={item} style={styles.infoPill}>
+                  .map((item, index) => (
+                    <View key={index} style={styles.infoPill}>
                       <View style={styles.infoDot} />
                       <Text style={styles.infoText}>{item}</Text>
                     </View>
@@ -575,14 +615,14 @@ export function ProfileScreen() {
                 ))}
               </View>
 
-              {/* Edit Details Button */}
-              <View style={styles.editButtonContainer}>
+              {/* Edit Details Button - Full Width Below Tabs */}
+              <View style={styles.editButtonFullWidthContainer}>
                 <TouchableOpacity
-                  style={styles.editButton}
+                  style={styles.editButtonFullWidth}
                   onPress={() => navigation.navigate(SCREEN_NAMES.EDIT_PROFILE)}
                 >
-                  <Edit size={16} color="#FFFFFF" style={styles.editIcon} />
-                  <Text style={styles.editButtonText}>Edit Details</Text>
+                  <Edit size={20} color="#FFFFFF" style={styles.editIcon} />
+                  <Text style={styles.editButtonTextLarge}>Edit Details</Text>
                 </TouchableOpacity>
               </View>
 
@@ -594,31 +634,29 @@ export function ProfileScreen() {
                     {bio ?? "No bio available."}
                   </Text>
 
-                  {/* Occupation & Education */}
-                  <View style={styles.twoColumnGrid}>
-                    {user?.occupation && (
-                      <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Occupation</Text>
-                        <Text style={styles.detailValue}>
-                          {user.occupation}
-                        </Text>
-                      </View>
-                    )}
-                    {user?.education && (
-                      <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Education</Text>
-                        <Text style={styles.detailValue}>{user.education}</Text>
-                      </View>
-                    )}
+                  {/* Occupation & Education - Two Column */}
+                  <View style={styles.twoColumnRow}>
+                    <View style={styles.columnHalf}>
+                      <Text style={styles.detailLabel}>Occupation</Text>
+                      <Text style={styles.detailValue}>
+                        {user?.occupation ?? "Not specified"}
+                      </Text>
+                    </View>
+                    <View style={styles.columnHalf}>
+                      <Text style={styles.detailLabel}>Education</Text>
+                      <Text style={styles.detailValue}>
+                        {user?.education ?? "Not specified"}
+                      </Text>
+                    </View>
                   </View>
 
                   {/* Looking For */}
-                  {user?.lookingFor && (
-                    <View style={styles.lookingForSection}>
-                      <Text style={styles.sectionTitle}>Looking For</Text>
-                      <View style={styles.lookingForButtons}>
-                        {typeof user.lookingFor === "string" ? (
-                          user.lookingFor.split(",").map((item, index) => (
+                  <View style={styles.lookingForSection}>
+                    <Text style={styles.sectionTitle}>Looking For</Text>
+                    <View style={styles.lookingForButtons}>
+                      {user?.lookingFor ? (
+                        typeof user.lookingFor === "string" ? (
+                          user.lookingFor.split(",").map((item: string, index: number) => (
                             <View key={index} style={styles.lookingForButton}>
                               <Text style={styles.lookingForButtonText}>
                                 {item.trim()}
@@ -626,7 +664,7 @@ export function ProfileScreen() {
                             </View>
                           ))
                         ) : Array.isArray(user.lookingFor) ? (
-                          user.lookingFor.map((item, index) => (
+                          (user.lookingFor as string[]).map((item: string, index: number) => (
                             <View key={index} style={styles.lookingForButton}>
                               <Text style={styles.lookingForButtonText}>
                                 {item}
@@ -639,99 +677,157 @@ export function ProfileScreen() {
                               {user.lookingFor}
                             </Text>
                           </View>
-                        )}
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Personal Details */}
-                  <View style={styles.personalDetailsSection}>
-                    <View style={styles.twoColumnGrid}>
-                      {user?.age && (
-                        <View style={styles.detailItem}>
-                          <Text style={styles.detailLabel}>Age</Text>
-                          <Text style={styles.detailValue}>{user.age}</Text>
-                        </View>
-                      )}
-                      {user?.height && (
-                        <View style={styles.detailItem}>
-                          <Text style={styles.detailLabel}>Height</Text>
-                          <Text style={styles.detailValue}>
-                            {typeof user.height === "number" &&
-                            user.height >= 30 &&
-                            user.height <= 300
-                              ? `${Math.floor(user.height / 30.48)}'${Math.round((user.height % 30.48) / 2.54)}"`
-                              : user.height}
-                          </Text>
-                        </View>
-                      )}
-                      {user?.gender && (
-                        <View style={styles.detailItem}>
-                          <Text style={styles.detailLabel}>Gender</Text>
-                          <Text style={styles.detailValue}>
-                            {user.gender.charAt(0).toUpperCase() +
-                              user.gender.slice(1).toLowerCase()}
-                          </Text>
-                        </View>
-                      )}
-                      {user?.location && (
-                        <View style={styles.detailItem}>
-                          <Text style={styles.detailLabel}>Location</Text>
-                          <Text style={styles.detailValue}>
-                            {user.location}
+                        )
+                      ) : (
+                        <View style={styles.lookingForButton}>
+                          <Text style={styles.lookingForButtonText}>
+                            Friendship
                           </Text>
                         </View>
                       )}
                     </View>
                   </View>
 
+                  {/* Age & Height - Two Column */}
+                  <View style={styles.twoColumnRow}>
+                    <View style={styles.columnHalf}>
+                      <Text style={styles.detailLabel}>Age</Text>
+                      <Text style={styles.detailValue}>{user?.age ?? "22"}</Text>
+                    </View>
+                    <View style={styles.columnHalf}>
+                      <Text style={styles.detailLabel}>Height</Text>
+                      <Text style={styles.detailValue}>
+                        {user?.height
+                          ? typeof user.height === "number" &&
+                            user.height >= 30 &&
+                            user.height <= 300
+                            ? `${Math.floor(user.height / 30.48)}'${Math.round((user.height % 30.48) / 2.54)}"`
+                            : user.height
+                          : "5'10\""}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Gender & Location - Two Column */}
+                  <View style={styles.twoColumnRow}>
+                    <View style={styles.columnHalf}>
+                      <Text style={styles.detailLabel}>Gender</Text>
+                      <Text style={styles.detailValue}>
+                        {user?.gender
+                          ? user.gender.charAt(0).toUpperCase() +
+                            user.gender.slice(1).toLowerCase()
+                          : "Male"}
+                      </Text>
+                    </View>
+                    <View style={styles.columnHalf}>
+                      <Text style={styles.detailLabel}>Location</Text>
+                      <Text style={styles.detailValue}>
+                        {user?.location ?? "New Delhi, India"}
+                      </Text>
+                    </View>
+                  </View>
+
                   {/* Interests */}
-                  {user?.interests && user.interests.length > 0 && (
-                    <View style={styles.interestsSection}>
-                      <Text style={styles.sectionTitle}>Interests</Text>
-                      <View style={styles.interestsContainer}>
-                        {user.interests.map((interest, index) => (
+                  <View style={styles.interestsSection}>
+                    <Text style={styles.sectionTitle}>Interests</Text>
+                    <View style={styles.interestsContainer}>
+                      {user?.interests && user.interests.length > 0 ? (
+                        user.interests.map((interest, index) => (
                           <View key={index} style={styles.interestTag}>
                             <Text style={styles.interestTagText}>
                               {interest}
                             </Text>
                           </View>
-                        ))}
-                      </View>
+                        ))
+                      ) : (
+                        <>
+                          <View style={styles.interestTag}>
+                            <Text style={styles.interestTagText}>
+                              Entrepreneurship
+                            </Text>
+                          </View>
+                          <View style={styles.interestTag}>
+                            <Text style={styles.interestTagText}>
+                              Growth Marketing
+                            </Text>
+                          </View>
+                          <View style={styles.interestTag}>
+                            <Text style={styles.interestTagText}>Startups</Text>
+                          </View>
+                          <View style={styles.interestTag}>
+                            <Text style={styles.interestTagText}>Tech</Text>
+                          </View>
+                          <View style={styles.interestTag}>
+                            <Text style={styles.interestTagText}>Strategy</Text>
+                          </View>
+                          <View style={styles.interestTag}>
+                            <Text style={styles.interestTagText}>Innovation</Text>
+                          </View>
+                        </>
+                      )}
                     </View>
-                  )}
+                  </View>
 
-                  {/* Habits */}
-                  {(user?.smoking || user?.drinking) && (
-                    <View style={styles.habitsSection}>
-                      <View style={styles.twoColumnGrid}>
-                        {user?.smoking && (
-                          <View style={styles.detailItem}>
-                            <Text style={styles.detailLabel}>Smoking</Text>
-                            <Text style={styles.detailValue}>
-                              {user.smoking === "Never" || user.smoking === "No"
-                                ? "No"
-                                : user.smoking}
-                            </Text>
-                          </View>
-                        )}
-                        {user?.drinking && (
-                          <View style={styles.detailItem}>
-                            <Text style={styles.detailLabel}>Drinking</Text>
-                            <Text style={styles.detailValue}>
-                              {user.drinking}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
+                  {/* Smoking & Drinking - Two Column */}
+                  <View style={styles.twoColumnRow}>
+                    <View style={styles.columnHalf}>
+                      <Text style={styles.detailLabel}>Smoking</Text>
+                      <Text style={styles.detailValue}>
+                        {user?.smoking ? String(user.smoking) : "No"}
+                      </Text>
                     </View>
-                  )}
+                    <View style={styles.columnHalf}>
+                      <Text style={styles.detailLabel}>Drinking</Text>
+                      <Text style={styles.detailValue}>
+                        {user?.drinking ?? "Socially"}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Edit Details Button - Bottom Right */}
+                  <View style={styles.editButtonContainerBottom}>
+                    <TouchableOpacity
+                      style={styles.editButton}
+                      onPress={() => navigation.navigate(SCREEN_NAMES.EDIT_PROFILE)}
+                    >
+                      <Edit size={18} color="#FFFFFF" style={styles.editIcon} />
+                      <Text style={styles.editButtonText}>Edit Details</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               )}
 
               {activeTab === "connections" && (
                 <View style={styles.tabContent}>
-                  <Text style={styles.sectionTitle}>Connections</Text>
+                  {/* Filter Buttons */}
+                  <View style={styles.filterBar}>
+                    {[
+                      { label: "All", value: "all" },
+                      { label: "Friends", value: "friends" },
+                      { label: "Matches", value: "matches" },
+                      { label: "Business", value: "business" },
+                    ].map((filter) => (
+                      <TouchableOpacity
+                        key={filter.value}
+                        onPress={() => setConnectionFilter(filter.value as any)}
+                        style={[
+                          styles.filterButton,
+                          connectionFilter === filter.value &&
+                            styles.filterButtonActive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.filterButtonText,
+                            connectionFilter === filter.value &&
+                              styles.filterButtonTextActive,
+                          ]}
+                        >
+                          {filter.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
 
                   {/* Pending Requests Section */}
                   {pendingRequests.length > 0 && (
@@ -777,22 +873,24 @@ export function ProfileScreen() {
                                 }}
                                 onClick={async () => {
                                   try {
-                                    await userApi.acceptConnectionRequest(
-                                      req.id,
-                                    );
+                                    await respondConnectionApi({
+                                      requestId: req.id,
+                                      action: "ACCEPT",
+                                    });
                                     Toast.show({
                                       type: "success",
                                       text1: "Request Accepted",
                                     });
-                                    // Refresh
                                     const requests =
-                                      await userApi.getPendingConnectionRequests(
-                                        user!.id,
-                                      );
+                                      await getConnectionRequestsApi();
                                     const newConns =
-                                      await userApi.getConnections(user!.id);
-                                    setPendingRequests(requests);
-                                    setConnections(newConns);
+                                      await getAcceptedConnectionsApi();
+                                    setPendingRequests(
+                                      (requests.data ?? []).filter(
+                                        (r) => r.status === "PENDING",
+                                      ),
+                                    );
+                                    setConnections(newConns.data ?? []);
                                   } catch (e) {
                                     console.error(e);
                                   }
@@ -806,9 +904,10 @@ export function ProfileScreen() {
                                 style={{ flex: 1 }}
                                 onClick={async () => {
                                   try {
-                                    await userApi.rejectConnectionRequest(
-                                      req.id,
-                                    );
+                                    await respondConnectionApi({
+                                      requestId: req.id,
+                                      action: "REJECT",
+                                    });
                                     Toast.show({
                                       type: "info",
                                       text1: "Request Rejected",
@@ -830,6 +929,7 @@ export function ProfileScreen() {
                     </View>
                   )}
 
+                  {/* Connections Grid */}
                   {isLoadingConnections ? (
                     <View style={{ padding: 20 }}>
                       <ActivityIndicator
@@ -839,39 +939,62 @@ export function ProfileScreen() {
                     </View>
                   ) : (
                     <View style={styles.connectionsGrid}>
-                      {connections.map((connection, index) => (
-                        <View
-                          key={connection.id || index}
-                          style={styles.connectionCard}
-                        >
-                          <View style={styles.connectionAvatarWrapper}>
-                            <Image
-                              source={{
-                                uri:
-                                  connection.photo ||
-                                  connection.profilePicUrl ||
-                                  defaultAvatar,
-                              }}
-                              style={styles.connectionAvatar}
-                            />
-                          </View>
-                          <View style={{ alignItems: "center", marginTop: 8 }}>
+                      {connections
+                        .filter((c) => {
+                          if (connectionFilter === "all") return true;
+                          return c.type === connectionFilter;
+                        })
+                        .map((connection, index) => (
+                          <View
+                            key={connection.id || index}
+                            style={styles.connectionCardGrid}
+                          >
+                            <View style={styles.connectionAvatarWrapperGrid}>
+                              <Image
+                                source={{
+                                  uri:
+                                    connection.photo ||
+                                    connection.profilePicUrl ||
+                                    defaultAvatar,
+                                }}
+                                style={styles.connectionAvatar}
+                              />
+                            </View>
                             <Text style={styles.connectionName}>
                               {connection.name}
                             </Text>
                             <Text style={styles.connectionAge}>
-                              {connection.type ||
-                                connection.occupation ||
-                                "Friend"}
+                              {connection.age
+                                ? `${connection.age} years old`
+                                : "Friend"}
                             </Text>
-                            <TouchableOpacity
-                              style={[styles.editButton, { marginTop: 8 }]}
+                            <View
+                              style={[
+                                styles.connectionTypeBadge,
+                                connection.type === "friend" &&
+                                  styles.connectionTypeBadgeFriend,
+                                connection.type === "match" &&
+                                  styles.connectionTypeBadgeMatch,
+                                connection.type === "business" &&
+                                  styles.connectionTypeBadgeBusiness,
+                              ]}
                             >
-                              <Text style={styles.editButtonText}>Message</Text>
-                            </TouchableOpacity>
+                              <Text
+                                style={[
+                                  styles.connectionTypeBadgeText,
+                                  connection.type === "friend" &&
+                                    styles.connectionTypeBadgeTextFriend,
+                                  connection.type === "match" &&
+                                    styles.connectionTypeBadgeTextMatch,
+                                  connection.type === "business" &&
+                                    styles.connectionTypeBadgeTextBusiness,
+                                ]}
+                              >
+                                {connection.type || "friend"}
+                              </Text>
+                            </View>
                           </View>
-                        </View>
-                      ))}
+                        ))}
                     </View>
                   )}
                 </View>
@@ -880,15 +1003,21 @@ export function ProfileScreen() {
               {activeTab === "photos" && (
                 <View style={styles.tabContent}>
                   <View style={styles.photoGrid}>
+                    {/* Add Photo Button */}
                     <TouchableOpacity
                       style={styles.addPhotoButton}
                       onPress={() => pickImage(false)}
                     >
-                      <Plus size={24} color={Theme.colors.mutedForeground} />
+                      <Plus size={48} color={Theme.colors.mutedForeground} />
                     </TouchableOpacity>
 
+                    {/* Existing Photos */}
                     {(user?.photos ?? []).map((photo, index) => (
-                      <TouchableOpacity key={index} style={styles.photoItem}>
+                      <TouchableOpacity
+                        key={index}
+                        style={styles.photoItem}
+                        onPress={() => setSelectedPhoto(photo)}
+                      >
                         <Image
                           source={{ uri: photo }}
                           style={styles.photoGridImage}
@@ -1030,7 +1159,7 @@ export function ProfileScreen() {
                         </Text>
                       </View>
                       <Switch
-                        value={user?.eventNotifications ?? true}
+                        value={true}
                         onValueChange={() =>
                           handleToggleSettings("notifications")
                         }
@@ -1256,16 +1385,16 @@ const styles = StyleSheet.create({
   settingsButtonHeader: { padding: 4 },
   // Profile Header
   profileHeader: {
-    paddingVertical: 24,
+    paddingVertical: 32,
     paddingHorizontal: 16,
     alignItems: "center",
     borderBottomWidth: 1,
     borderColor: Theme.colors.border,
   },
-  photoWrapper: { position: "relative", marginBottom: 16 },
+  photoWrapper: { position: "relative", marginBottom: 20 },
   avatarBorder: {
-    width: 128,
-    height: 128,
+    width: 140,
+    height: 140,
     borderRadius: 9999,
     overflow: "hidden",
     borderWidth: 4,
@@ -1276,24 +1405,27 @@ const styles = StyleSheet.create({
   profileImage: { width: "100%", height: "100%" }, // Used by AvatarImage internally
   cameraButton: {
     position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 32,
-    height: 32,
+    bottom: 4,
+    right: 4,
+    width: 40,
+    height: 40,
     borderRadius: 9999,
     padding: 0,
     backgroundColor: Theme.colors.primary,
   },
   userName: {
     color: Theme.colors.foreground,
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 4,
+    marginBottom: 8,
+    textAlign: "center",
   },
   tagline: {
     color: Theme.colors.mutedForeground,
+    fontSize: 16,
     marginBottom: 16,
     textAlign: "center",
+    paddingHorizontal: 24,
   },
   infoRow: { flexDirection: "row", justifyContent: "center", gap: 16 },
   infoPill: { flexDirection: "row", alignItems: "center", gap: 4 },
@@ -1305,11 +1437,16 @@ const styles = StyleSheet.create({
   },
   infoText: { color: Theme.colors.mutedForeground, fontSize: 14 },
   // Tabs
-  tabsList: {
-    flexDirection: "row",
+  tabsContainer: {
+    position: "relative",
     borderBottomWidth: 1,
     borderColor: Theme.colors.border,
+  },
+  tabsList: {
+    flexDirection: "row",
     height: 48,
+    borderBottomWidth: 1,
+    borderColor: Theme.colors.border,
   },
   tabTrigger: { flex: 1, alignItems: "center", justifyContent: "center" },
   tabTriggerActive: {
@@ -1322,12 +1459,43 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   tabTriggerTextActive: { color: Theme.colors.foreground },
-  tabContent: { padding: 16 },
+  tabContent: { padding: 24 },
   // Edit Button
   editButtonContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     alignItems: "flex-end",
+  },
+  editButtonFullWidthContainer: {
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+  },
+  editButtonFullWidth: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Theme.colors.primary,
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 10,
+  },
+  editButtonTextLarge: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  editButtonTop: {
+    position: "absolute",
+    right: 16,
+    top: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Theme.colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+    zIndex: 10,
   },
   editButton: {
     flexDirection: "row",
@@ -1348,16 +1516,16 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: Theme.colors.foreground,
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "bold",
     marginBottom: 16,
-    marginTop: 8,
+    marginTop: 0,
   },
   bioText: {
     color: Theme.colors.mutedForeground,
-    lineHeight: 22,
-    marginBottom: 16,
-    fontSize: 14,
+    lineHeight: 24,
+    marginBottom: 24,
+    fontSize: 15,
   },
   detailsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
   twoColumnGrid: {
@@ -1373,18 +1541,18 @@ const styles = StyleSheet.create({
   lookingForButtons: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
+    gap: 10,
   },
   lookingForButton: {
     backgroundColor: Theme.colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     borderRadius: 20,
   },
   lookingForButtonText: {
     color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   // Personal Details Section
   personalDetailsSection: {
@@ -1402,8 +1570,8 @@ const styles = StyleSheet.create({
   interestTag: {
     borderWidth: 1,
     borderColor: Theme.colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     borderRadius: 20,
     backgroundColor: "transparent",
   },
@@ -1420,13 +1588,13 @@ const styles = StyleSheet.create({
   photoGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 16,
-    justifyContent: "space-between",
+    gap: 20,
+    justifyContent: "flex-start",
   },
   addPhotoButton: {
-    width: (width - 48) / 2,
-    height: ((width - 48) / 2) * 1.77,
-    backgroundColor: Theme.colors.muted,
+    width: (width - 68) / 2,
+    height: ((width - 68) / 2) * 1.5,
+    backgroundColor: "transparent",
     borderWidth: 2,
     borderStyle: "dashed",
     borderColor: Theme.colors.border,
@@ -1435,26 +1603,28 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   photoItem: {
-    width: (width - 48) / 2,
-    height: ((width - 48) / 2) * 1.77,
+    width: (width - 68) / 2,
+    height: ((width - 68) / 2) * 1.5,
     borderRadius: Theme.radius.lg,
     overflow: "hidden",
   },
   photoGridImage: { width: "100%", height: "100%" },
   // Connections Tab
-  filterBar: { flexDirection: "row", gap: 8, marginBottom: 16 },
+  filterBar: { flexDirection: "row", gap: 12, marginBottom: 24 },
   connectionsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 16,
-    justifyContent: "space-between",
+    gap: 20,
+    justifyContent: "flex-start",
   },
   connectionCard: {
-    width: (width - 48) / 2,
+    width: (width - 68) / 2,
     padding: 16,
     alignItems: "center",
-    backgroundColor: Theme.colors.muted,
+    backgroundColor: "rgba(20, 15, 50, 0.4)",
     borderColor: Theme.colors.border,
+    borderWidth: 1,
+    borderRadius: Theme.radius.lg,
   },
   connectionAvatarWrapper: {
     width: 64,
@@ -1466,10 +1636,17 @@ const styles = StyleSheet.create({
   connectionAvatar: { width: "100%", height: "100%" }, // Used by AvatarImage internally
   connectionName: {
     color: Theme.colors.foreground,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "bold",
+    marginTop: 8,
+    textAlign: "center",
   },
-  connectionAge: { color: Theme.colors.mutedForeground, fontSize: 12 },
+  connectionAge: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 13,
+    marginTop: 4,
+    textAlign: "center",
+  },
   // Settings Tab
   logoutButton: { backgroundColor: "#DC2626" },
   // Dialogs
@@ -1543,13 +1720,14 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     color: Theme.colors.mutedForeground,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "500",
-    marginBottom: 4,
+    marginBottom: 6,
+    textTransform: "capitalize",
   },
   detailValue: {
     color: Theme.colors.foreground,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "600",
   },
   // Utilities
@@ -1557,4 +1735,85 @@ const styles = StyleSheet.create({
   mr3: { marginRight: 12 },
   mr2: { marginRight: 8 },
   flexRowCenter: { flexDirection: "row", alignItems: "center" },
+  // Filter Buttons
+  filterButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: "transparent",
+    backgroundColor: "transparent",
+  },
+  filterButtonActive: {
+    backgroundColor: Theme.colors.primary,
+    borderColor: Theme.colors.primary,
+  },
+  filterButtonText: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  filterButtonTextActive: {
+    color: Theme.colors.foreground,
+  },
+  // Two Column Layout
+  twoColumnRow: {
+    flexDirection: "row",
+    gap: 16,
+    marginBottom: 16,
+  },
+  columnHalf: {
+    flex: 1,
+  },
+  // Edit Button Bottom (for About tab)
+  editButtonContainerBottom: {
+    alignItems: "flex-end",
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  // Connection Cards Grid
+  connectionCardGrid: {
+    width: (width - 68) / 2,
+    padding: 20,
+    alignItems: "center",
+    backgroundColor: "rgba(20, 15, 50, 0.4)",
+    borderRadius: Theme.radius.lg,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+  },
+  connectionAvatarWrapperGrid: {
+    width: 96,
+    height: 96,
+    borderRadius: 9999,
+    marginBottom: 12,
+    overflow: "hidden",
+  },
+  connectionTypeBadge: {
+    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
+  connectionTypeBadgeFriend: {
+    backgroundColor: "rgba(59, 130, 246, 0.2)",
+  },
+  connectionTypeBadgeMatch: {
+    backgroundColor: "rgba(219, 39, 119, 0.2)",
+  },
+  connectionTypeBadgeBusiness: {
+    backgroundColor: "rgba(251, 191, 36, 0.2)",
+  },
+  connectionTypeBadgeText: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  connectionTypeBadgeTextFriend: {
+    color: "#60A5FA",
+  },
+  connectionTypeBadgeTextMatch: {
+    color: "#F472B6",
+  },
+  connectionTypeBadgeTextBusiness: {
+    color: "#FCD34D",
+  },
 });

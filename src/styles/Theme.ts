@@ -3,14 +3,14 @@
 // --- COLOR PALETTE (Based on :root/Default Dark Theme) ---
 
 // Primary Colors (HEX/RGB - converting RGBA for RN)
-const PRIMARY_HEX = "#c451c9"; // --primary / --ring
+const PRIMARY_HEX = "#a020a0"; // --primary / --ring (high saturation purple/magenta)
 const DESTRUCTIVE_HEX = "#d4183d"; // --destructive
 const FOREGROUND_HEX = "#ffffff"; // --foreground, --primary-foreground, etc.
 const BACKGROUND_HEX = "#0a0322"; // --background, --card, --popover, --sidebar
 
 // Functional/Tonal Colors (RN does not easily handle CSS variables inside rgba(), so we use direct values)
-const ACCENT_COLOR_RGB = "rgba(196, 81, 201, 0.2)"; // --accent
-const SECONDARY_COLOR_RGB = "rgba(196, 81, 201, 0.1)"; // --secondary
+const ACCENT_COLOR_RGB = "rgba(160, 32, 160, 0.2)"; // --accent
+const SECONDARY_COLOR_RGB = "rgba(160, 32, 160, 0.1)"; // --secondary
 const MUTED_COLOR_RGB = "rgba(255, 255, 255, 0.1)"; // --muted, --border
 const MUTED_FOREGROUND_RGB = "rgba(255, 255, 255, 0.7)"; // --muted-foreground
 
@@ -21,11 +21,11 @@ const INPUT_BG_DARK = "#1A1A2E"; // Deep dark blue/purple
 const BORDER_COLOR_RGB = "rgba(255, 255, 255, 0.2)"; // --border (Increased from 0.1)
 
 // Chart Colors
-const CHART_1 = "#c451c9";
+const CHART_1 = "#a020a0";
 const CHART_2 = "#a9016d";
 const CHART_3 = "#740182";
 const CHART_4 = "#ffffff";
-const CHART_5_RGB = "rgba(196, 81, 201, 0.5)";
+const CHART_5_RGB = "rgba(160, 32, 160, 0.5)";
 
 // --- SPACING, FONT, and RADIUS ---
 
@@ -100,5 +100,5 @@ export const Theme = {
 // This will be used to generate the actual linear gradient style object when needed.
 export const GRADIENT_COLORS = {
   primary: ["#a9016d", "#740182"], // linear-gradient(135deg, #a9016d 0%, #740182 100%)
-  primaryHover: ["#c451c9", "#a9016d"], // linear-gradient(135deg, #c451c9 0%, #a9016d 100%)
+  primaryHover: ["#a020a0", "#a9016d"], // linear-gradient(135deg, #a020a0 0%, #a9016d 100%)
 };

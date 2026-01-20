@@ -11,6 +11,46 @@ import {
 } from "../api/authApi";
 import { User } from "../types/authTypes";
 
+// Test user credentials for development
+export const TEST_CREDENTIALS = {
+  email: "test@tappd.com",
+  password: "Test123!",
+  user: {
+    id: "test-user-123",
+    name: "Harsh Arora",
+    email: "test@tappd.com",
+    username: "harsharora",
+    age: 22,
+    bio: "Exploring every day like its theist ✨",
+    occupation: "Founder",
+    education: "MAIT, Delhi",
+    gender: "MALE" as const,
+    location: "New Delhi, India",
+    profilePicUrl:
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=400&fit=crop",
+    photos: [
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1542103749-8ef597ac45be?w=400&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1518002171953-a080ee817e1f?w=400&h=600&fit=crop",
+    ],
+    interests: [
+      "Entrepreneurship",
+      "Growth Marketing",
+      "Startups",
+      "Tech",
+      "Strategy",
+      "Innovation",
+    ],
+    lookingFor: "FRIENDSHIP" as const,
+    height: 178, // 5'10"
+    smoking: "NO" as const,
+    drinking: "SOCIALLY" as const,
+    locationVisibility: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } as User,
+};
+
 interface AuthState {
   user: User | null;
   token: string | null;
@@ -44,6 +84,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (res.data?.token) {
         await AsyncStorage.setItem("token", res.data.token);
+        if (res.data?.user) {
+          await AsyncStorage.setItem("user", JSON.stringify(res.data.user));
+        }
       }
 
       set({
@@ -53,17 +96,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         loading: false,
       });
     } catch (err: any) {
-      set({ loading: false, error: err.message });
+      set({ loading: false, error: err.message || "Signup failed" });
+      throw err;
     }
   },
 
   signin: async (data) => {
     try {
       set({ loading: true, error: null });
+
+      // Call the real API
       const res = await signinApi(data);
 
       if (res.data?.token) {
         await AsyncStorage.setItem("token", res.data.token);
+        if ((res.data as any)?.user) {
+          await AsyncStorage.setItem(
+            "user",
+            JSON.stringify((res.data as any).user),
+          );
+        }
       }
 
       set({
@@ -73,7 +125,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         loading: false,
       });
     } catch (err: any) {
-      set({ loading: false, error: err.message });
+      set({ loading: false, error: err.message || "Login failed" });
+      throw err;
     }
   },
 
@@ -103,13 +156,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     await AsyncStorage.removeItem("token");
+    await AsyncStorage.removeItem("user");
     set({ user: null, token: null, isAuthenticated: false, error: null });
   },
 
   hydrateAuth: async () => {
     try {
-      const token = await AsyncStorage.getItem("token");
-      if (token) {
+      const [token, userJson] = await Promise.all([
+        AsyncStorage.getItem("token"),
+        AsyncStorage.getItem("user"),
+      ]);
+
+      if (token && userJson) {
+        const user = JSON.parse(userJson);
+        set({ token, user, isAuthenticated: true, isHydrated: true });
+      } else if (token) {
+        // Have token but no user data - set authenticated but no user
         set({ token, isAuthenticated: true, isHydrated: true });
       } else {
         set({ isHydrated: true });
