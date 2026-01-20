@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -19,17 +19,26 @@ interface HeaderProps {
   onProfileClick: () => void;
   onSettingsClick: () => void;
   onNotificationClick: () => void;
+  onSearchChange?: (query: string) => void;
 }
 
 export function Header({
   onProfileClick,
   onSettingsClick,
   onNotificationClick,
+  onSearchChange,
 }: HeaderProps) {
-  const name = useUserStore((state) => state.user?.data?.name);
-  console.log(name)
-  const isUserLoading = useUserStore((state) => state.isLoading);
-  
+  const [searchQuery, setSearchQuery] = useState("");
+  const name = useUserStore((state) => state.profile?.name);
+  const isUserLoading = useUserStore((state) => state.loading);
+
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    if (onSearchChange) {
+      onSearchChange(text);
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* Welcome message */}
@@ -64,6 +73,8 @@ export function Header({
           <Input
             placeholder="Search events..."
             style={styles.headerSearchInput}
+            value={searchQuery}
+            onChangeText={handleSearchChange}
           />
         </View>
 

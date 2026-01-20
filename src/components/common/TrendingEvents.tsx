@@ -29,14 +29,27 @@ const trendingEvents = [
 ];
 
 interface TrendingEventsProps {
-  onEventSelect?: (event: any) => void;   // ✅ FIXED
+  onEventSelect?: (event: any) => void;
   onExploreAllClick?: () => void;
+  searchQuery?: string;
 }
 
 export function TrendingEvents({
   onEventSelect,
   onExploreAllClick,
+  searchQuery = "",
 }: TrendingEventsProps) {
+  // Filter events based on search query
+  const filteredEvents = trendingEvents.filter(event =>
+    searchQuery === "" ||
+    event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    event.location.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Don't render if no results from search
+  if (searchQuery && filteredEvents.length === 0) {
+    return null;
+  }
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -48,7 +61,7 @@ export function TrendingEvents({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {trendingEvents.map((event) => (
+        {filteredEvents.map((event) => (
           <EventCard
             key={event.id}
             event={event}

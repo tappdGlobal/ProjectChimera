@@ -45,12 +45,25 @@ const recommendedEvents: Event[] = [
 interface RecommendedEventsProps {
   onEventSelect?: (event: Event) => void;
   onExploreAllClick?: () => void;
+  searchQuery?: string;
 }
 
 export function RecommendedEvents({
   onEventSelect,
   onExploreAllClick,
+  searchQuery = "",
 }: RecommendedEventsProps) {
+  // Filter events based on search query
+  const filteredEvents = recommendedEvents.filter(event =>
+    searchQuery === "" ||
+    event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    event.location.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Don't render if no results from search
+  if (searchQuery && filteredEvents.length === 0) {
+    return null;
+  }
   return (
     <View style={styles.container}>
       {/* HEADER */}
@@ -64,7 +77,7 @@ export function RecommendedEvents({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {recommendedEvents.map((event) => (
+        {filteredEvents.map((event) => (
           <EventCard
             key={event.id}
             event={event}

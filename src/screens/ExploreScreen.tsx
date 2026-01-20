@@ -3,8 +3,8 @@
 import React, { useState } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native"; // ✅ NEW
-import { NativeStackNavigationProp } from "@react-navigation/native-stack"; // ✅ NEW
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 import { ExploreAllScreen } from "./ExploreAllScreen";
 import { Header } from "../components/common/Header";
@@ -26,6 +26,7 @@ export function ExploreScreen() {
   const navigation = useNavigation<ExploreNavigationProp>();
 
   const [showExploreAll, setShowExploreAll] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   type ExploreTabKey = "explore" | "map" | "bookings";
   const [activeTab, setActiveTab] = useState<ExploreTabKey>("explore");
 
@@ -37,7 +38,6 @@ export function ExploreScreen() {
     setShowExploreAll(false);
   };
 
-
   const handleCategorySelect = (category: string) => {
     navigation.navigate("EventDiscovery", { category });
   };
@@ -46,6 +46,9 @@ export function ExploreScreen() {
     navigation.navigate("EventDetail", { event });
   };
 
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+  };
 
   if (showExploreAll) {
     return (
@@ -61,9 +64,10 @@ export function ExploreScreen() {
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
         {/* HEADER */}
         <Header
-          onProfileClick={() => navigation.navigate(SCREEN_NAMES.PROFILE)}
-          onSettingsClick={() => navigation.navigate(SCREEN_NAMES.PROFILE)}
+          onProfileClick={() => navigation.getParent()?.navigate(SCREEN_NAMES.PROFILE)}
+          onSettingsClick={() => navigation.getParent()?.navigate(SCREEN_NAMES.PROFILE)}
           onNotificationClick={() => navigation.getParent()?.navigate(SCREEN_NAMES.NOTIFICATIONS)}
+          onSearchChange={handleSearchChange}
         />
 
         <View style={{ paddingHorizontal: Theme.spacing.m }}>
@@ -74,11 +78,12 @@ export function ExploreScreen() {
           {activeTab === "explore" && (
             <ExploreTabContent
               onCategorySelect={handleCategorySelect}
-              onEventSelect={handleEventSelect}   
+              onEventSelect={handleEventSelect}
               onExploreAllClick={handleExploreAllClick}
+              searchQuery={searchQuery}
             />
           )}
-
+          
 
           {activeTab === "map" && <MapTabContent />}
 
