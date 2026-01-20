@@ -6,6 +6,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
   Image,
   ScrollView,
 } from "react-native";
@@ -106,6 +107,57 @@ export function ReconnectScreen() {
   const [activeButton, setActiveButton] = useState<"friendRequests" | "crossedPaths" | "swipe" | "list">("swipe");
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [modalTab, setModalTab] = useState<"about" | "photos">("about");
+  const [hoverButton, setHoverButton] = useState<null | "friendRequests" | "crossedPaths" | "swipe" | "list">(null);
+
+  const renderGradientToggle = (
+    id: "friendRequests" | "crossedPaths" | "swipe" | "list",
+    icon: React.ReactNode,
+    label: string,
+    shellStyle: any,
+  ) => {
+    const isActive = activeButton === id;
+
+    if (!isActive) {
+      return (
+        <TouchableOpacity
+          style={shellStyle}
+          onPress={() => setActiveButton(id)}
+        >
+          <View style={styles.toggleInner}>
+            {icon}
+            <Text style={styles.tabTextInactive}>{label}</Text>
+          </View>
+        </TouchableOpacity>
+      );
+    }
+
+    return (
+      <Pressable
+        onPress={() => setActiveButton(id)}
+        onHoverIn={() => setHoverButton(id)}
+        onHoverOut={() => setHoverButton(null)}
+        style={{ flex: 1 }}
+      >
+        {({ pressed }) => (
+          <LinearGradient
+            colors={
+              (pressed || hoverButton === id)
+                ? (GRADIENT_COLORS.primaryHover as [string, string, ...string[]])
+                : (GRADIENT_COLORS.primary as [string, string, ...string[]])
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[shellStyle, styles.gradientActive]}
+          >
+            <View style={styles.toggleInner}>
+              {icon}
+              <Text style={styles.tabTextActive}>{label}</Text>
+            </View>
+          </LinearGradient>
+        )}
+      </Pressable>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -115,92 +167,52 @@ export function ReconnectScreen() {
 
         {/* Tab Selector - Row 1 */}
         <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[
-              styles.tabButton,
-              activeButton === "friendRequests" && styles.tabButtonActive,
-            ]}
-            onPress={() => setActiveButton("friendRequests")}
-          >
+          {renderGradientToggle(
+            "friendRequests",
             <Heart
               size={16}
               color={activeButton === "friendRequests" ? "#FFFFFF" : "rgba(255, 255, 255, 0.7)"}
               style={styles.tabIcon}
-            />
-            <Text
-              style={[
-                activeButton === "friendRequests" ? styles.tabTextActive : styles.tabTextInactive,
-              ]}
-            >
-              Friend Requests
-            </Text>
-          </TouchableOpacity>
+            />,
+            "Friend Requests",
+            styles.tabButton,
+          )}
 
-          <TouchableOpacity
-            style={[
-              styles.tabButton,
-              activeButton === "crossedPaths" && styles.tabButtonActive,
-            ]}
-            onPress={() => setActiveButton("crossedPaths")}
-          >
+          {renderGradientToggle(
+            "crossedPaths",
             <MapPin
               size={16}
               color={activeButton === "crossedPaths" ? "#FFFFFF" : "rgba(255, 255, 255, 0.7)"}
               style={styles.tabIcon}
-            />
-            <Text
-              style={[
-                activeButton === "crossedPaths" ? styles.tabTextActive : styles.tabTextInactive,
-              ]}
-            >
-              Crossed Paths
-            </Text>
-          </TouchableOpacity>
+            />,
+            "Crossed Paths",
+            styles.tabButton,
+          )}
         </View>
 
         {/* View Mode Toggle - Row 2 */}
         <View style={styles.viewModeContainer}>
-          <TouchableOpacity
-            style={[
-              styles.viewModeButton,
-              activeButton === "swipe" && styles.viewModeButtonActive,
-            ]}
-            onPress={() => setActiveButton("swipe")}
-          >
+          {renderGradientToggle(
+            "swipe",
             <Layers
               size={16}
               color={activeButton === "swipe" ? "#FFFFFF" : "rgba(255, 255, 255, 0.7)"}
               style={styles.tabIcon}
-            />
-            <Text
-              style={[
-                activeButton === "swipe" ? styles.tabTextActive : styles.tabTextInactive,
-              ]}
-            >
-              Swipe
-            </Text>
-          </TouchableOpacity>
+            />,
+            "Swipe",
+            styles.viewModeButton,
+          )}
 
-          <TouchableOpacity
-            style={[
-              styles.viewModeButton,
-              activeButton === "list" && styles.viewModeButtonActive,
-            ]}
-            onPress={() => setActiveButton("list")}
-          >
+          {renderGradientToggle(
+            "list",
             <LayoutGrid
               size={16}
               color={activeButton === "list" ? "#FFFFFF" : "rgba(255, 255, 255, 0.7)"}
               style={styles.tabIcon}
-            />
-            <Text
-              style={[
-                activeButton === "list" ? styles.tabTextActive : styles.tabTextInactive,
-              ]}
-            >
-              List
-            </Text>
-          </TouchableOpacity>
+            />,
+            "List",
+            styles.viewModeButton,
+          )}
         </View>
       </View>
 
@@ -347,7 +359,6 @@ export function ReconnectScreen() {
         backdropOpacity={0.7}
         animationIn="fadeIn"
         animationOut="fadeOut"
-        transparent={true}
         hasBackdrop={true}
         coverScreen={true}
       >
@@ -492,19 +503,24 @@ const styles = StyleSheet.create({
   },
   tabButton: {
     flex: 1,
+    borderRadius: 24,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    overflow: "hidden",
+  },
+  tabButtonActive: {
+    // kept for compatibility; active uses gradient now
+  },
+  gradientActive: {
+    borderColor: "transparent",
+  },
+  toggleInner: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 24,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-  },
-  tabButtonActive: {
-    backgroundColor: Theme.colors.primary,
-    borderColor: Theme.colors.primary,
   },
   tabIcon: {
     marginRight: 8,
@@ -525,19 +541,14 @@ const styles = StyleSheet.create({
   },
   viewModeButton: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
     borderRadius: 24,
     backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
+    overflow: "hidden",
   },
   viewModeButtonActive: {
-    backgroundColor: Theme.colors.primary,
-    borderColor: Theme.colors.primary,
+    // kept for compatibility; active uses gradient now
   },
   profileCardContainer: {
     flex: 1,
