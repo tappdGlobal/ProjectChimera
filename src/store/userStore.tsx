@@ -7,6 +7,7 @@ import {
   uploadPhotosApi,
   UpdateUserPayload,
 } from "../api/userApi";
+import { useAuthStore } from "./authStore";
 
 interface UserState {
   profile: User | null;
@@ -17,19 +18,24 @@ interface UserState {
   updateUser: (userId: string, data: UpdateUserPayload) => Promise<void>;
   uploadProfilePicture: (
     userId: string,
-    file: { uri: string; name: string; type: string }
+    file: { uri: string; name: string; type: string },
   ) => Promise<void>;
   uploadPhotos: (
     userId: string,
-    photos: { uri: string; name: string; type: string }[]
+    photos: { uri: string; name: string; type: string }[],
   ) => Promise<void>;
   clearUser: () => void;
+  setProfile: (user: User) => void;
 }
 
-export const useUserStore = create<UserState>((set) => ({
+export const useUserStore = create<UserState>((set, get) => ({
   profile: null,
   loading: false,
   error: null,
+
+  setProfile: (user: User) => {
+    set({ profile: user });
+  },
 
   fetchUser: async (userId) => {
     try {
