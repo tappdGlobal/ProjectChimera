@@ -1,28 +1,32 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuthStore } from "../store/authStore";
-import { useUserStore } from "../store/userStore";
 import { AuthStack } from "./AuthStack";
 import AppNavigator from "./AppNavigator";
 import { SplashScreen } from "../screens/SplashScreen";
 import { linking } from "./linking";
 
 export const RootNavigator = () => {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const isHydrated = useAuthStore((s) => s.isHydrated);
-  const user = useAuthStore((s) => s.user);
-  
-  useEffect(() => {
-    useAuthStore.getState().hydrateAuth();
-  }, []);
+  const token = useAuthStore((s) => s.token);
+  const setAuth = useAuthStore.setState;
 
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // 🔹 Hydrate token from storage
   useEffect(() => {
-    if (isAuthenticated && user?.id) {
-      useUserStore.getState().fetchUser(user.id);
-    } else {
-      useUserStore.getState().clearUser();
-    }
-  }, [isAuthenticated, user]);
+    const hydrateAuth = async () => {
+      const storedToken = await AsyncStorage.getItem("token");
+
+      if (storedToken) {
+        setAuth({ token: storedToken });
+      }
+
+      setIsHydrated(true);
+    };
+
+    hydrateAuth();
+  }, []);
 
   if (!isHydrated) {
     return <SplashScreen />;
@@ -30,7 +34,7 @@ export const RootNavigator = () => {
 
   return (
     <NavigationContainer linking={linking as any}>
-      {isAuthenticated ? <AppNavigator /> : <AuthStack />}
+      {token ? <AppNavigator /> : <AuthStack />}
     </NavigationContainer>
   );
 };

@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuthStore } from "../store/authStore";
@@ -20,14 +21,14 @@ export const LoginScreen = ({ navigation }: any) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const { login, isLoading, error, clearError } = useAuthStore();
+
+  const { signin, loading, error } = useAuthStore();
 
   useEffect(() => {
     if (error) {
-      Alert.alert("Error", error);
-      clearError();
+      Alert.alert("Login Failed", error);
     }
-  }, [error, clearError]);
+  }, [error]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -35,20 +36,17 @@ export const LoginScreen = ({ navigation }: any) => {
       return;
     }
 
-    try {
-      await login({ email, password });
-      navigation.reset({
-        index: 0,
-        routes: [
-          {
-            name: SCREEN_NAMES.MAIN_TABS,
-            params: { screen: SCREEN_NAMES.ENGAGE },
-          },
-        ],
-      });
-    } catch (error) {
-      // Error already handled in store
-    }
+    await signin({ email, password });
+
+    navigation.reset({
+      index: 0,
+      routes: [
+        {
+          name: SCREEN_NAMES.MAIN_TABS,
+          params: { screen: SCREEN_NAMES.ENGAGE },
+        },
+      ],
+    });
   };
 
   return (
@@ -122,21 +120,24 @@ export const LoginScreen = ({ navigation }: any) => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.signInButton}
-                onPress={handleLogin}
-                disabled={isLoading}
-              >
-                <LinearGradient
-                  colors={["#C026D3", "#DB2777"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.signInGradient}
-                >
-                  <Text style={styles.signInButtonText}>
-                    {isLoading ? "Signing In..." : "Sign In"}
-                  </Text>
-                </LinearGradient>
-              </TouchableOpacity>
+  style={styles.signInButton}
+  onPress={handleLogin}
+  disabled={loading}
+>
+  <LinearGradient
+    colors={["#C026D3", "#DB2777"]}
+    start={{ x: 0, y: 0 }}
+    end={{ x: 1, y: 0 }}
+    style={styles.signInGradient}
+  >
+    {loading ? (
+      <ActivityIndicator size="small" color="#FFFFFF" />
+    ) : (
+      <Text style={styles.signInButtonText}>Sign In</Text>
+    )}
+  </LinearGradient>
+</TouchableOpacity>
+
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -144,6 +145,7 @@ export const LoginScreen = ({ navigation }: any) => {
     </LinearGradient>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {

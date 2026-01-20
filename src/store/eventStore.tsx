@@ -27,28 +27,36 @@ export const useEventStore = create<EventState>((set) => ({
   createEvent: async (data) => {
     try {
       set({ loading: true, error: null });
-      const res = await createEventApi(data);
+
+      const event = await createEventApi(data); // ✅ already Event
 
       set({
-        createdEvent: res.data ?? null,
+        createdEvent: event,
         loading: false,
       });
     } catch (err: any) {
-      set({ loading: false, error: err.message });
+      set({
+        loading: false,
+        error: err.message || "Failed to create event",
+      });
     }
   },
 
   fetchCategories: async () => {
     try {
       set({ loading: true, error: null });
-      const res = await getEventCategoriesApi();
+
+      const res = await getEventCategoriesApi(); // ✅ already data
 
       set({
-        categories: res.data?.categories ?? [],
+        categories: res.categories,
         loading: false,
       });
     } catch (err: any) {
-      set({ loading: false, error: err.message });
+      set({
+        loading: false,
+        error: err.message || "Failed to fetch categories",
+      });
     }
   },
 

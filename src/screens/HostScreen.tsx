@@ -7,7 +7,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Platform,
   Modal,
   ActivityIndicator,
@@ -40,7 +39,8 @@ import {
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Toast from "react-native-toast-message"; // For toast messages
-import { eventApi } from "../api/eventApi";
+import { useEventStore } from "../store/eventStore";
+import * as ImagePicker from "expo-image-picker";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -73,20 +73,30 @@ import { PublishedEventsScreen } from "./PublishedEventsScreen";
 import { SCREEN_NAMES } from "../navigation/Routes";
 import { DraftsScreen } from "./DraftsScreen";
 import { StatusBar } from "expo-status-bar";
+const SERVICE_CHARGE_PERCENT = 20;
 
 interface TicketType {
   id: string;
-  name: string;
+  name: string;           // UI name
   price: number;
+  quantityTotal: number;  // REQUIRED by backend
 }
+
+
 
 interface EventForm {
   name: string;
   genre: string;
   category: string;
-  date: string;
-  time: string;
+  date: string;          // UI: dd-mm-yyyy
+  time: string;          // HH:mm
   location: string;
+
+  address: string;       // ✅ NEW
+  city: string;          // ✅ NEW
+  country: string;       // ✅ NEW
+  venue: string;         // ✅ NEW
+
   maxOccupancy: number;
   ageRestriction: string;
   genderAllowance: string;
@@ -97,13 +107,14 @@ interface EventForm {
   tickets: TicketType[];
 }
 
+
 interface HostProps {
   onShowDrafts?: () => void;
   onShowPublished?: () => void;
   onBack?: () => void;
   editingDraft?:
-    | (EventForm & { id: string; createdAt: string; lastModified: string })
-    | null;
+  | (EventForm & { id: string; createdAt: string; lastModified: string })
+  | null;
 }
 
 const eventGenres = [
@@ -157,6 +168,12 @@ const initialFormData: EventForm = {
   date: "",
   time: "",
   location: "",
+
+  address: "",
+  city: "",
+  country: "India",
+  venue: "",
+
   maxOccupancy: 0,
   ageRestriction: "",
   genderAllowance: "",
@@ -164,12 +181,16 @@ const initialFormData: EventForm = {
   smokingAllowed: false,
   description: "",
   photos: [],
-  tickets: [{ id: "ticket-1", name: "Standard", price: 500 }],
+
+  tickets: [], // ✅ EMPTY INITIALLY
 };
+
+
 
 const HostStack = createStackNavigator();
 
 export function HostStackScreen() {
+
   return (
     <HostStack.Navigator screenOptions={{ headerShown: false }}>
       <HostStack.Screen name={SCREEN_NAMES.HOST} component={HostScreen} />
@@ -196,9 +217,14 @@ export function HostScreen({
   const [activeTab, setActiveTab] = useState<
     "private" | "public" | "published"
   >("private");
-
+  const {
+    createEvent,
+    loading: creatingEvent,
+    error: eventError,
+  } = useEventStore();
   const [showPublicVerification, setShowPublicVerification] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
+  const [showTickets, setShowTickets] = useState(false);
 
   const [loginData, setLoginData] = useState({
     username: "Harsh@tappd.co.in",
@@ -221,6 +247,33 @@ export function HostScreen({
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [ageOpen, setAgeOpen] = useState(false);
   const [genderOpen, setGenderOpen] = useState(false);
+  const toISODateTime = (date: string, time: string) => {
+    // date: dd-mm-yyyy
+    const [dd, mm, yyyy] = date.split("-");
+    return new Date(`${yyyy}-${mm}-${dd}T${time}:00Z`).toISOString();
+  };
+
+  const mapAgeLimit = (age: string) => {
+    switch (age) {
+      case "16+":
+        return "SIXTEEN_PLUS";
+      case "18+":
+        return "EIGHTEEN_PLUS";
+      case "21+":
+        return "TWENTY_ONE_PLUS";
+      case "25+":
+        return "TWENTY_FIVE_PLUS";
+      default:
+        return "EIGHTEEN_PLUS";
+    }
+  };
+
+  const mapAllowance = (gender: string) => {
+    // backend expects PUBLIC / PRIVATE
+    return gender === "Only Male" || gender === "Only Female"
+      ? "PRIVATE"
+      : "PUBLIC";
+  };
 
   const localDateObj = localFormData.date
     ? new Date(localFormData.date)
@@ -288,14 +341,14 @@ export function HostScreen({
         tickets: prev.tickets.map((ticket) =>
           ticket.id === ticketId
             ? {
-                ...ticket,
-                [field]:
-                  field === "price"
-                    ? value === ""
-                      ? 0 // Handle empty string as 0 internally
-                      : parseInt(String(value)) || 0
-                    : value,
-              }
+              ...ticket,
+              [field]:
+                field === "price"
+                  ? value === ""
+                    ? 0 // Handle empty string as 0 internally
+                    : parseInt(String(value)) || 0
+                  : value,
+            }
             : ticket,
         ),
       }));
@@ -304,16 +357,21 @@ export function HostScreen({
   );
 
   const addTicketType = useCallback(() => {
+    setShowTickets(true);
+
     const newTicket: TicketType = {
       id: `ticket-${Date.now()}`,
       name: "",
       price: 500,
+      quantityTotal: 100,
     };
+
     setLocalFormData((prev) => ({
       ...prev,
       tickets: [...prev.tickets, newTicket],
     }));
   }, []);
+
 
   const removeTicket = useCallback(
     (id: string) => {
@@ -328,10 +386,14 @@ export function HostScreen({
   );
 
   const calculateServiceCharge = (price: number) => {
-    const serviceCharge = Math.round(price * 0.2);
+    const serviceCharge = Math.round(
+      price * (SERVICE_CHARGE_PERCENT / 100)
+    );
     const hostReceives = price - serviceCharge;
+
     return { serviceCharge, hostReceives };
   };
+
 
   const validateForm = (data: EventForm) => {
     const newErrors: Record<string, string> = {};
@@ -398,77 +460,68 @@ export function HostScreen({
     const validationErrors = validateForm(localFormData);
     setErrors(validationErrors);
 
-    if (Object.keys(validationErrors).length === 0) {
-      setIsLoading(true);
-      try {
-        if (draftId) {
-          // Publish existing draft
-          const published = await eventApi.publishDraft(draftId);
-          Toast.show({
-            type: "success",
-            text1: "Event published successfully!",
-            position: "bottom",
-          });
-          console.log("Event published:", published);
-        } else {
-          // Create and publish directly
-          const eventData = {
-            eventName: localFormData.name,
-            genre: localFormData.genre,
-            category: localFormData.category,
-            eventDate: localFormData.date,
-            eventTime: localFormData.time,
-            location: localFormData.location,
-            maxCapacity: localFormData.maxOccupancy,
-            ageLimit: localFormData.ageRestriction,
-            allowance:
-              localFormData.genderAllowance === "All Genders"
-                ? "PUBLIC"
-                : "PRIVATE",
-            allowAlcohol: localFormData.alcoholAllowed,
-            allowSmokingAreas: localFormData.smokingAllowed,
-            description: localFormData.description,
-            images: localFormData.photos,
-            tickets: localFormData.tickets.map((t) => ({
-              ticketLabel: t.name,
-              ticketType: "PAID",
-              price: t.price,
-              currency: "INR",
-              serviceChargePercentage: 20,
-              quantityTotal: 100,
-            })),
-          };
-
-          const published = await eventApi.createEvent(eventData);
-          Toast.show({
-            type: "success",
-            text1: "Event published successfully!",
-            position: "bottom",
-          });
-          console.log("Event created:", published);
-        }
-
-        // Reset form
-        setLocalFormData(initialFormData);
-        setDraftId(null);
-      } catch (error: any) {
-        console.error("Error publishing event:", error);
-        Toast.show({
-          type: "error",
-          text1: error.message || "Failed to publish event",
-          position: "bottom",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    } else {
+    if (Object.keys(validationErrors).length > 0) {
       Toast.show({
         type: "error",
         text1: "Please fix the errors before publishing.",
-        position: "bottom",
+      });
+      return;
+    }
+
+    try {
+      const payload = {
+        eventName: localFormData.name,
+        genre: localFormData.genre,
+        category: localFormData.category,
+
+        eventDate: toISODateTime(
+          localFormData.date,
+          localFormData.time
+        ),
+        eventTime: localFormData.time,
+
+        location: localFormData.location,
+        address: localFormData.address,
+        city: localFormData.city,
+        country: localFormData.country,
+        venue: localFormData.venue,
+
+        maxCapacity: localFormData.maxOccupancy,
+        ageLimit: mapAgeLimit(localFormData.ageRestriction),
+        allowance: mapAllowance(localFormData.genderAllowance),
+
+        allowAlcohol: localFormData.alcoholAllowed,
+        allowSmokingAreas: localFormData.smokingAllowed,
+
+        description: localFormData.description,
+        images: localFormData.photos,
+
+        tickets: localFormData.tickets.map((t) => ({
+          ticketLabel: t.name,
+          ticketType: "PAID",
+          price: t.price,
+          currency: "INR",
+          serviceChargePercentage: SERVICE_CHARGE_PERCENT,
+          quantityTotal: t.quantityTotal,
+        })),
+      };
+
+      await createEvent(payload);
+
+      Toast.show({
+        type: "success",
+        text1: "Event published successfully 🎉",
+      });
+
+      setLocalFormData(initialFormData);
+    } catch (err: any) {
+      Toast.show({
+        type: "error",
+        text1: err.message || "Failed to publish event",
       });
     }
   };
+
 
   const handlePublicTabClick = () => {
     setActiveTab("public"); // Set active tab first
@@ -603,7 +656,13 @@ export function HostScreen({
               {/* Event Name */}
               <View>
                 <Text style={styles.label}>Event Name</Text>
-                <Input style={styles.field} placeholder="Enter event name" />
+                <Input
+                  style={styles.field}
+                  placeholder="Enter event name"
+                  value={localFormData.name}
+                  onChangeText={(v) => handleLocalFieldChange("name", v)}
+                />
+
               </View>
 
               {/* Genre + Category */}
@@ -715,6 +774,52 @@ export function HostScreen({
                 <Input
                   style={styles.field}
                   placeholder="Enter event location"
+                  value={localFormData.location}
+                  onChangeText={(v) => handleLocalFieldChange("location", v)}
+                />
+
+              </View>
+              {/* Address */}
+              <View>
+                <Text style={styles.label}>Address</Text>
+                <Input
+                  style={styles.field}
+                  placeholder="Enter address"
+                  value={localFormData.address}
+                  onChangeText={(v) => handleLocalFieldChange("address", v)}
+                />
+              </View>
+
+              {/* City */}
+              <View>
+                <Text style={styles.label}>City</Text>
+                <Input
+                  style={styles.field}
+                  placeholder="Enter city"
+                  value={localFormData.city}
+                  onChangeText={(v) => handleLocalFieldChange("city", v)}
+                />
+              </View>
+
+              {/* Country */}
+              <View>
+                <Text style={styles.label}>Country</Text>
+                <Input
+                  style={styles.field}
+                  placeholder="Enter country"
+                  value={localFormData.country}
+                  onChangeText={(v) => handleLocalFieldChange("country", v)}
+                />
+              </View>
+
+              {/* Venue */}
+              <View>
+                <Text style={styles.label}>Venue</Text>
+                <Input
+                  style={styles.field}
+                  placeholder="Enter venue name"
+                  value={localFormData.venue}
+                  onChangeText={(v) => handleLocalFieldChange("venue", v)}
                 />
               </View>
 
@@ -728,7 +833,16 @@ export function HostScreen({
                   style={styles.field}
                   placeholder="Enter maximum capacity"
                   keyboardType="numeric"
+                  value={
+                    localFormData.maxOccupancy
+                      ? String(localFormData.maxOccupancy)
+                      : ""
+                  }
+                  onChangeText={(v) =>
+                    handleLocalFieldChange("maxOccupancy", Number(v) || 0)
+                  }
                 />
+
               </View>
             </CardContent>
           </Card>
@@ -809,15 +923,13 @@ export function HostScreen({
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={styles.ticketCardWrapper}>
             <CardHeader style={styles.ticketHeader}>
               <CardTitle>Availability & Tickets</CardTitle>
 
               <TouchableOpacity activeOpacity={0.85} onPress={addTicketType}>
                 <LinearGradient
                   colors={GRADIENT_COLORS.primary as [string, string]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
                   style={styles.addTicketGradient}
                 >
                   <Plus size={16} color="#FFFFFF" />
@@ -826,59 +938,95 @@ export function HostScreen({
               </TouchableOpacity>
             </CardHeader>
 
-            <CardContent style={styles.cardContentPadding}>
-              <View style={styles.ticketCard}>
-                <Text style={styles.ticketTitle}>Ticket Type 1</Text>
+            {/* ✅ ONLY SHOW WHEN USER ADDS TICKET */}
+            {localFormData.tickets.length > 0 && (
+              <CardContent style={styles.cardContentPadding}>
+                {localFormData.tickets.map((ticket, index) => {
+                  const { serviceCharge, hostReceives } =
+                    calculateServiceCharge(ticket.price);
 
-                <View style={styles.grid2Col}>
-                  <View style={styles.formGroup}>
-                    <Text style={styles.label}>Ticket Name</Text>
-                    <Input placeholder="Standard" />
-                  </View>
+                  return (
+                    <View
+                      key={ticket.id}
+                      style={{ marginBottom: 18 }}
+                    >
+                      <View key={ticket.id} style={styles.ticketCard}>
+                        <Text style={styles.ticketTitle}>
+                          Ticket Type {index + 1}
+                        </Text>
 
-                  <View style={styles.formGroup}>
-                    <Text style={styles.label}>Price (₹)</Text>
-                    <Input placeholder="500" />
-                  </View>
-                </View>
+                        <View style={styles.grid2Col}>
+                          <View>
+                            <Text style={styles.label}>Ticket Name</Text>
+                            <Input
+                              value={ticket.name}
+                              placeholder="Standard"
+                              onChangeText={(v) =>
+                                handleLocalTicketChange(ticket.id, "name", v)
+                              }
+                            />
+                          </View>
 
-                <LinearGradient
-                  colors={["rgba(196,81,201,0.25)", "rgba(116,1,130,0.35)"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.serviceChargeBox}
-                >
-                  <View style={styles.serviceChargeHeader}>
-                    <Info size={16} color="#E879F9" />
-                    <Text style={styles.serviceChargeTitle}>
-                      Service Charge Breakdown
-                    </Text>
-                  </View>
+                          <View>
+                            <Text style={styles.label}>Price (₹)</Text>
+                            <Input
+                              value={String(ticket.price)}
+                              keyboardType="numeric"
+                              onChangeText={(v) =>
+                                handleLocalTicketChange(ticket.id, "price", v)
+                              }
+                            />
+                          </View>
+                        </View>
 
-                  <View style={styles.serviceChargeRow}>
-                    <Text style={styles.serviceChargeLabel}>Ticket Price:</Text>
-                    <Text style={styles.serviceChargeValue}>₹500</Text>
-                  </View>
+                        {/* SERVICE CHARGE (VISIBLE BUT FIXED) */}
+                        <LinearGradient
+                          colors={["rgba(196,81,201,0.25)", "rgba(116,1,130,0.35)"]}
+                          style={styles.serviceChargeBox}
+                        >
+                          <View style={styles.serviceChargeHeader}>
+                            <Info size={16} color="#E879F9" />
+                            <Text style={styles.serviceChargeTitle}>
+                              Service Charge Breakdown (Fixed {SERVICE_CHARGE_PERCENT}%)
+                            </Text>
+                          </View>
 
-                  <View style={styles.serviceChargeRow}>
-                    <Text style={styles.serviceChargeLabel}>
-                      TAPPD Service Charge (20%):
-                    </Text>
-                    <Text style={styles.serviceChargeNegative}>₹100</Text>
-                  </View>
+                          <View style={styles.serviceChargeRow}>
+                            <Text style={styles.serviceChargeLabel}>Ticket Price:</Text>
+                            <Text style={styles.serviceChargeValue}>₹{ticket.price}</Text>
+                          </View>
 
-                  <View style={styles.serviceChargeDivider} />
+                          <View style={styles.serviceChargeRow}>
+                            <Text style={styles.serviceChargeLabel}>
+                              TAPPD Service Charge ({SERVICE_CHARGE_PERCENT}%):
+                            </Text>
+                            <Text style={styles.serviceChargeNegative}>
+                              ₹{serviceCharge}
+                            </Text>
+                          </View>
 
-                  <View style={styles.serviceChargeRow}>
-                    <Text style={styles.serviceChargeNetLabel}>
-                      You will receive:
-                    </Text>
-                    <Text style={styles.serviceChargeNetValue}>₹400</Text>
-                  </View>
-                </LinearGradient>
-              </View>
-            </CardContent>
+                          <View style={styles.serviceChargeDivider} />
+
+                          <View style={styles.serviceChargeRow}>
+                            <Text style={styles.serviceChargeNetLabel}>
+                              You will receive:
+                            </Text>
+                            <Text style={styles.serviceChargeNetValue}>
+                              ₹{hostReceives}
+                            </Text>
+                          </View>
+                        </LinearGradient>
+
+                      </View>
+                    </View>
+
+                  );
+                })}
+              </CardContent>
+            )}
           </Card>
+
+
           <Card>
             <CardHeader>
               <CardTitle>More Event Details</CardTitle>
@@ -890,13 +1038,16 @@ export function HostScreen({
                 <Textarea
                   placeholder="Describe your event in detail..."
                   rows={4}
+                  value={localFormData.description}
+                  onChangeText={(v) => handleLocalFieldChange("description", v)}
                 />
+
               </View>
 
               <View style={styles.formGroup}>
                 <Text style={styles.label}>Event Photos (Up to 5)</Text>
 
-                <TouchableOpacity style={styles.uploadBox}>
+                <TouchableOpacity style={styles.uploadBox} onPress={pickImage}>
                   <Upload
                     size={32}
                     color={Theme.colors.mutedForeground}
@@ -918,7 +1069,7 @@ export function HostScreen({
       </View>
 
       {/* ===================== GENRE MODAL ===================== */}
-      <Modal transparent visible={genreOpen} animationType="fade">
+      < Modal transparent visible={genreOpen} animationType="fade" >
         <TouchableOpacity
           style={styles.dropdownOverlay}
           activeOpacity={1}
@@ -948,10 +1099,10 @@ export function HostScreen({
             </ScrollView>
           </View>
         </TouchableOpacity>
-      </Modal>
+      </Modal >
 
       {/* ===================== CATEGORY MODAL ===================== */}
-      <Modal transparent visible={categoryOpen} animationType="fade">
+      < Modal transparent visible={categoryOpen} animationType="fade" >
         <TouchableOpacity
           style={styles.dropdownOverlay}
           activeOpacity={1}
@@ -981,7 +1132,7 @@ export function HostScreen({
             </ScrollView>
           </View>
         </TouchableOpacity>
-      </Modal>
+      </Modal >
       <Modal transparent visible={ageOpen} animationType="fade">
         <TouchableOpacity
           style={styles.dropdownOverlay}
@@ -1835,7 +1986,8 @@ export function HostScreen({
               <TouchableOpacity
                 activeOpacity={0.85}
                 onPress={handlePublishEvent}
-                style={{ flex: 1 }}
+                disabled={creatingEvent}
+                style={{ flex: 1, opacity: creatingEvent ? 0.7 : 1 }}
               >
                 <LinearGradient
                   colors={GRADIENT_COLORS.primary as [string, string]}
@@ -1843,9 +1995,14 @@ export function HostScreen({
                   end={{ x: 1, y: 0 }}
                   style={styles.publishButton}
                 >
-                  <Text style={styles.publishButtonText}>Publish Event</Text>
+                  {creatingEvent ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.publishButtonText}>Publish Event</Text>
+                  )}
                 </LinearGradient>
               </TouchableOpacity>
+
             </View>
           </View>
         )}
@@ -3016,4 +3173,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  ticketCardWrapper: {
+    paddingBottom: 16,
+  },
+
 });

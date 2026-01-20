@@ -4,39 +4,17 @@ import axios, {
   AxiosError,
   AxiosRequestConfig,
 } from "axios";
-import { Platform } from "react-native";
-import * as Device from "expo-device";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /* ================= CONFIG ================= */
 
-const USE_PRODUCTION = false;
+const USE_PRODUCTION = true; // ✅ IMPORTANT
 const PRODUCTION_URL = "https://tappd-backend.onrender.com/api/v1";
-const PORT = 3000;
-const LOCAL_MACHINE_IP = "127.0.0.1";
-
-/* ================= BASE URL ================= */
-
-const getBaseURL = (): string => {
-  if (USE_PRODUCTION) return PRODUCTION_URL;
-
-  const isDevice = Device.isDevice ?? true;
-
-  if (Platform.OS === "android" && !isDevice) {
-    return `http://10.0.2.2:${PORT}/api/v1`;
-  }
-
-  if (Platform.OS === "ios" && !isDevice) {
-    return `http://localhost:${PORT}/api/v1`;
-  }
-
-  return `http://${LOCAL_MACHINE_IP}:${PORT}/api/v1`;
-};
 
 /* ================= AXIOS INSTANCE ================= */
 
 const api: AxiosInstance = axios.create({
-  baseURL: getBaseURL(),
+  baseURL: PRODUCTION_URL,
   timeout: 60000,
   headers: {
     "Content-Type": "application/json",
@@ -50,7 +28,7 @@ api.interceptors.request.use(
     const token = await AsyncStorage.getItem("token");
 
     if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+      config.headers.Authorization = `Bearer ${token}`;
     }
 
     return config;
@@ -73,14 +51,8 @@ api.interceptors.response.use(
     }
 
     if (error.request) {
-      if (error.code === "ECONNABORTED") {
-        throw new Error(
-          "Request timeout. Server may be waking up (Render free tier)."
-        );
-      }
-
       throw new Error(
-        `Cannot connect to ${error.config?.baseURL}. Check internet or backend.`
+        "Cannot connect to server. Please check your internet connection."
       );
     }
 
@@ -89,51 +61,35 @@ api.interceptors.response.use(
 );
 
 /* ================= API CLIENT ================= */
-/**
- * ✔ Supports multipart/form-data
- * ✔ Supports custom headers
- * ✔ No TS errors
- * ✔ Backward compatible
- */
 
 export const apiClient = {
   get: <T = any>(
     endpoint: string,
     config?: AxiosRequestConfig
-  ): Promise<T> =>
-    api.get(endpoint, config).then((res) => res.data),
+  ): Promise<T> => api.get(endpoint, config).then((res) => res.data),
 
   post: <T = any>(
     endpoint: string,
     data?: any,
     config?: AxiosRequestConfig
-  ): Promise<T> =>
-    api.post(endpoint, data, config).then((res) => res.data),
+  ): Promise<T> => api.post(endpoint, data, config).then((res) => res.data),
 
   put: <T = any>(
     endpoint: string,
     data?: any,
     config?: AxiosRequestConfig
-  ): Promise<T> =>
-    api.put(endpoint, data, config).then((res) => res.data),
+  ): Promise<T> => api.put(endpoint, data, config).then((res) => res.data),
 
   patch: <T = any>(
     endpoint: string,
     data?: any,
     config?: AxiosRequestConfig
-  ): Promise<T> =>
-    api.patch(endpoint, data, config).then((res) => res.data),
+  ): Promise<T> => api.patch(endpoint, data, config).then((res) => res.data),
 
   delete: <T = any>(
     endpoint: string,
     config?: AxiosRequestConfig
-  ): Promise<T> =>
-    api.delete(endpoint, config).then((res) => res.data),
+  ): Promise<T> => api.delete(endpoint, config).then((res) => res.data),
 };
-
-/* ================= DEBUG ================= */
-
-export const getCurrentBaseURL = (): string =>
-  api.defaults.baseURL || "";
 
 export default api;
