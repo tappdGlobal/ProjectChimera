@@ -33,13 +33,23 @@ const wishlistedEvents = [
 interface WishlistedEventsProps {
   onEventSelect?: (event: any) => void;   // ✅ FIXED
   onExploreAllClick?: () => void;
+  searchQuery?: string;
 }
 
 export function WishlistedEvents({
   onEventSelect,
   onExploreAllClick,
+  searchQuery = "",
 }: WishlistedEventsProps) {
-  if (wishlistedEvents.length === 0) {
+  // Filter events based on search query
+  const filteredEvents = wishlistedEvents.filter(event =>
+    searchQuery === "" ||
+    event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    event.location.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Don't render if no results from search
+  if (filteredEvents.length === 0) {
     return null;
   }
 
@@ -54,7 +64,7 @@ export function WishlistedEvents({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {wishlistedEvents.map((event) => (
+        {filteredEvents.map((event) => (
           <EventCard
             key={event.id}
             event={event}

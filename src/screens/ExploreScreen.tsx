@@ -26,6 +26,7 @@ export function ExploreScreen() {
   const navigation = useNavigation<ExploreNavigationProp>();
 
   const [showExploreAll, setShowExploreAll] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   type ExploreTabKey = "explore" | "map" | "bookings";
   const [activeTab, setActiveTab] = useState<ExploreTabKey>("explore");
 
@@ -46,6 +47,10 @@ export function ExploreScreen() {
     navigation.navigate("EventDetail", { event });
   };
 
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+  };
+
 
   if (showExploreAll) {
     return (
@@ -61,9 +66,10 @@ export function ExploreScreen() {
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
         {/* HEADER */}
         <Header
-          onProfileClick={() => navigation.navigate(SCREEN_NAMES.PROFILE)}
-          onSettingsClick={() => navigation.navigate(SCREEN_NAMES.PROFILE)}
+          onProfileClick={() => navigation.getParent()?.navigate(SCREEN_NAMES.PROFILE)}
+          onSettingsClick={() => navigation.getParent()?.navigate(SCREEN_NAMES.PROFILE)}
           onNotificationClick={() => navigation.getParent()?.navigate(SCREEN_NAMES.NOTIFICATIONS)}
+          onSearchChange={handleSearchChange}
         />
 
         <View style={{ paddingHorizontal: Theme.spacing.m }}>
@@ -76,6 +82,7 @@ export function ExploreScreen() {
               onCategorySelect={handleCategorySelect}
               onEventSelect={handleEventSelect}   
               onExploreAllClick={handleExploreAllClick}
+              searchQuery={searchQuery}
             />
           )}
 
