@@ -30,7 +30,6 @@ export function Header({
 }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const name = useUserStore((state) => state.profile?.name);
-  console.log(name)
   const isUserLoading = useUserStore((state) => state.loading);
 
   const handleSearchChange = (text: string) => {
@@ -39,7 +38,7 @@ export function Header({
       onSearchChange(text);
     }
   };
-  
+
   return (
     <View style={styles.container}>
       {/* Welcome message */}

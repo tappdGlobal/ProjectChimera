@@ -55,3 +55,25 @@ export const getEventCategoriesApi = (): Promise<
 > => {
   return apiClient.get("/events/categories");
 };
+
+/* ================= EVENT API OBJECT ================= */
+
+export const eventApi = {
+  createEvent: (payload: CreateEventPayload) => createEventApi(payload),
+  getCategories: () => getEventCategoriesApi(),
+  getDraftEvents: (): Promise<any> => {
+    return apiClient.get("/events/drafts");
+  },
+  saveDraft: (payload: any): Promise<any> => {
+    return apiClient.post("/events/drafts", payload);
+  },
+  updateDraft: (draftId: string, payload: any): Promise<any> => {
+    return apiClient.put(`/events/drafts/${draftId}`, payload);
+  },
+  deleteDraft: (draftId: string): Promise<any> => {
+    return apiClient.delete(`/events/drafts/${draftId}`);
+  },
+  publishDraft: (draftId: string): Promise<any> => {
+    return apiClient.post(`/events/drafts/${draftId}/publish`);
+  },
+};

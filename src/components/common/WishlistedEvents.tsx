@@ -48,6 +48,7 @@ export function WishlistedEvents({
     event.location.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Don't render if no results from search
   if (filteredEvents.length === 0) {
     return null;
   }

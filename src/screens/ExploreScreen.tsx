@@ -3,8 +3,8 @@
 import React, { useState } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native"; // ✅ NEW
-import { NativeStackNavigationProp } from "@react-navigation/native-stack"; // ✅ NEW
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 import { ExploreAllScreen } from "./ExploreAllScreen";
 import { Header } from "../components/common/Header";
@@ -38,7 +38,6 @@ export function ExploreScreen() {
     setShowExploreAll(false);
   };
 
-
   const handleCategorySelect = (category: string) => {
     navigation.navigate("EventDiscovery", { category });
   };
@@ -46,7 +45,6 @@ export function ExploreScreen() {
   const handleEventSelect = (event: any) => {
     navigation.navigate("EventDetail", { event });
   };
-
 
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
@@ -66,8 +64,8 @@ export function ExploreScreen() {
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
         {/* HEADER */}
         <Header
-          onProfileClick={() => (navigation as any).navigate(SCREEN_NAMES.PROFILE)}
-          onSettingsClick={() => (navigation as any).navigate(SCREEN_NAMES.PROFILE)}
+          onProfileClick={() => navigation.getParent()?.navigate(SCREEN_NAMES.PROFILE)}
+          onSettingsClick={() => navigation.getParent()?.navigate(SCREEN_NAMES.PROFILE)}
           onNotificationClick={() => navigation.getParent()?.navigate(SCREEN_NAMES.NOTIFICATIONS)}
           onSearchChange={handleSearchChange}
         />
