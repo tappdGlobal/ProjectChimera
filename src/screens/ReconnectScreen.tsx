@@ -108,6 +108,7 @@ export function ReconnectScreen() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [modalTab, setModalTab] = useState<"about" | "photos">("about");
   const [hoverButton, setHoverButton] = useState<null | "friendRequests" | "crossedPaths" | "swipe" | "list">(null);
+  const [hoveredConnectButton, setHoveredConnectButton] = useState<string | null>(null);
 
   const renderGradientToggle = (
     id: "friendRequests" | "crossedPaths" | "swipe" | "list",
@@ -266,10 +267,27 @@ export function ReconnectScreen() {
                     <Text style={styles.viewButtonText}>View</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity style={styles.connectButton}>
-                    <UserPlus size={16} color="#FFFFFF" />
-                    <Text style={styles.connectButtonText}>Connect</Text>
-                  </TouchableOpacity>
+                  <Pressable
+                    style={styles.connectButton}
+                    onHoverIn={() => setHoveredConnectButton(user.id)}
+                    onHoverOut={() => setHoveredConnectButton(null)}
+                  >
+                    {({ pressed }) => (
+                      <LinearGradient
+                        colors={
+                          (pressed || hoveredConnectButton === user.id)
+                            ? (GRADIENT_COLORS.primaryHover as [string, string, ...string[]])
+                            : (GRADIENT_COLORS.primary as [string, string, ...string[]])
+                        }
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.connectButtonGradient}
+                      >
+                        <UserPlus size={16} color="#FFFFFF" />
+                        <Text style={styles.connectButtonText}>Connect</Text>
+                      </LinearGradient>
+                    )}
+                  </Pressable>
 
                   <TouchableOpacity style={styles.chatButton}>
                     <MessageCircle size={20} color="#FFFFFF" />
@@ -656,7 +674,7 @@ const styles = StyleSheet.create({
   },
   crossedPathCard: {
     flexDirection: "row",
-    backgroundColor: "rgba(169, 1, 109, 0.15)",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
@@ -740,15 +758,17 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   connectButton: {
+    flex: 1,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  connectButtonGradient: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: Theme.colors.primary,
     gap: 6,
-    flex: 1,
-    justifyContent: "center",
   },
   connectButtonText: {
     fontSize: 14,
