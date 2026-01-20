@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  Platform,
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,17 +18,18 @@ import {
   Trash2,
 } from "lucide-react-native";
 import { Theme } from "../styles/Theme";
-import { eventApi } from "../api";
 
 interface DraftEvent {
   id: string;
   title: string;
   description: string;
-  date: string; // e.g., "Mon, Jul 15 at 18:00"
+  date: string;
   location: string;
   capacity: string;
-  modifiedDate: string; // e.g., "Modified 15/06/2024"
+  modifiedDate: string;
 }
+
+/* ================= MOCK DATA ================= */
 
 const mockDrafts: DraftEvent[] = [
   {
@@ -56,7 +56,7 @@ const mockDrafts: DraftEvent[] = [
     id: "3",
     title: "Yoga & Wellness Retreat",
     description:
-      "A peaceful retreat focused on mindfulness, yoga, and holistic wellnes...",
+      "A peaceful retreat focused on mindfulness, yoga, and holistic wellness...",
     date: "Thu, Sep 5 at 07:00",
     location: "Seaside Wellness Resort",
     capacity: "Up to 50 people",
@@ -70,32 +70,17 @@ export const DraftsScreen = () => {
   const [drafts, setDrafts] = useState<DraftEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
+  /* ================= LOAD MOCK DATA ================= */
+
   useEffect(() => {
-    fetchDrafts();
+    // simulate loading
+    setTimeout(() => {
+      setDrafts(mockDrafts);
+      setLoading(false);
+    }, 500);
   }, []);
 
-  const fetchDrafts = async () => {
-    setLoading(true);
-    try {
-      const apiDrafts = await eventApi.getDraftEvents();
-
-      const mappedDrafts: DraftEvent[] = apiDrafts.map((d: any) => ({
-        id: d.id,
-        title: d.eventName,
-        description: d.description || "",
-        date: `${new Date(d.eventDate).toLocaleDateString()} at ${d.eventTime}`,
-        location: d.location,
-        capacity: `Up to ${d.maxCapacity} people`,
-        modifiedDate: `Modified ${new Date(d.updatedAt).toLocaleDateString()}`,
-      }));
-
-      setDrafts(mappedDrafts);
-    } catch (error) {
-      console.error("Error fetching drafts:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  /* ================= HANDLERS ================= */
 
   const handleEdit = (id: string) => {
     const draft = drafts.find((d) => d.id === id);
@@ -104,18 +89,15 @@ export const DraftsScreen = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    try {
-      await eventApi.deleteDraft(id);
-      fetchDrafts();
-    } catch (error) {
-      console.error("Error deleting draft:", error);
-    }
+  const handleDelete = (id: string) => {
+    setDrafts((prev) => prev.filter((d) => d.id !== id));
   };
+
+  /* ================= RENDER ITEM ================= */
 
   const renderDraftItem = ({ item }: { item: DraftEvent }) => (
     <View style={styles.card}>
-      {/* Header: Title + Badge */}
+      {/* Header */}
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle}>{item.title}</Text>
         <View style={styles.draftBadge}>
@@ -125,37 +107,25 @@ export const DraftsScreen = () => {
 
       <Text style={styles.cardDescription}>{item.description}</Text>
 
-      {/* Details (Date, Location, Capacity) */}
+      {/* Details */}
       <View style={styles.detailsContainer}>
         <View style={styles.detailRow}>
-          <Calendar
-            size={16}
-            color={Theme.colors.mutedForeground}
-            style={styles.icon}
-          />
+          <Calendar size={16} color={Theme.colors.mutedForeground} />
           <Text style={styles.detailText}>{item.date}</Text>
         </View>
         <View style={styles.detailRow}>
-          <MapPin
-            size={16}
-            color={Theme.colors.mutedForeground}
-            style={styles.icon}
-          />
+          <MapPin size={16} color={Theme.colors.mutedForeground} />
           <Text style={styles.detailText}>{item.location}</Text>
         </View>
         <View style={styles.detailRow}>
-          <Users
-            size={16}
-            color={Theme.colors.mutedForeground}
-            style={styles.icon}
-          />
+          <Users size={16} color={Theme.colors.mutedForeground} />
           <Text style={styles.detailText}>{item.capacity}</Text>
         </View>
       </View>
 
       <View style={styles.divider} />
 
-      {/* Footer: Modified Date + Actions */}
+      {/* Footer */}
       <View style={styles.cardFooter}>
         <Text style={styles.modifiedText}>{item.modifiedDate}</Text>
         <View style={styles.actionsContainer}>
@@ -207,6 +177,7 @@ export const DraftsScreen = () => {
     </SafeAreaView>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
