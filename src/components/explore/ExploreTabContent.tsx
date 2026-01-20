@@ -10,12 +10,14 @@ interface ExploreTabContentProps {
   onCategorySelect?: (category: string) => void;
   onEventSelect?: (event: any) => void;
   onExploreAllClick?: () => void;
+  searchQuery?: string;
 }
 
 export function ExploreTabContent({
   onCategorySelect,
   onEventSelect,
   onExploreAllClick,
+  searchQuery = "",
 }: ExploreTabContentProps) {
   return (
     <View style={styles.container}>
@@ -27,16 +29,19 @@ export function ExploreTabContent({
       <RecommendedEvents
         onEventSelect={onEventSelect}        
         onExploreAllClick={onExploreAllClick}
+        searchQuery={searchQuery}
       />
 
       <TrendingEvents
         onEventSelect={onEventSelect}        
         onExploreAllClick={onExploreAllClick}
+        searchQuery={searchQuery}
       />
 
       <WishlistedEvents
         onEventSelect={onEventSelect}        
         onExploreAllClick={onExploreAllClick}
+        searchQuery={searchQuery}
       />
     </View>
   );

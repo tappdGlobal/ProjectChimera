@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { useAuthStore } from "../store/authStore";
 import { useUserStore } from "../store/userStore";
+import { User } from "../types/authTypes";
 import { AuthStack } from "./AuthStack";
 import AppNavigator from "./AppNavigator";
 import { SplashScreen } from "../screens/SplashScreen";
@@ -16,43 +17,39 @@ const DEFAULT_TEST_USER: User = {
   bio: 'This is a test profile',
   occupation: 'Developer',
   education: 'Computer Science',
-  lookingFor: 'Friends & Events',
+  lookingFor: 'FRIENDSHIP',
   age: 25,
   height: 175,
-  gender: 'Other',
+  gender: 'OTHER',
   location: 'New York, NY',
   interests: ['Technology', 'Music', 'Sports'],
-  smoking: 'Never',
-  drinking: 'Socially',
+  smoking: 'NO',
+  drinking: 'SOCIALLY',
   profilePicUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=face&fit=crop&w=400&h=400',
-  avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=face&fit=crop&w=400&h=400',
   photos: [
     'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=face&fit=crop&w=400&h=400',
   ],
   locationVisibility: true,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
-  settings: {
-    notifications: true,
-    privacy: false,
-  },
 };
 
 export const RootNavigator = () => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isHydrated = useAuthStore((s) => s.isHydrated);
+  const user = useAuthStore((s) => s.user);
   
   useEffect(() => {
     useAuthStore.getState().hydrateAuth();
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      useUserStore.getState().fetchUser();
+    if (isAuthenticated && user?.id) {
+      useUserStore.getState().fetchUser(user.id);
     } else {
       useUserStore.getState().clearUser();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
 
   if (!isHydrated) {
     return <SplashScreen />;
@@ -60,7 +57,8 @@ export const RootNavigator = () => {
 
   return (
     <NavigationContainer linking={linking as any}>
-      {isAuthenticated ? <AppNavigator /> : <AuthStack />}
+      {/* Temporarily bypassing auth to show Explore directly */}
+      <AppNavigator />
     </NavigationContainer>
   );
 };
