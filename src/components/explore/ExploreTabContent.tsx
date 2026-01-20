@@ -27,19 +27,19 @@ export function ExploreTabContent({
       />
 
       <RecommendedEvents
-        onEventSelect={onEventSelect}        
+        onEventSelect={onEventSelect}
         onExploreAllClick={onExploreAllClick}
         searchQuery={searchQuery}
       />
 
       <TrendingEvents
-        onEventSelect={onEventSelect}        
+        onEventSelect={onEventSelect}
         onExploreAllClick={onExploreAllClick}
         searchQuery={searchQuery}
       />
 
       <WishlistedEvents
-        onEventSelect={onEventSelect}        
+        onEventSelect={onEventSelect}
         onExploreAllClick={onExploreAllClick}
         searchQuery={searchQuery}
       />

@@ -3,8 +3,8 @@
 import React, { useState } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native"; // ✅ NEW
-import { NativeStackNavigationProp } from "@react-navigation/native-stack"; // ✅ NEW
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 import { ExploreAllScreen } from "./ExploreAllScreen";
 import { Header } from "../components/common/Header";
@@ -38,7 +38,6 @@ export function ExploreScreen() {
     setShowExploreAll(false);
   };
 
-
   const handleCategorySelect = (category: string) => {
     navigation.navigate("EventDiscovery", { category });
   };
@@ -50,7 +49,6 @@ export function ExploreScreen() {
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
   };
-
 
   if (showExploreAll) {
     return (
@@ -80,12 +78,12 @@ export function ExploreScreen() {
           {activeTab === "explore" && (
             <ExploreTabContent
               onCategorySelect={handleCategorySelect}
-              onEventSelect={handleEventSelect}   
+              onEventSelect={handleEventSelect}
               onExploreAllClick={handleExploreAllClick}
               searchQuery={searchQuery}
             />
           )}
-
+          
 
           {activeTab === "map" && <MapTabContent />}
 

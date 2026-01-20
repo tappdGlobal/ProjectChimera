@@ -31,7 +31,7 @@ const wishlistedEvents = [
 ];
 
 interface WishlistedEventsProps {
-  onEventSelect?: (event: any) => void;   // ✅ FIXED
+  onEventSelect?: (event: any) => void;
   onExploreAllClick?: () => void;
   searchQuery?: string;
 }

@@ -19,15 +19,17 @@ interface AuthState {
   isAuthenticated: boolean;
   isHydrated: boolean;
 
-  signup: (data: SignupPayload) => Promise<void>;
+  signup: (data: any) => Promise<void>;
   signin: (data: SigninPayload) => Promise<void>;
+  login: (data: SigninPayload) => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (data: ResetPasswordPayload) => Promise<void>;
   logout: () => Promise<void>;
   hydrateAuth: () => Promise<void>;
+  clearError: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: null,
   loading: false,
@@ -66,12 +68,17 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       set({
         token: res.data?.token ?? null,
+        user: (res.data as any)?.user ?? null,
         isAuthenticated: !!res.data?.token,
         loading: false,
       });
     } catch (err: any) {
       set({ loading: false, error: err.message });
     }
+  },
+
+  login: async (data) => {
+    return get().signin(data);
   },
 
   forgotPassword: async (email) => {
@@ -112,4 +119,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ isHydrated: true });
     }
   },
+
+  clearError: () => set({ error: null }),
 }));

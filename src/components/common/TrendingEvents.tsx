@@ -29,7 +29,7 @@ const trendingEvents = [
 ];
 
 interface TrendingEventsProps {
-  onEventSelect?: (event: any) => void;   // ✅ FIXED
+  onEventSelect?: (event: any) => void;
   onExploreAllClick?: () => void;
   searchQuery?: string;
 }
