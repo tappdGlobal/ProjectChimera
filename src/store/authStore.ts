@@ -8,6 +8,8 @@ import {
   SignupPayload,
   SigninPayload,
   ResetPasswordPayload,
+  verifyEmailApi,
+  VerifyEmailPayload,
 } from "../api/authApi";
 import { User } from "../types/authTypes";
 
@@ -65,6 +67,7 @@ interface AuthState {
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (data: ResetPasswordPayload) => Promise<void>;
   logout: () => Promise<void>;
+  verifyEmail: (data: VerifyEmailPayload) => Promise<void>;
   hydrateAuth: () => Promise<void>;
   clearError: () => void;
 }
@@ -97,6 +100,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
     } catch (err: any) {
       set({ loading: false, error: err.message || "Signup failed" });
+      throw err;
+    }
+  },
+
+  verifyEmail: async (data) => {
+    try {
+      set({ loading: true, error: null });
+      const res = await verifyEmailApi(data);
+
+      if (res.data?.token) {
+        await AsyncStorage.setItem("token", res.data.token);
+        if (res.data?.user) {
+          await AsyncStorage.setItem("user", JSON.stringify(res.data.user));
+        }
+      }
+
+      set({
+        user: res.data?.user ?? null,
+        token: res.data?.token ?? null,
+        isAuthenticated: !!res.data?.token,
+        loading: false,
+      });
+    } catch (err: any) {
+      set({ loading: false, error: err.message || "Verification failed" });
       throw err;
     }
   },

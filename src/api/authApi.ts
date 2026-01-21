@@ -51,3 +51,16 @@ export const resetPasswordApi = (
 ): Promise<ApiResponse<null>> => {
   return apiClient.post("/auth/reset-password", payload);
 };
+
+/* ================= VERIFY EMAIL ================= */
+
+export interface VerifyEmailPayload {
+  email: string;
+  otp: string;
+}
+
+export const verifyEmailApi = (
+  payload: VerifyEmailPayload
+): Promise<ApiResponse<{ user: User; token: string }>> => {
+  return apiClient.post("/auth/verify-email", payload);
+};
