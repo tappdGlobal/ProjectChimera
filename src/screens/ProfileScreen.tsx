@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useRoute } from "@react-navigation/native";
 import {
   View,
   Text,
@@ -137,12 +138,25 @@ export function ProfileScreen() {
     }
   }, [authUser, profile]);
   const [activeTab, setActiveTab] = useState("about");
+  const route = useRoute<any>();
+
+  React.useEffect(() => {
+  if (route.params?.initialTab === "settings") {
+    setActiveTab("settings");
+  } else {
+    setActiveTab("about");
+  }
+}, [route.params?.initialTab]);
+
   const [showSettings, setShowSettings] = useState(false);
   const [showOnlineStatus, setShowOnlineStatus] = useState(false);
   const [connectionFilter, setConnectionFilter] = useState<
     "all" | "friends" | "matches" | "business"
   >("all");
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [tempProfileImage, setTempProfileImage] = useState<string | null>(null);
+  const [showProfileImageConfirm, setShowProfileImageConfirm] = useState(false);
+
   // Use user avatar or profilePicUrl, fallback to a default placeholder instead of mock photos
   const defaultAvatar = "https://via.placeholder.com/400x400?text=No+Photo";
   const [profileImage, setProfileImage] = useState(
@@ -253,9 +267,10 @@ export function ProfileScreen() {
       if (!result.canceled) {
         const uri = result.assets[0].uri;
 
-        if (isProfile) {
-          setProfileImage(uri);
-        } else {
+          if (isProfile) {
+            setTempProfileImage(uri);
+            setShowProfileImageConfirm(true);
+          } else {
           if (user?.id) {
             await uploadPhotos(user.id, [
               {
@@ -493,6 +508,59 @@ export function ProfileScreen() {
     </Dialog>
   );
 
+  const ProfilePhotoConfirmDialog = () => (
+  <Dialog
+    open={showProfileImageConfirm}
+    onOpenChange={setShowProfileImageConfirm}
+  >
+    <DialogContent style={{ width: "90%" }}>
+      <DialogHeader>
+        <DialogTitle>Set Profile Photo</DialogTitle>
+        <DialogDescription>
+          Do you want to use this photo as your profile picture?
+        </DialogDescription>
+      </DialogHeader>
+
+      {tempProfileImage && (
+        <Image
+          source={{ uri: tempProfileImage }}
+          style={{
+            width: "100%",
+            height: 300,
+            borderRadius: 12,
+            marginVertical: 16,
+          }}
+        />
+      )}
+
+      <View style={{ flexDirection: "row", gap: 12 }}>
+        <Button
+          variant="outline"
+          style={{ flex: 1 }}
+          onClick={() => {
+            setTempProfileImage(null);
+            setShowProfileImageConfirm(false);
+          }}
+        >
+          Cancel
+        </Button>
+
+        <Button
+          style={{ flex: 1 }}
+          onClick={() => {
+            setProfileImage(tempProfileImage!);
+            setTempProfileImage(null);
+            setShowProfileImageConfirm(false);
+          }}
+        >
+          Set Photo
+        </Button>
+      </View>
+    </DialogContent>
+  </Dialog>
+);
+
+
   // --- MAIN RENDER ---
   return (
     <SafeAreaView style={styles.flex1} edges={["left", "right"]}>
@@ -616,15 +684,18 @@ export function ProfileScreen() {
               </View>
 
               {/* Edit Details Button - Full Width Below Tabs */}
+              {activeTab === "about" && (
               <View style={styles.editButtonFullWidthContainer}>
                 <TouchableOpacity
                   style={styles.editButtonFullWidth}
                   onPress={() => navigation.navigate(SCREEN_NAMES.EDIT_PROFILE)}
                 >
-                  <Edit size={20} color="#FFFFFF" style={styles.editIcon} />
+                  <Edit size={20} color="#FFFFFF" />
                   <Text style={styles.editButtonTextLarge}>Edit Details</Text>
                 </TouchableOpacity>
               </View>
+            )}
+
 
               {/* Tab Contents */}
               {activeTab === "about" && (
@@ -1248,6 +1319,7 @@ export function ProfileScreen() {
       </View>
       <SettingsDialog />
       <PhotoDialog />
+      <ProfilePhotoConfirmDialog />
       <TappdBandPopup
         visible={showTappdBandPopup}
         onClose={() => setShowTappdBandPopup(false)}

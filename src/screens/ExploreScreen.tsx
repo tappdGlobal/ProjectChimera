@@ -65,7 +65,11 @@ export function ExploreScreen() {
         {/* HEADER */}
         <Header
           onProfileClick={() => navigation.getParent()?.navigate(SCREEN_NAMES.PROFILE)}
-          onSettingsClick={() => navigation.getParent()?.navigate(SCREEN_NAMES.PROFILE)}
+          onSettingsClick={() =>
+          navigation.getParent()?.navigate(SCREEN_NAMES.PROFILE, {
+            initialTab: "settings",
+          })
+          }
           onNotificationClick={() => navigation.getParent()?.navigate(SCREEN_NAMES.NOTIFICATIONS)}
           onSearchChange={handleSearchChange}
         />
