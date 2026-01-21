@@ -1,4 +1,5 @@
 import { RootNavigator } from "./src/navigation/RootNavigator";
+import { PostHogProvider } from "posthog-react-native";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import { databaseService } from "./src/services/databaseService";
@@ -39,10 +40,17 @@ export default function App() {
   }
 
   return (
-    <ErrorBoundary>
-      <RootNavigator />
-      <StatusBar style="light" />
-    </ErrorBoundary>
+    <PostHogProvider
+      apiKey="phc_Kexzarq1CiAG9MNk22SfBZEKz4fwkjcHb3Fn2irxXT8"
+      options={{
+        host: "https://us.i.posthog.com",
+      }}
+    >
+      <ErrorBoundary>
+        <RootNavigator />
+        <StatusBar style="light" />
+      </ErrorBoundary>
+    </PostHogProvider>
   );
 }
 

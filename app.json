@@ -48,6 +48,9 @@
         "projectId": "55ef048c-5403-48f8-ac6b-f5a420c15155"
       }
     },
-    "owner": "amitverma1130"
+    "owner": "amitverma1130",
+    "plugins": [
+      "expo-localization"
+    ]
   }
 }
