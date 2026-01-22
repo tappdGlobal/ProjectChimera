@@ -40,17 +40,10 @@ export default function App() {
   }
 
   return (
-    <PostHogProvider
-      apiKey="phc_Kexzarq1CiAG9MNk22SfBZEKz4fwkjcHb3Fn2irxXT8"
-      options={{
-        host: "https://us.i.posthog.com",
-      }}
-    >
-      <ErrorBoundary>
-        <RootNavigator />
-        <StatusBar style="light" />
-      </ErrorBoundary>
-    </PostHogProvider>
+    <ErrorBoundary>
+      <RootNavigator />
+      <StatusBar style="light" />
+    </ErrorBoundary>
   );
 }
 

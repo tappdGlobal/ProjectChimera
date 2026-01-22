@@ -17,12 +17,12 @@ import { Theme } from "../../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
 import { QrCode, Smartphone, Watch, Camera, X } from "lucide-react-native";
 
-if (
-  Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+// if (
+//   Platform.OS === "android" &&
+//   UIManager.setLayoutAnimationEnabledExperimental
+// ) {
+//   UIManager.setLayoutAnimationEnabledExperimental(true);
+// }
 
 const ConnectionCard = ({
   icon: Icon,
