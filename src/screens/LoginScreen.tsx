@@ -16,13 +16,25 @@ import { useAuthStore } from "../store/authStore";
 import { LinearGradient } from "expo-linear-gradient";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react-native";
 import { SCREEN_NAMES } from "../navigation/Routes";
+import {
+  GoogleSignin,
+  GoogleSigninButton,
+  statusCodes,
+} from "@react-native-google-signin/google-signin";
+
+// Configure Google Sign-In
+GoogleSignin.configure({
+  webClientId:
+    "931740229699-3m651s5etkhke6bh3i7kba0ij1irq48g.apps.googleusercontent.com",
+  offlineAccess: false,
+});
 
 export const LoginScreen = ({ navigation }: any) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const { signin, loading, error } = useAuthStore();
+  const { signin, googleSignin, loading, error } = useAuthStore();
 
   useEffect(() => {
     if (error) {
@@ -47,6 +59,46 @@ export const LoginScreen = ({ navigation }: any) => {
         },
       ],
     });
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await GoogleSignin.hasPlayServices();
+      const response = await GoogleSignin.signIn();
+
+      if (response.type === "success") {
+        const { data } = response;
+
+        // Send idToken to backend
+        await googleSignin({ idToken: data.idToken || "" });
+
+        // Navigate to main screen on success
+        navigation.reset({
+          index: 0,
+          routes: [
+            {
+              name: SCREEN_NAMES.MAIN_TABS,
+              params: { screen: SCREEN_NAMES.ENGAGE },
+            },
+          ],
+        });
+      } else {
+        // User cancelled the sign-in
+        console.log("Google Sign-In cancelled");
+      }
+    } catch (error: any) {
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        // User cancelled the login flow
+        console.log("User cancelled Google Sign-In");
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        // Operation already in progress
+        Alert.alert("Error", "Sign-in already in progress");
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        Alert.alert("Error", "Google Play Services not available");
+      } else {
+        Alert.alert("Google Sign-In Failed", error.message || "Unknown error");
+      }
+    }
   };
 
   return (
@@ -120,24 +172,41 @@ export const LoginScreen = ({ navigation }: any) => {
               </TouchableOpacity>
 
               <TouchableOpacity
-  style={styles.signInButton}
-  onPress={handleLogin}
-  disabled={loading}
->
-  <LinearGradient
-    colors={["#C026D3", "#DB2777"]}
-    start={{ x: 0, y: 0 }}
-    end={{ x: 1, y: 0 }}
-    style={styles.signInGradient}
-  >
-    {loading ? (
-      <ActivityIndicator size="small" color="#FFFFFF" />
-    ) : (
-      <Text style={styles.signInButtonText}>Sign In</Text>
-    )}
-  </LinearGradient>
-</TouchableOpacity>
+                style={styles.signInButton}
+                onPress={handleLogin}
+                disabled={loading}
+              >
+                <LinearGradient
+                  colors={["#C026D3", "#DB2777"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.signInGradient}
+                >
+                  {loading ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.signInButtonText}>Sign In</Text>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
 
+              {/* Divider */}
+              <View style={styles.dividerContainer}>
+                <View style={styles.divider} />
+                <Text style={styles.dividerText}>OR</Text>
+                <View style={styles.divider} />
+              </View>
+
+              {/* Google Sign-In Button */}
+              <TouchableOpacity
+                style={styles.googleButton}
+                onPress={handleGoogleSignIn}
+                disabled={loading}
+              >
+                <Text style={styles.googleButtonText}>
+                  Continue with Google
+                </Text>
+              </TouchableOpacity>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -145,7 +214,6 @@ export const LoginScreen = ({ navigation }: any) => {
     </LinearGradient>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: {
@@ -248,5 +316,33 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 24,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  dividerText: {
+    color: "rgba(255,255,255,0.4)",
+    fontSize: 14,
+    marginHorizontal: 16,
+  },
+  googleButton: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 28,
+    paddingVertical: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
+  },
+  googleButtonText: {
+    color: "#1A1A3F",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

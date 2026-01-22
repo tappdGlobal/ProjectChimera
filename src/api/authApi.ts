@@ -64,3 +64,15 @@ export const verifyEmailApi = (
 ): Promise<ApiResponse<{ user: User; token: string }>> => {
   return apiClient.post("/auth/verify-email", payload);
 };
+
+/* ================= GOOGLE SIGN IN ================= */
+
+export interface GoogleSigninPayload {
+  idToken: string;
+}
+
+export const googleSigninApi = (
+  payload: GoogleSigninPayload
+): Promise<ApiResponse<{ user: User; token: string }>> => {
+  return apiClient.post("/auth/google-signin", payload);
+};

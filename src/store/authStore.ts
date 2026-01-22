@@ -10,6 +10,8 @@ import {
   ResetPasswordPayload,
   verifyEmailApi,
   VerifyEmailPayload,
+  googleSigninApi,
+  GoogleSigninPayload,
 } from "../api/authApi";
 import { User } from "../types/authTypes";
 
@@ -68,6 +70,7 @@ interface AuthState {
   resetPassword: (data: ResetPasswordPayload) => Promise<void>;
   logout: () => Promise<void>;
   verifyEmail: (data: VerifyEmailPayload) => Promise<void>;
+  googleSignin: (data: GoogleSigninPayload) => Promise<void>;
   hydrateAuth: () => Promise<void>;
   clearError: () => void;
 }
@@ -185,6 +188,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await AsyncStorage.removeItem("token");
     await AsyncStorage.removeItem("user");
     set({ user: null, token: null, isAuthenticated: false, error: null });
+  },
+
+  googleSignin: async (data) => {
+    try {
+      set({ loading: true, error: null });
+
+      const res = await googleSigninApi(data);
+
+      if (res.data?.token) {
+        await AsyncStorage.setItem("token", res.data.token);
+        if (res.data?.user) {
+          await AsyncStorage.setItem("user", JSON.stringify(res.data.user));
+        }
+      }
+
+      set({
+        user: res.data?.user ?? null,
+        token: res.data?.token ?? null,
+        isAuthenticated: !!res.data?.token,
+        loading: false,
+      });
+    } catch (err: any) {
+      set({ loading: false, error: err.message || "Google sign-in failed" });
+      throw err;
+    }
   },
 
   hydrateAuth: async () => {
