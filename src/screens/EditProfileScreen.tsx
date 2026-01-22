@@ -23,72 +23,74 @@ import { useAnalytics } from "../hooks/useAnalytics";
 const { width, height } = Dimensions.get("window");
 
 export const EditProfileScreen = ({ navigation }: any) => {
-  const { user, updateUser } = useUserStore();
-  useAnalytics("EditProfileScreen", { user_id: user?.id });
-  const [bio, setBio] = useState(user?.bio || "");
-  const [occupation, setOccupation] = useState(user?.occupation || "");
-  const [education, setEducation] = useState(user?.education || "");
+  const { profile, updateUser } = useUserStore();
+  useAnalytics("EditProfileScreen", { user_id: profile?.id });
+  const [bio, setBio] = useState(profile?.bio || "");
+  const [occupation, setOccupation] = useState(profile?.occupation || "");
+  const [education, setEducation] = useState(profile?.education || "");
   const [lookingForTags, setLookingForTags] = useState<string[]>(
-    typeof user?.lookingFor === "string"
-      ? user.lookingFor
+    typeof profile?.lookingFor === "string"
+      ? profile.lookingFor
           .split(",")
-          .map((s) => s.trim())
+          .map((s: string) => s.trim())
           .filter(Boolean)
-      : Array.isArray(user?.lookingFor)
-        ? user.lookingFor
+      : Array.isArray(profile?.lookingFor)
+        ? profile.lookingFor
         : [],
   );
   const [newLookingFor, setNewLookingFor] = useState("");
-  const [age, setAge] = useState(user?.age?.toString() || "");
+  const [age, setAge] = useState(profile?.age?.toString() || "");
   const [height, setHeight] = useState(
-    user?.height
-      ? typeof user.height === "number" &&
-        user.height >= 30 &&
-        user.height <= 300
-        ? `${Math.floor(user.height / 30.48)}'${Math.round((user.height % 30.48) / 2.54)}"`
-        : user.height.toString()
+    profile?.height
+      ? typeof profile.height === "number" &&
+        profile.height >= 30 &&
+        profile.height <= 300
+        ? `${Math.floor(profile.height / 30.48)}'${Math.round((profile.height % 30.48) / 2.54)}"`
+        : profile.height.toString()
       : "",
   );
-  const [gender, setGender] = useState(user?.gender || "");
-  const [location, setLocation] = useState(user?.location || "");
-  const [interests, setInterests] = useState<string[]>(user?.interests || []);
+  const [gender, setGender] = useState(profile?.gender || "");
+  const [location, setLocation] = useState(profile?.location || "");
+  const [interests, setInterests] = useState<string[]>(
+    profile?.interests || [],
+  );
   const [newInterest, setNewInterest] = useState("");
-  const [smoking, setSmoking] = useState(user?.smoking || "No");
-  const [drinking, setDrinking] = useState(user?.drinking || "Socially");
+  const [smoking, setSmoking] = useState(profile?.smoking || "No");
+  const [drinking, setDrinking] = useState(profile?.drinking || "Socially");
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      setBio(user.bio || "");
-      setOccupation(user.occupation || "");
-      setEducation(user.education || "");
+    if (profile) {
+      setBio(profile.bio || "");
+      setOccupation(profile.occupation || "");
+      setEducation(profile.education || "");
       setLookingForTags(
-        typeof user.lookingFor === "string"
-          ? user.lookingFor
+        typeof profile.lookingFor === "string"
+          ? profile.lookingFor
               .split(",")
-              .map((s) => s.trim())
+              .map((s: string) => s.trim())
               .filter(Boolean)
-          : Array.isArray(user.lookingFor)
-            ? user.lookingFor
+          : Array.isArray(profile.lookingFor)
+            ? profile.lookingFor
             : [],
       );
-      setAge(user.age?.toString() || "");
+      setAge(profile.age?.toString() || "");
       setHeight(
-        user.height
-          ? typeof user.height === "number" &&
-            user.height >= 30 &&
-            user.height <= 300
-            ? `${Math.floor(user.height / 30.48)}'${Math.round((user.height % 30.48) / 2.54)}"`
-            : user.height.toString()
+        profile.height
+          ? typeof profile.height === "number" &&
+            profile.height >= 30 &&
+            profile.height <= 300
+            ? `${Math.floor(profile.height / 30.48)}'${Math.round((profile.height % 30.48) / 2.54)}"`
+            : profile.height.toString()
           : "",
       );
-      setGender(user.gender || "");
-      setLocation(user.location || "");
-      setInterests(user.interests || []);
-      setSmoking(user.smoking || "No");
-      setDrinking(user.drinking || "Socially");
+      setGender(profile.gender || "");
+      setLocation(profile.location || "");
+      setInterests(profile.interests || []);
+      setSmoking(profile.smoking || "No");
+      setDrinking(profile.drinking || "Socially");
     }
-  }, [user]);
+  }, [profile]);
 
   const handleSave = async () => {
     setIsLoading(true);
@@ -119,7 +121,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
         drinking,
       };
 
-      await updateUser(updatedUser);
+      await updateUser(profile!.id, updatedUser);
       navigation.goBack();
     } catch (error) {
       console.error("Failed to update profile", error);

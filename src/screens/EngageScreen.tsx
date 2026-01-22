@@ -65,12 +65,11 @@ export function EngageScreen() {
                   variant={activeSection === item.id ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setActiveSection(item.id)}
-                  style={[
-                    styles.menuButton,
+                  style={
                     activeSection === item.id
-                      ? styles.menuButtonActive
-                      : undefined,
-                  ]}
+                      ? [styles.menuButton, styles.menuButtonActive]
+                      : styles.menuButton
+                  }
                   textStyle={
                     activeSection === item.id
                       ? styles.menuButtonTextActive

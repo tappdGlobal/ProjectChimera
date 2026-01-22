@@ -96,7 +96,7 @@ export const ProfileCreationScreen = () => {
   // Step 6 State
   const [verificationCode, setVerificationCode] = useState("");
 
-  const { signup, verifyEmail, isLoading, error, clearError } = useAuthStore();
+  const { signup, verifyEmail, loading, error, clearError } = useAuthStore();
 
   useEffect(() => {
     if (error) {
@@ -250,11 +250,11 @@ export const ProfileCreationScreen = () => {
 
           // Navigate to Engage screen after a short delay
           setTimeout(() => {
-            navigation.reset({
+            (navigation as any).reset({
               index: 0,
               routes: [
                 {
-                  name: SCREEN_NAMES.MAIN_TABS,
+                  name: SCREEN_NAMES.MAIN_TABS as any,
                   params: { screen: SCREEN_NAMES.ENGAGE },
                 },
               ],
@@ -740,8 +740,8 @@ export const ProfileCreationScreen = () => {
           <View style={styles.footer}>
             <TouchableOpacity
               onPress={handleNext}
-              style={[styles.nextButton, isLoading && { opacity: 0.7 }]}
-              disabled={isLoading}
+              style={[styles.nextButton, loading && { opacity: 0.7 }]}
+              disabled={loading}
             >
               <LinearGradient
                 colors={["#C026D3", "#DB2777"]}
