@@ -16,6 +16,7 @@ import { useAuthStore } from "../store/authStore";
 import { LinearGradient } from "expo-linear-gradient";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react-native";
 import { SCREEN_NAMES } from "../navigation/Routes";
+import { useAnalytics } from "../hooks/useAnalytics";
 import {
   GoogleSignin,
   GoogleSigninButton,
@@ -35,6 +36,8 @@ export const LoginScreen = ({ navigation }: any) => {
   const [showPassword, setShowPassword] = useState(false);
 
   const { signin, googleSignin, loading, error } = useAuthStore();
+  const { trackEvent, trackButtonClick, trackFormSubmit, identifyUser } =
+    useAnalytics("LoginScreen");
 
   useEffect(() => {
     if (error) {
@@ -45,23 +48,43 @@ export const LoginScreen = ({ navigation }: any) => {
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert("Error", "Please fill in all fields");
+      trackFormSubmit("email_password_login", false, "Missing fields");
       return;
     }
 
-    await signin({ email, password });
+    try {
+      await signin({ email, password });
 
-    navigation.reset({
-      index: 0,
-      routes: [
-        {
-          name: SCREEN_NAMES.MAIN_TABS,
-          params: { screen: SCREEN_NAMES.ENGAGE },
-        },
-      ],
-    });
+      // Identify user in PostHog
+      const user = useAuthStore.getState().user;
+      if (user) {
+        identifyUser(user.id, {
+          email: user.email,
+          name: user.name,
+          username: user.username,
+        });
+      }
+
+      trackFormSubmit("email_password_login", true);
+      trackEvent("user_login", { method: "email" });
+
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: SCREEN_NAMES.MAIN_TABS,
+            params: { screen: SCREEN_NAMES.ENGAGE },
+          },
+        ],
+      });
+    } catch (err: any) {
+      trackFormSubmit("email_password_login", false, err.message);
+    }
   };
 
   const handleGoogleSignIn = async () => {
+    trackButtonClick("Continue with Google");
+
     try {
       await GoogleSignin.hasPlayServices();
       const response = await GoogleSignin.signIn();
@@ -71,6 +94,18 @@ export const LoginScreen = ({ navigation }: any) => {
 
         // Send idToken to backend
         await googleSignin({ idToken: data.idToken || "" });
+
+        // Identify user in PostHog
+        const user = useAuthStore.getState().user;
+        if (user) {
+          identifyUser(user.id, {
+            email: user.email,
+            name: user.name,
+            username: user.username,
+          });
+        }
+
+        trackEvent("user_login", { method: "google" });
 
         // Navigate to main screen on success
         navigation.reset({
@@ -84,9 +119,15 @@ export const LoginScreen = ({ navigation }: any) => {
         });
       } else {
         // User cancelled the sign-in
+        trackEvent("google_signin_cancelled");
         console.log("Google Sign-In cancelled");
       }
     } catch (error: any) {
+      trackEvent("google_signin_error", {
+        error_code: error.code,
+        error_message: error.message,
+      });
+
       if (error.code === statusCodes.SIGN_IN_CANCELLED) {
         // User cancelled the login flow
         console.log("User cancelled Google Sign-In");
@@ -106,7 +147,10 @@ export const LoginScreen = ({ navigation }: any) => {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
           <TouchableOpacity
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              trackButtonClick("Back");
+              navigation.goBack();
+            }}
             style={styles.backButton}
           >
             <ArrowLeft color="#FFFFFF" size={24} />

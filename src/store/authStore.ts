@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { PostHog } from "posthog-react-native";
 import {
   signupApi,
   signinApi,

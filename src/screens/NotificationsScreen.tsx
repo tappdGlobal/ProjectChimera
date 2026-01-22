@@ -33,6 +33,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "../components/ui/Collapsible";
+import { useAnalytics } from "../hooks/useAnalytics";
 
 // --- TYPES & MOCK DATA ---
 
@@ -254,6 +255,7 @@ const mockNotificationsData = {
 
 export function NotificationsScreen() {
   const navigation = useNavigation();
+  useAnalytics("NotificationsScreen");
   const [notifications, setNotifications] = useState(mockNotificationsData);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     events: true,

@@ -73,29 +73,28 @@ import { PublishedEventsScreen } from "./PublishedEventsScreen";
 import { SCREEN_NAMES } from "../navigation/Routes";
 import { DraftsScreen } from "./DraftsScreen";
 import { StatusBar } from "expo-status-bar";
+import { useAnalytics } from "../hooks/useAnalytics";
 const SERVICE_CHARGE_PERCENT = 20;
 
 interface TicketType {
   id: string;
-  name: string;           // UI name
+  name: string; // UI name
   price: number;
-  quantityTotal: number;  // REQUIRED by backend
+  quantityTotal: number; // REQUIRED by backend
 }
-
-
 
 interface EventForm {
   name: string;
   genre: string;
   category: string;
-  date: string;          // UI: dd-mm-yyyy
-  time: string;          // HH:mm
+  date: string; // UI: dd-mm-yyyy
+  time: string; // HH:mm
   location: string;
 
-  address: string;       // ✅ NEW
-  city: string;          // ✅ NEW
-  country: string;       // ✅ NEW
-  venue: string;         // ✅ NEW
+  address: string; // ✅ NEW
+  city: string; // ✅ NEW
+  country: string; // ✅ NEW
+  venue: string; // ✅ NEW
 
   maxOccupancy: number;
   ageRestriction: string;
@@ -107,14 +106,13 @@ interface EventForm {
   tickets: TicketType[];
 }
 
-
 interface HostProps {
   onShowDrafts?: () => void;
   onShowPublished?: () => void;
   onBack?: () => void;
   editingDraft?:
-  | (EventForm & { id: string; createdAt: string; lastModified: string })
-  | null;
+    | (EventForm & { id: string; createdAt: string; lastModified: string })
+    | null;
 }
 
 const eventGenres = [
@@ -185,12 +183,9 @@ const initialFormData: EventForm = {
   tickets: [], // ✅ EMPTY INITIALLY
 };
 
-
-
 const HostStack = createStackNavigator();
 
 export function HostStackScreen() {
-
   return (
     <HostStack.Navigator screenOptions={{ headerShown: false }}>
       <HostStack.Screen name={SCREEN_NAMES.HOST} component={HostScreen} />
@@ -214,6 +209,7 @@ export function HostScreen({
 }: HostProps) {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  useAnalytics("HostScreen");
   const [activeTab, setActiveTab] = useState<
     "private" | "public" | "published"
   >("private");
@@ -341,14 +337,14 @@ export function HostScreen({
         tickets: prev.tickets.map((ticket) =>
           ticket.id === ticketId
             ? {
-              ...ticket,
-              [field]:
-                field === "price"
-                  ? value === ""
-                    ? 0 // Handle empty string as 0 internally
-                    : parseInt(String(value)) || 0
-                  : value,
-            }
+                ...ticket,
+                [field]:
+                  field === "price"
+                    ? value === ""
+                      ? 0 // Handle empty string as 0 internally
+                      : parseInt(String(value)) || 0
+                    : value,
+              }
             : ticket,
         ),
       }));
@@ -372,7 +368,6 @@ export function HostScreen({
     }));
   }, []);
 
-
   const removeTicket = useCallback(
     (id: string) => {
       if (localFormData.tickets.length > 1) {
@@ -386,14 +381,11 @@ export function HostScreen({
   );
 
   const calculateServiceCharge = (price: number) => {
-    const serviceCharge = Math.round(
-      price * (SERVICE_CHARGE_PERCENT / 100)
-    );
+    const serviceCharge = Math.round(price * (SERVICE_CHARGE_PERCENT / 100));
     const hostReceives = price - serviceCharge;
 
     return { serviceCharge, hostReceives };
   };
-
 
   const validateForm = (data: EventForm) => {
     const newErrors: Record<string, string> = {};
@@ -474,10 +466,7 @@ export function HostScreen({
         genre: localFormData.genre,
         category: localFormData.category,
 
-        eventDate: toISODateTime(
-          localFormData.date,
-          localFormData.time
-        ),
+        eventDate: toISODateTime(localFormData.date, localFormData.time),
         eventTime: localFormData.time,
 
         location: localFormData.location,
@@ -521,7 +510,6 @@ export function HostScreen({
       });
     }
   };
-
 
   const handlePublicTabClick = () => {
     setActiveTab("public"); // Set active tab first
@@ -662,7 +650,6 @@ export function HostScreen({
                   value={localFormData.name}
                   onChangeText={(v) => handleLocalFieldChange("name", v)}
                 />
-
               </View>
 
               {/* Genre + Category */}
@@ -777,7 +764,6 @@ export function HostScreen({
                   value={localFormData.location}
                   onChangeText={(v) => handleLocalFieldChange("location", v)}
                 />
-
               </View>
               {/* Address */}
               <View>
@@ -842,7 +828,6 @@ export function HostScreen({
                     handleLocalFieldChange("maxOccupancy", Number(v) || 0)
                   }
                 />
-
               </View>
             </CardContent>
           </Card>
@@ -946,10 +931,7 @@ export function HostScreen({
                     calculateServiceCharge(ticket.price);
 
                   return (
-                    <View
-                      key={ticket.id}
-                      style={{ marginBottom: 18 }}
-                    >
+                    <View key={ticket.id} style={{ marginBottom: 18 }}>
                       <View key={ticket.id} style={styles.ticketCard}>
                         <Text style={styles.ticketTitle}>
                           Ticket Type {index + 1}
@@ -981,19 +963,27 @@ export function HostScreen({
 
                         {/* SERVICE CHARGE (VISIBLE BUT FIXED) */}
                         <LinearGradient
-                          colors={["rgba(196,81,201,0.25)", "rgba(116,1,130,0.35)"]}
+                          colors={[
+                            "rgba(196,81,201,0.25)",
+                            "rgba(116,1,130,0.35)",
+                          ]}
                           style={styles.serviceChargeBox}
                         >
                           <View style={styles.serviceChargeHeader}>
                             <Info size={16} color="#E879F9" />
                             <Text style={styles.serviceChargeTitle}>
-                              Service Charge Breakdown (Fixed {SERVICE_CHARGE_PERCENT}%)
+                              Service Charge Breakdown (Fixed{" "}
+                              {SERVICE_CHARGE_PERCENT}%)
                             </Text>
                           </View>
 
                           <View style={styles.serviceChargeRow}>
-                            <Text style={styles.serviceChargeLabel}>Ticket Price:</Text>
-                            <Text style={styles.serviceChargeValue}>₹{ticket.price}</Text>
+                            <Text style={styles.serviceChargeLabel}>
+                              Ticket Price:
+                            </Text>
+                            <Text style={styles.serviceChargeValue}>
+                              ₹{ticket.price}
+                            </Text>
                           </View>
 
                           <View style={styles.serviceChargeRow}>
@@ -1016,16 +1006,13 @@ export function HostScreen({
                             </Text>
                           </View>
                         </LinearGradient>
-
                       </View>
                     </View>
-
                   );
                 })}
               </CardContent>
             )}
           </Card>
-
 
           <Card>
             <CardHeader>
@@ -1041,7 +1028,6 @@ export function HostScreen({
                   value={localFormData.description}
                   onChangeText={(v) => handleLocalFieldChange("description", v)}
                 />
-
               </View>
 
               <View style={styles.formGroup}>
@@ -1069,7 +1055,7 @@ export function HostScreen({
       </View>
 
       {/* ===================== GENRE MODAL ===================== */}
-      < Modal transparent visible={genreOpen} animationType="fade" >
+      <Modal transparent visible={genreOpen} animationType="fade">
         <TouchableOpacity
           style={styles.dropdownOverlay}
           activeOpacity={1}
@@ -1099,10 +1085,10 @@ export function HostScreen({
             </ScrollView>
           </View>
         </TouchableOpacity>
-      </Modal >
+      </Modal>
 
       {/* ===================== CATEGORY MODAL ===================== */}
-      < Modal transparent visible={categoryOpen} animationType="fade" >
+      <Modal transparent visible={categoryOpen} animationType="fade">
         <TouchableOpacity
           style={styles.dropdownOverlay}
           activeOpacity={1}
@@ -1132,7 +1118,7 @@ export function HostScreen({
             </ScrollView>
           </View>
         </TouchableOpacity>
-      </Modal >
+      </Modal>
       <Modal transparent visible={ageOpen} animationType="fade">
         <TouchableOpacity
           style={styles.dropdownOverlay}
@@ -2002,7 +1988,6 @@ export function HostScreen({
                   )}
                 </LinearGradient>
               </TouchableOpacity>
-
             </View>
           </View>
         )}
@@ -3176,5 +3161,4 @@ const styles = StyleSheet.create({
   ticketCardWrapper: {
     paddingBottom: 16,
   },
-
 });

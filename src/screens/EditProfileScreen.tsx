@@ -18,11 +18,13 @@ import { Select } from "../components/ui/Select";
 import { Picker } from "@react-native-picker/picker";
 import { Theme } from "../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
+import { useAnalytics } from "../hooks/useAnalytics";
 
 const { width, height } = Dimensions.get("window");
 
 export const EditProfileScreen = ({ navigation }: any) => {
   const { user, updateUser } = useUserStore();
+  useAnalytics("EditProfileScreen", { user_id: user?.id });
   const [bio, setBio] = useState(user?.bio || "");
   const [occupation, setOccupation] = useState(user?.occupation || "");
   const [education, setEducation] = useState(user?.education || "");

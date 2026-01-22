@@ -111,6 +111,7 @@ const harshPhotos = [
 ];
 
 import { useAuthStore } from "../store/authStore";
+import { useAnalytics } from "../hooks/useAnalytics";
 import {
   getUserByIdApi,
   updateUserApi,
@@ -130,6 +131,13 @@ export function ProfileScreen() {
     useUserStore();
   const { user: authUser } = useAuthStore();
   const user = profile || authUser; // Use profile if available, otherwise auth user
+  const { trackEvent, trackButtonClick, resetUser } = useAnalytics(
+    "ProfileScreen",
+    {
+      user_id: user?.id,
+      user_name: user?.name,
+    },
+  );
 
   // Sync auth user to profile store
   React.useEffect(() => {
@@ -141,12 +149,12 @@ export function ProfileScreen() {
   const route = useRoute<any>();
 
   React.useEffect(() => {
-  if (route.params?.initialTab === "settings") {
-    setActiveTab("settings");
-  } else {
-    setActiveTab("about");
-  }
-}, [route.params?.initialTab]);
+    if (route.params?.initialTab === "settings") {
+      setActiveTab("settings");
+    } else {
+      setActiveTab("about");
+    }
+  }, [route.params?.initialTab]);
 
   const [showSettings, setShowSettings] = useState(false);
   const [showOnlineStatus, setShowOnlineStatus] = useState(false);
@@ -267,10 +275,10 @@ export function ProfileScreen() {
       if (!result.canceled) {
         const uri = result.assets[0].uri;
 
-          if (isProfile) {
-            setTempProfileImage(uri);
-            setShowProfileImageConfirm(true);
-          } else {
+        if (isProfile) {
+          setTempProfileImage(uri);
+          setShowProfileImageConfirm(true);
+        } else {
           if (user?.id) {
             await uploadPhotos(user.id, [
               {
@@ -509,57 +517,56 @@ export function ProfileScreen() {
   );
 
   const ProfilePhotoConfirmDialog = () => (
-  <Dialog
-    open={showProfileImageConfirm}
-    onOpenChange={setShowProfileImageConfirm}
-  >
-    <DialogContent style={{ width: "90%" }}>
-      <DialogHeader>
-        <DialogTitle>Set Profile Photo</DialogTitle>
-        <DialogDescription>
-          Do you want to use this photo as your profile picture?
-        </DialogDescription>
-      </DialogHeader>
+    <Dialog
+      open={showProfileImageConfirm}
+      onOpenChange={setShowProfileImageConfirm}
+    >
+      <DialogContent style={{ width: "90%" }}>
+        <DialogHeader>
+          <DialogTitle>Set Profile Photo</DialogTitle>
+          <DialogDescription>
+            Do you want to use this photo as your profile picture?
+          </DialogDescription>
+        </DialogHeader>
 
-      {tempProfileImage && (
-        <Image
-          source={{ uri: tempProfileImage }}
-          style={{
-            width: "100%",
-            height: 300,
-            borderRadius: 12,
-            marginVertical: 16,
-          }}
-        />
-      )}
+        {tempProfileImage && (
+          <Image
+            source={{ uri: tempProfileImage }}
+            style={{
+              width: "100%",
+              height: 300,
+              borderRadius: 12,
+              marginVertical: 16,
+            }}
+          />
+        )}
 
-      <View style={{ flexDirection: "row", gap: 12 }}>
-        <Button
-          variant="outline"
-          style={{ flex: 1 }}
-          onClick={() => {
-            setTempProfileImage(null);
-            setShowProfileImageConfirm(false);
-          }}
-        >
-          Cancel
-        </Button>
+        <View style={{ flexDirection: "row", gap: 12 }}>
+          <Button
+            variant="outline"
+            style={{ flex: 1 }}
+            onClick={() => {
+              setTempProfileImage(null);
+              setShowProfileImageConfirm(false);
+            }}
+          >
+            Cancel
+          </Button>
 
-        <Button
-          style={{ flex: 1 }}
-          onClick={() => {
-            setProfileImage(tempProfileImage!);
-            setTempProfileImage(null);
-            setShowProfileImageConfirm(false);
-          }}
-        >
-          Set Photo
-        </Button>
-      </View>
-    </DialogContent>
-  </Dialog>
-);
-
+          <Button
+            style={{ flex: 1 }}
+            onClick={() => {
+              setProfileImage(tempProfileImage!);
+              setTempProfileImage(null);
+              setShowProfileImageConfirm(false);
+            }}
+          >
+            Set Photo
+          </Button>
+        </View>
+      </DialogContent>
+    </Dialog>
+  );
 
   // --- MAIN RENDER ---
   return (
@@ -633,14 +640,14 @@ export function ProfileScreen() {
                 {name ?? "Guest"}
                 {user?.age ? `, ${user.age}` : ""}
               </Text>
-              
+
               {/* Bio/Tagline */}
               {user?.bio && (
                 <Text style={styles.tagline} numberOfLines={2}>
                   {user.bio} ✨
                 </Text>
               )}
-              
+
               {/* Info Pills Row */}
               <View style={styles.infoRow}>
                 {[
@@ -685,17 +692,18 @@ export function ProfileScreen() {
 
               {/* Edit Details Button - Full Width Below Tabs */}
               {activeTab === "about" && (
-              <View style={styles.editButtonFullWidthContainer}>
-                <TouchableOpacity
-                  style={styles.editButtonFullWidth}
-                  onPress={() => navigation.navigate(SCREEN_NAMES.EDIT_PROFILE)}
-                >
-                  <Edit size={20} color="#FFFFFF" />
-                  <Text style={styles.editButtonTextLarge}>Edit Details</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
+                <View style={styles.editButtonFullWidthContainer}>
+                  <TouchableOpacity
+                    style={styles.editButtonFullWidth}
+                    onPress={() =>
+                      navigation.navigate(SCREEN_NAMES.EDIT_PROFILE)
+                    }
+                  >
+                    <Edit size={20} color="#FFFFFF" />
+                    <Text style={styles.editButtonTextLarge}>Edit Details</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
               {/* Tab Contents */}
               {activeTab === "about" && (
@@ -727,21 +735,25 @@ export function ProfileScreen() {
                     <View style={styles.lookingForButtons}>
                       {user?.lookingFor ? (
                         typeof user.lookingFor === "string" ? (
-                          user.lookingFor.split(",").map((item: string, index: number) => (
-                            <View key={index} style={styles.lookingForButton}>
-                              <Text style={styles.lookingForButtonText}>
-                                {item.trim()}
-                              </Text>
-                            </View>
-                          ))
+                          user.lookingFor
+                            .split(",")
+                            .map((item: string, index: number) => (
+                              <View key={index} style={styles.lookingForButton}>
+                                <Text style={styles.lookingForButtonText}>
+                                  {item.trim()}
+                                </Text>
+                              </View>
+                            ))
                         ) : Array.isArray(user.lookingFor) ? (
-                          (user.lookingFor as string[]).map((item: string, index: number) => (
-                            <View key={index} style={styles.lookingForButton}>
-                              <Text style={styles.lookingForButtonText}>
-                                {item}
-                              </Text>
-                            </View>
-                          ))
+                          (user.lookingFor as string[]).map(
+                            (item: string, index: number) => (
+                              <View key={index} style={styles.lookingForButton}>
+                                <Text style={styles.lookingForButtonText}>
+                                  {item}
+                                </Text>
+                              </View>
+                            ),
+                          )
                         ) : (
                           <View style={styles.lookingForButton}>
                             <Text style={styles.lookingForButtonText}>
@@ -763,7 +775,9 @@ export function ProfileScreen() {
                   <View style={styles.twoColumnRow}>
                     <View style={styles.columnHalf}>
                       <Text style={styles.detailLabel}>Age</Text>
-                      <Text style={styles.detailValue}>{user?.age ?? "22"}</Text>
+                      <Text style={styles.detailValue}>
+                        {user?.age ?? "22"}
+                      </Text>
                     </View>
                     <View style={styles.columnHalf}>
                       <Text style={styles.detailLabel}>Height</Text>
@@ -832,7 +846,9 @@ export function ProfileScreen() {
                             <Text style={styles.interestTagText}>Strategy</Text>
                           </View>
                           <View style={styles.interestTag}>
-                            <Text style={styles.interestTagText}>Innovation</Text>
+                            <Text style={styles.interestTagText}>
+                              Innovation
+                            </Text>
                           </View>
                         </>
                       )}
@@ -859,7 +875,9 @@ export function ProfileScreen() {
                   <View style={styles.editButtonContainerBottom}>
                     <TouchableOpacity
                       style={styles.editButton}
-                      onPress={() => navigation.navigate(SCREEN_NAMES.EDIT_PROFILE)}
+                      onPress={() =>
+                        navigation.navigate(SCREEN_NAMES.EDIT_PROFILE)
+                      }
                     >
                       <Edit size={18} color="#FFFFFF" style={styles.editIcon} />
                       <Text style={styles.editButtonText}>Edit Details</Text>

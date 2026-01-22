@@ -1,14 +1,19 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useRef } from "react";
+import { View, Text, StyleSheet, Animated } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { useAnalytics } from "../hooks/useAnalytics";
 
 export const SplashScreen = () => {
+  useAnalytics("SplashScreen");
   const dot1Opacity = useRef(new Animated.Value(0.3)).current;
   const dot2Opacity = useRef(new Animated.Value(0.3)).current;
   const dot3Opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
-    const createPulseAnimation = (animatedValue: Animated.Value, delay: number) => {
+    const createPulseAnimation = (
+      animatedValue: Animated.Value,
+      delay: number,
+    ) => {
       return Animated.loop(
         Animated.sequence([
           Animated.delay(delay),
@@ -22,7 +27,7 @@ export const SplashScreen = () => {
             duration: 400,
             useNativeDriver: true,
           }),
-        ])
+        ]),
       );
     };
 
@@ -38,10 +43,7 @@ export const SplashScreen = () => {
   }, []);
 
   return (
-    <LinearGradient
-      colors={['#0A0A1F', '#1A1A3F']}
-      style={styles.container}
-    >
+    <LinearGradient colors={["#0A0A1F", "#1A1A3F"]} style={styles.container}>
       <View style={styles.content}>
         {/* Logo Section */}
         <View style={styles.logoSection}>
@@ -51,7 +53,7 @@ export const SplashScreen = () => {
             <Text style={styles.logoWhite}>D</Text>
           </View>
           <Text style={styles.tagline}>Your door to endless opportunities</Text>
-          
+
           {/* Loading Dots */}
           <View style={styles.dotsContainer}>
             <Animated.View style={[styles.dot, { opacity: dot1Opacity }]} />
@@ -75,56 +77,56 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: 80,
   },
   logoSection: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 16,
   },
   logoWhite: {
     fontSize: 56,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontWeight: "bold",
+    color: "#FFFFFF",
     letterSpacing: 2,
   },
   logoPink: {
     fontSize: 56,
-    fontWeight: 'bold',
-    color: '#DB2777',
+    fontWeight: "bold",
+    color: "#DB2777",
     letterSpacing: 2,
   },
   tagline: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: "rgba(255, 255, 255, 0.7)",
     letterSpacing: 0.5,
     marginBottom: 32,
   },
   dotsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
   dot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#DB2777',
+    backgroundColor: "#DB2777",
   },
   bottomSection: {
-    alignItems: 'center',
+    alignItems: "center",
   },
   welcomeText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.6)',
+    fontWeight: "600",
+    color: "rgba(255, 255, 255, 0.6)",
     letterSpacing: 2,
   },
 });

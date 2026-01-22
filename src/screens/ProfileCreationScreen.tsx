@@ -32,6 +32,7 @@ import * as ImagePicker from "expo-image-picker";
 import Toast from "react-native-toast-message";
 import { useAuthStore } from "../store/authStore";
 import { SCREEN_NAMES } from "../navigation/Routes";
+import { useAnalytics } from "../hooks/useAnalytics";
 
 const TOTAL_STEPS = 6;
 
@@ -63,6 +64,12 @@ export const ProfileCreationScreen = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const { trackEvent, trackFormSubmit, identifyUser } = useAnalytics(
+    "ProfileCreationScreen",
+    {
+      step: currentStep,
+    },
+  );
 
   // Form State
   const [email, setEmail] = useState("");

@@ -2,8 +2,10 @@ import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import { useAnalytics } from "../hooks/useAnalytics";
 
 export const WelcomeScreen = ({ navigation }: any) => {
+  const { trackButtonClick } = useAnalytics("WelcomeScreen");
   return (
     <LinearGradient colors={["#0A0A1F", "#1A1A3F"]} style={styles.gradient}>
       <SafeAreaView style={styles.container}>
@@ -27,7 +29,10 @@ export const WelcomeScreen = ({ navigation }: any) => {
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               style={styles.primaryButton}
-              onPress={() => navigation.navigate("ProfileCreation")}
+              onPress={() => {
+                trackButtonClick("Get Started");
+                navigation.navigate("ProfileCreation");
+              }}
             >
               <LinearGradient
                 colors={["#C026D3", "#DB2777"]}
@@ -41,7 +46,10 @@ export const WelcomeScreen = ({ navigation }: any) => {
 
             <TouchableOpacity
               style={styles.secondaryButton}
-              onPress={() => navigation.navigate("Login")}
+              onPress={() => {
+                trackButtonClick("I already have an account");
+                navigation.navigate("Login");
+              }}
             >
               <Text style={styles.secondaryButtonText}>
                 I already have an account

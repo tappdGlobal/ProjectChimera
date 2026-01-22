@@ -16,6 +16,7 @@ import { MapTabContent } from "../components/explore/MapTabContent";
 import { BookingTabContent } from "../components/explore/BookingTabContent";
 
 import { ExploreStackParamList, SCREEN_NAMES } from "../navigation/Routes";
+import { useAnalytics } from "../hooks/useAnalytics";
 
 type ExploreNavigationProp = NativeStackNavigationProp<
   ExploreStackParamList,
@@ -24,6 +25,8 @@ type ExploreNavigationProp = NativeStackNavigationProp<
 
 export function ExploreScreen() {
   const navigation = useNavigation<ExploreNavigationProp>();
+  const { trackEvent, trackSearch, trackNavigation } =
+    useAnalytics("ExploreScreen");
 
   const [showExploreAll, setShowExploreAll] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -39,15 +42,23 @@ export function ExploreScreen() {
   };
 
   const handleCategorySelect = (category: string) => {
+    trackEvent("category_selected", { category });
     navigation.navigate("EventDiscovery", { category });
   };
 
   const handleEventSelect = (event: any) => {
+    trackEvent("event_selected", {
+      event_id: event?.id,
+      event_name: event?.name,
+    });
     navigation.navigate("EventDetail", { event });
   };
 
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
+    if (query.length > 2) {
+      trackSearch(query);
+    }
   };
 
   if (showExploreAll) {
@@ -64,13 +75,17 @@ export function ExploreScreen() {
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
         {/* HEADER */}
         <Header
-          onProfileClick={() => navigation.getParent()?.navigate(SCREEN_NAMES.PROFILE)}
-          onSettingsClick={() =>
-          navigation.getParent()?.navigate(SCREEN_NAMES.PROFILE, {
-            initialTab: "settings",
-          })
+          onProfileClick={() =>
+            navigation.getParent()?.navigate(SCREEN_NAMES.PROFILE)
           }
-          onNotificationClick={() => navigation.getParent()?.navigate(SCREEN_NAMES.NOTIFICATIONS)}
+          onSettingsClick={() =>
+            navigation.getParent()?.navigate(SCREEN_NAMES.PROFILE, {
+              initialTab: "settings",
+            })
+          }
+          onNotificationClick={() =>
+            navigation.getParent()?.navigate(SCREEN_NAMES.NOTIFICATIONS)
+          }
           onSearchChange={handleSearchChange}
         />
 
@@ -87,7 +102,6 @@ export function ExploreScreen() {
               searchQuery={searchQuery}
             />
           )}
-          
 
           {activeTab === "map" && <MapTabContent />}
 

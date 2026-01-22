@@ -1,10 +1,5 @@
 import React, { useState } from "react";
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  StatusBar,
-} from "react-native";
+import { View, StyleSheet, ScrollView, StatusBar } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../components/ui/Button";
 import { Theme } from "../styles/Theme";
@@ -14,11 +9,16 @@ import { ChatSection } from "../components/engage/ChatSection";
 import { PreferableMatchSection } from "../components/engage/PreferableMatchSection";
 import { EventInteractionSection } from "../components/engage/EventInteractionSection";
 import { TapToConnectSection } from "../components/engage/TapToConnectSection";
+import { useAnalytics } from "../hooks/useAnalytics";
 
 type SectionType = "chat" | "match" | "interaction" | "connect";
 
 export function EngageScreen() {
-  const [activeSection, setActiveSection] = useState<SectionType>("interaction");
+  const [activeSection, setActiveSection] =
+    useState<SectionType>("interaction");
+  const { trackEvent } = useAnalytics("EngageScreen", {
+    active_section: activeSection,
+  });
 
   const menuItems: { id: SectionType; label: string }[] = [
     { id: "chat", label: "Chat" },
