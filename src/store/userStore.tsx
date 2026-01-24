@@ -5,6 +5,7 @@ import {
   updateUserApi,
   uploadProfilePictureApi,
   uploadPhotosApi,
+  deletePhotoApi,
   UpdateUserPayload,
 } from "../api/userApi";
 import { useAuthStore } from "./authStore";
@@ -24,6 +25,7 @@ interface UserState {
     userId: string,
     photos: { uri: string; name: string; type: string }[],
   ) => Promise<void>;
+  deletePhoto: (userId: string, photoUrl: string) => Promise<void>;
   clearUser: () => void;
   setProfile: (user: User) => void;
 }
@@ -77,6 +79,22 @@ export const useUserStore = create<UserState>((set, get) => ({
     try {
       set({ loading: true, error: null });
       const res = await uploadPhotosApi(userId, photos);
+
+      set((state) => ({
+        profile: state.profile
+          ? { ...state.profile, photos: res.data?.photos ?? [] }
+          : state.profile,
+        loading: false,
+      }));
+    } catch (err: any) {
+      set({ loading: false, error: err.message });
+    }
+  },
+
+  deletePhoto: async (userId, photoUrl) => {
+    try {
+      set({ loading: true, error: null });
+      const res = await deletePhotoApi(userId, photoUrl);
 
       set((state) => ({
         profile: state.profile

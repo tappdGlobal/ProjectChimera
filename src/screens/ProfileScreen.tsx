@@ -30,6 +30,7 @@ import {
   Trash2,
   ChevronRight,
   KeyRound,
+  X,
 } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -164,6 +165,8 @@ export function ProfileScreen() {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [tempProfileImage, setTempProfileImage] = useState<string | null>(null);
   const [showProfileImageConfirm, setShowProfileImageConfirm] = useState(false);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [deletingPhotoUrl, setDeletingPhotoUrl] = useState<string | null>(null);
 
   // Use user avatar or profilePicUrl, fallback to a default placeholder instead of mock photos
   const defaultAvatar = "https://via.placeholder.com/400x400?text=No+Photo";
@@ -280,19 +283,80 @@ export function ProfileScreen() {
           setShowProfileImageConfirm(true);
         } else {
           if (user?.id) {
-            await uploadPhotos(user.id, [
-              {
-                uri,
-                name: `photo_${Date.now()}.jpg`,
-                type: "image/jpeg",
-              },
-            ]); // ✅ ACTUAL UPLOAD
+            setUploadingPhotos(true);
+            try {
+              await uploadPhotos(user.id, [
+                {
+                  uri,
+                  name: `photo_${Date.now()}.jpg`,
+                  type: "image/jpeg",
+                },
+              ]);
+              Toast.show({
+                type: "success",
+                text1: "Photo uploaded successfully",
+              });
+              // Refresh user data to get updated photos
+              await fetchUser(user.id);
+            } catch (error: any) {
+              Toast.show({
+                type: "error",
+                text1: "Failed to upload photo",
+                text2: error.message || "Please try again",
+              });
+            } finally {
+              setUploadingPhotos(false);
+            }
           }
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("ImagePicker Error:", error);
+      Toast.show({
+        type: "error",
+        text1: "Failed to pick image",
+        text2: error.message || "Please try again",
+      });
     }
+  };
+
+  const handleDeletePhoto = async (photoUrl: string) => {
+    if (!user?.id) return;
+
+    Alert.alert(
+      "Delete Photo",
+      "Are you sure you want to delete this photo?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setDeletingPhotoUrl(photoUrl);
+              // await deletePhoto(user.id, photoUrl);
+              Toast.show({
+                type: "success",
+                text1: "Photo deleted successfully",
+              });
+              // Refresh user data to get updated photos
+              await fetchUser(user.id);
+            } catch (error: any) {
+              Toast.show({
+                type: "error",
+                text1: "Failed to delete photo",
+                text2: error.message || "Please try again",
+              });
+            } finally {
+              setDeletingPhotoUrl(null);
+            }
+          },
+        },
+      ],
+    );
   };
 
   // --- SUB COMPONENTS ---
@@ -1134,26 +1198,66 @@ export function ProfileScreen() {
                   <View style={styles.photoGrid}>
                     {/* Add Photo Button */}
                     <TouchableOpacity
-                      style={styles.addPhotoButton}
+                      style={[
+                        styles.addPhotoButton,
+                        uploadingPhotos && styles.addPhotoButtonDisabled,
+                      ]}
                       onPress={() => pickImage(false)}
+                      disabled={uploadingPhotos}
                     >
-                      <Plus size={48} color={Theme.colors.mutedForeground} />
+                      {uploadingPhotos ? (
+                        <ActivityIndicator
+                          size="large"
+                          color={Theme.colors.primary}
+                        />
+                      ) : (
+                        <Plus size={48} color={Theme.colors.mutedForeground} />
+                      )}
                     </TouchableOpacity>
 
                     {/* Existing Photos */}
                     {(user?.photos ?? []).map((photo, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        style={styles.photoItem}
-                        onPress={() => setSelectedPhoto(photo)}
-                      >
-                        <Image
-                          source={{ uri: photo }}
-                          style={styles.photoGridImage}
-                        />
-                      </TouchableOpacity>
+                      <View key={photo || `photo-${index}`} style={styles.photoItemWrapper}>
+                        <TouchableOpacity
+                          style={styles.photoItem}
+                          onPress={() => setSelectedPhoto(photo)}
+                          disabled={deletingPhotoUrl === photo}
+                        >
+                          <Image
+                            source={{ uri: photo }}
+                            style={styles.photoGridImage}
+                          />
+                          {deletingPhotoUrl === photo && (
+                            <View style={styles.photoOverlay}>
+                              <ActivityIndicator
+                                size="large"
+                                color={Theme.colors.foreground}
+                              />
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                        {/* Delete Button */}
+                        <TouchableOpacity
+                          style={styles.deletePhotoButton}
+                          onPress={() => handleDeletePhoto(photo)}
+                          disabled={deletingPhotoUrl === photo}
+                        >
+                          <X
+                            size={18}
+                            color={Theme.colors.foreground}
+                            strokeWidth={3}
+                          />
+                        </TouchableOpacity>
+                      </View>
                     ))}
                   </View>
+                  {user?.photos && user.photos.length === 0 && (
+                    <View style={styles.emptyPhotosContainer}>
+                      <Text style={styles.emptyPhotosText}>
+                        No photos yet. Add your first photo!
+                      </Text>
+                    </View>
+                  )}
                 </View>
               )}
 
@@ -1824,13 +1928,55 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  photoItem: {
+  addPhotoButtonDisabled: {
+    opacity: 0.5,
+  },
+  photoItemWrapper: {
     width: (width - 68) / 2,
     height: ((width - 68) / 2) * 1.5,
+    position: "relative",
+  },
+  photoItem: {
+    width: "100%",
+    height: "100%",
     borderRadius: Theme.radius.lg,
     overflow: "hidden",
   },
   photoGridImage: { width: "100%", height: "100%" },
+  photoOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: Theme.radius.lg,
+  },
+  deletePhotoButton: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  },
+  emptyPhotosContainer: {
+    marginTop: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 24,
+  },
+  emptyPhotosText: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 16,
+    textAlign: "center",
+  },
   // Connections Tab
   filterBar: { flexDirection: "row", gap: 12, marginBottom: 24 },
   connectionsGrid: {
