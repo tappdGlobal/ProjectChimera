@@ -126,7 +126,7 @@ import {
 
 export function ProfileScreen() {
   const navigation = useAppNavigation();
-  const { logout } = useAuthStore();
+  const { logout, changeEmail, changePassword, deleteAccount, loading: authLoading } = useAuthStore();
   const { profile, fetchUser, updateUser, uploadPhotos, loading, setProfile } =
     useUserStore();
   const { user: authUser } = useAuthStore();
@@ -390,7 +390,34 @@ export function ProfileScreen() {
               onPress={() =>
                 Alert.alert(
                   "Delete Account",
-                  "This is a destructive action. Hook it up to backend before enabling.",
+                  "Are you sure you want to delete your account? This action cannot be undone.",
+                  [
+                    {
+                      text: "Cancel",
+                      style: "cancel",
+                    },
+                    {
+                      text: "Delete",
+                      style: "destructive",
+                      onPress: async () => {
+                        try {
+                          await deleteAccount();
+                          Toast.show({
+                            type: "success",
+                            text1: "Account Deleted",
+                            text2: "Your account has been permanently deleted",
+                          });
+                          // Navigation will happen automatically due to auth state change
+                        } catch (err: any) {
+                          Toast.show({
+                            type: "error",
+                            text1: "Failed to Delete Account",
+                            text2: err.message || "An error occurred",
+                          });
+                        }
+                      },
+                    },
+                  ]
                 )
               }
             >
@@ -486,7 +513,20 @@ export function ProfileScreen() {
               style={styles.logoutButton}
               onClick={async () => {
                 setShowSettings(false);
-                await logout();
+                try {
+                  await logout();
+                  Toast.show({
+                    type: "success",
+                    text1: "Logged Out",
+                    text2: "You have been successfully logged out",
+                  });
+                } catch (err: any) {
+                  Toast.show({
+                    type: "error",
+                    text1: "Logout Failed",
+                    text2: err.message || "An error occurred",
+                  });
+                }
               }}
             >
               <LogOut
@@ -1213,7 +1253,34 @@ export function ProfileScreen() {
                       onPress={() =>
                         Alert.alert(
                           "Delete Account",
-                          "This is a destructive action. Hook it up to backend before enabling.",
+                          "Are you sure you want to delete your account? This action cannot be undone.",
+                          [
+                            {
+                              text: "Cancel",
+                              style: "cancel",
+                            },
+                            {
+                              text: "Delete",
+                              style: "destructive",
+                              onPress: async () => {
+                                try {
+                                  await deleteAccount();
+                                  Toast.show({
+                                    type: "success",
+                                    text1: "Account Deleted",
+                                    text2: "Your account has been permanently deleted",
+                                  });
+                                  // Navigation will happen automatically due to auth state change
+                                } catch (err: any) {
+                                  Toast.show({
+                                    type: "error",
+                                    text1: "Failed to Delete Account",
+                                    text2: err.message || "An error occurred",
+                                  });
+                                }
+                              },
+                            },
+                          ]
                         )
                       }
                     >
@@ -1320,7 +1387,25 @@ export function ProfileScreen() {
                   </View>
 
                   <View style={styles.settingsLogoutWrapper}>
-                    <Button style={styles.logoutButton} onClick={logout}>
+                    <Button
+                      style={styles.logoutButton}
+                      onClick={async () => {
+                        try {
+                          await logout();
+                          Toast.show({
+                            type: "success",
+                            text1: "Logged Out",
+                            text2: "You have been successfully logged out",
+                          });
+                        } catch (err: any) {
+                          Toast.show({
+                            type: "error",
+                            text1: "Logout Failed",
+                            text2: err.message || "An error occurred",
+                          });
+                        }
+                      }}
+                    >
                       <LogOut
                         size={16}
                         color={Theme.colors.foreground}
@@ -1353,22 +1438,69 @@ export function ProfileScreen() {
       <ChangeEmailPopup
         visible={showChangeEmailPopup}
         onClose={() => setShowChangeEmailPopup(false)}
-        onSubmit={(email) => {
-          console.log("New email:", email);
-          setShowChangeEmailPopup(false);
-          // TODO: call API here
+        onSubmit={async (email) => {
+          try {
+            await changeEmail({ newEmail: email });
+            Toast.show({
+              type: "success",
+              text1: "Email Updated",
+              text2: "Your email has been changed successfully",
+            });
+            setShowChangeEmailPopup(false);
+            // Refresh user data
+            if (user?.id) {
+              await fetchUser(user.id);
+            }
+          } catch (err: any) {
+            Toast.show({
+              type: "error",
+              text1: "Failed to Change Email",
+              text2: err.message || "An error occurred",
+            });
+          }
         }}
+        loading={authLoading}
       />
       <ChangePasswordPopup
         visible={showChangePassword}
         onClose={() => setShowChangePassword(false)}
-        onRequestOtp={(email) => {
-          console.log("Request OTP for", email);
+        onRequestOtp={async (email) => {
+          try {
+            const { forgotPassword } = useAuthStore.getState();
+            await forgotPassword(email);
+            Toast.show({
+              type: "success",
+              text1: "OTP Sent",
+              text2: "Please check your email for the OTP",
+            });
+          } catch (err: any) {
+            Toast.show({
+              type: "error",
+              text1: "Failed to Send OTP",
+              text2: err.message || "An error occurred",
+            });
+            throw err;
+          }
         }}
-        onSubmit={(payload) => {
-          console.log("Reset password payload", payload);
-          setShowChangePassword(false);
+        onSubmit={async (payload) => {
+          try {
+            await changePassword(payload);
+            Toast.show({
+              type: "success",
+              text1: "Password Changed",
+              text2: "Your password has been updated successfully",
+            });
+            setShowChangePassword(false);
+          } catch (err: any) {
+            Toast.show({
+              type: "error",
+              text1: "Failed to Change Password",
+              text2: err.message || "An error occurred",
+            });
+            throw err;
+          }
         }}
+        loading={authLoading}
       />
       {paymentFlow === "MANAGE" && (
         <ManagePaymentInformationPopup

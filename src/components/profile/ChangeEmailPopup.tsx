@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Theme } from "../../styles/Theme";
@@ -13,27 +14,65 @@ import { Theme } from "../../styles/Theme";
 interface ChangeEmailPopupProps {
   visible: boolean;
   onClose: () => void;
-  onSubmit: (email: string) => void;
+  onSubmit: (email: string) => Promise<void>;
+  loading?: boolean;
 }
 
 export const ChangeEmailPopup: React.FC<ChangeEmailPopupProps> = ({
   visible,
   onClose,
   onSubmit,
+  loading = false,
 }) => {
   const [email, setEmail] = useState("");
+  const [localLoading, setLocalLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = () => {
-    if (!email.trim()) return;
-    onSubmit(email.trim());
+  const handleSubmit = async () => {
+    if (!email.trim()) {
+      setError("Please enter a valid email");
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
+    setError("");
+    setLocalLoading(true);
+
+    try {
+      await onSubmit(email.trim());
+      setEmail("");
+    } catch (err: any) {
+      setError(err.message || "Failed to change email");
+    } finally {
+      setLocalLoading(false);
+    }
   };
+
+  const handleClose = () => {
+    setEmail("");
+    setError("");
+    setLocalLoading(false);
+    onClose();
+  };
+
+  const isLoading = loading || localLoading;
 
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
         <View style={styles.container}>
           {/* Close */}
-          <TouchableOpacity style={styles.closeIcon} onPress={onClose}>
+          <TouchableOpacity
+            style={styles.closeIcon}
+            onPress={handleClose}
+            disabled={isLoading}
+          >
             <Ionicons
               name="close"
               size={22}
@@ -47,6 +86,13 @@ export const ChangeEmailPopup: React.FC<ChangeEmailPopupProps> = ({
             Enter your new email address
           </Text>
 
+          {/* Error Message */}
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
           {/* Input */}
           <View style={styles.inputWrapper}>
             <TextInput
@@ -54,10 +100,14 @@ export const ChangeEmailPopup: React.FC<ChangeEmailPopupProps> = ({
               placeholderTextColor={Theme.colors.mutedForeground}
               style={styles.input}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                setError("");
+              }}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
+              editable={!isLoading}
             />
           </View>
 
@@ -65,8 +115,9 @@ export const ChangeEmailPopup: React.FC<ChangeEmailPopupProps> = ({
           <View style={styles.actionsRow}>
             <TouchableOpacity
               style={styles.cancelButton}
-              onPress={onClose}
+              onPress={handleClose}
               activeOpacity={0.85}
+              disabled={isLoading}
             >
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
@@ -74,13 +125,17 @@ export const ChangeEmailPopup: React.FC<ChangeEmailPopupProps> = ({
             <TouchableOpacity
               style={[
                 styles.submitButton,
-                !email && styles.submitDisabled,
+                (!email || isLoading) && styles.submitDisabled,
               ]}
               onPress={handleSubmit}
               activeOpacity={0.85}
-              disabled={!email}
+              disabled={!email || isLoading}
             >
-              <Text style={styles.submitText}>Update</Text>
+              {isLoading ? (
+                <ActivityIndicator color={Theme.colors.primaryForeground} />
+              ) : (
+                <Text style={styles.submitText}>Update</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -172,5 +227,17 @@ const styles = StyleSheet.create({
     color: Theme.colors.primaryForeground,
     fontSize: 14,
     fontWeight: Theme.fontWeights.medium,
+  },
+
+  errorContainer: {
+    backgroundColor: "#FEE2E2",
+    borderRadius: Theme.radius.md,
+    padding: 10,
+    marginBottom: Theme.spacing.m,
+  },
+
+  errorText: {
+    color: "#DC2626",
+    fontSize: 13,
   },
 });

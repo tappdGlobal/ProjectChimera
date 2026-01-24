@@ -13,6 +13,11 @@ import {
   VerifyEmailPayload,
   googleSigninApi,
   GoogleSigninPayload,
+  changeEmailApi,
+  ChangeEmailPayload,
+  changePasswordApi,
+  ChangePasswordPayload,
+  deleteAccountApi,
 } from "../api/authApi";
 import { User } from "../types/authTypes";
 
@@ -72,6 +77,9 @@ interface AuthState {
   logout: () => Promise<void>;
   verifyEmail: (data: VerifyEmailPayload) => Promise<void>;
   googleSignin: (data: GoogleSigninPayload) => Promise<void>;
+  changeEmail: (data: ChangeEmailPayload) => Promise<void>;
+  changePassword: (data: ChangePasswordPayload) => Promise<void>;
+  deleteAccount: () => Promise<void>;
   hydrateAuth: () => Promise<void>;
   clearError: () => void;
 }
@@ -212,6 +220,62 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
     } catch (err: any) {
       set({ loading: false, error: err.message || "Google sign-in failed" });
+      throw err;
+    }
+  },
+
+  changeEmail: async (data) => {
+    try {
+      set({ loading: true, error: null });
+      const res = await changeEmailApi(data);
+
+      if (res.data?.user) {
+        await AsyncStorage.setItem("user", JSON.stringify(res.data.user));
+        set({
+          user: res.data.user,
+          loading: false,
+        });
+      } else {
+        set({ loading: false });
+      }
+    } catch (err: any) {
+      set({ loading: false, error: err.message || "Failed to change email" });
+      throw err;
+    }
+  },
+
+  changePassword: async (data) => {
+    try {
+      set({ loading: true, error: null });
+      await changePasswordApi(data);
+      set({ loading: false });
+    } catch (err: any) {
+      set({
+        loading: false,
+        error: err.message || "Failed to change password",
+      });
+      throw err;
+    }
+  },
+
+  deleteAccount: async () => {
+    try {
+      set({ loading: true, error: null });
+      await deleteAccountApi();
+
+      // Clear all stored data
+      await AsyncStorage.removeItem("token");
+      await AsyncStorage.removeItem("user");
+
+      set({
+        user: null,
+        token: null,
+        isAuthenticated: false,
+        loading: false,
+        error: null,
+      });
+    } catch (err: any) {
+      set({ loading: false, error: err.message || "Failed to delete account" });
       throw err;
     }
   },

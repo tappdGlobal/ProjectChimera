@@ -14,13 +14,14 @@ import { Theme } from "../../styles/Theme";
 interface ChangePasswordPopupProps {
   visible: boolean;
   onClose: () => void;
-  onRequestOtp: (email: string) => void;
+  onRequestOtp: (email: string) => Promise<void>;
   onSubmit: (payload: {
     email: string;
     otp: string;
     newPassword: string;
     confirmPassword: string;
-  }) => void;
+  }) => Promise<void>;
+  loading?: boolean;
 }
 
 export const ChangePasswordPopup: React.FC<ChangePasswordPopupProps> = ({
@@ -28,9 +29,11 @@ export const ChangePasswordPopup: React.FC<ChangePasswordPopupProps> = ({
   onClose,
   onRequestOtp,
   onSubmit,
+  loading = false,
 }) => {
   const [step, setStep] = useState<1 | 2>(1);
-  const [loading, setLoading] = useState(false);
+  const [localLoading, setLocalLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
@@ -45,40 +48,93 @@ export const ChangePasswordPopup: React.FC<ChangePasswordPopupProps> = ({
       setOtp("");
       setNewPassword("");
       setConfirmPassword("");
-      setLoading(false);
+      setLocalLoading(false);
+      setError("");
     }
   }, [visible]);
 
-  const handleRequestOtp = () => {
-    if (!email.trim()) return;
+  const handleRequestOtp = async () => {
+    if (!email.trim()) {
+      setError("Please enter your email");
+      return;
+    }
 
-    setLoading(true);
-    onRequestOtp(email.trim());
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setError("Please enter a valid email address");
+      return;
+    }
 
-    // simulate backend delay
-    setTimeout(() => {
-      setLoading(false);
+    setError("");
+    setLocalLoading(true);
+
+    try {
+      await onRequestOtp(email.trim());
       setStep(2);
-    }, 1000);
+    } catch (err: any) {
+      setError(err.message || "Failed to send OTP");
+    } finally {
+      setLocalLoading(false);
+    }
   };
 
-  const handleSubmit = () => {
-    if (!otp || !newPassword || !confirmPassword) return;
+  const handleSubmit = async () => {
+    if (!otp || !newPassword || !confirmPassword) {
+      setError("Please fill in all fields");
+      return;
+    }
 
-    onSubmit({
-      email,
-      otp,
-      newPassword,
-      confirmPassword,
-    });
+    if (newPassword !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+
+    setError("");
+    setLocalLoading(true);
+
+    try {
+      await onSubmit({
+        email,
+        otp,
+        newPassword,
+        confirmPassword,
+      });
+    } catch (err: any) {
+      setError(err.message || "Failed to change password");
+    } finally {
+      setLocalLoading(false);
+    }
   };
+
+  const handleClose = () => {
+    setStep(1);
+    setEmail("");
+    setOtp("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setLocalLoading(false);
+    setError("");
+    onClose();
+  };
+
+  const isLoading = loading || localLoading;
 
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
         <View style={styles.container}>
           {/* Close */}
-          <TouchableOpacity style={styles.closeIcon} onPress={onClose}>
+          <TouchableOpacity
+            style={styles.closeIcon}
+            onPress={handleClose}
+            disabled={isLoading}
+          >
             <Ionicons
               name="close"
               size={22}
@@ -94,6 +150,13 @@ export const ChangePasswordPopup: React.FC<ChangePasswordPopupProps> = ({
               : "Enter OTP and your new password"}
           </Text>
 
+          {/* Error Message */}
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
           {/* STEP 1 – EMAIL */}
           {step === 1 && (
             <>
@@ -102,20 +165,24 @@ export const ChangePasswordPopup: React.FC<ChangePasswordPopupProps> = ({
                 placeholderTextColor={Theme.colors.mutedForeground}
                 style={styles.input}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  setError("");
+                }}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                editable={!isLoading}
               />
 
               <TouchableOpacity
                 style={[
                   styles.primaryButton,
-                  !email && styles.disabled,
+                  (!email || isLoading) && styles.disabled,
                 ]}
-                disabled={!email || loading}
+                disabled={!email || isLoading}
                 onPress={handleRequestOtp}
               >
-                {loading ? (
+                {isLoading ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <Text style={styles.primaryText}>Send OTP</Text>
@@ -132,8 +199,12 @@ export const ChangePasswordPopup: React.FC<ChangePasswordPopupProps> = ({
                 placeholderTextColor={Theme.colors.mutedForeground}
                 style={styles.input}
                 value={otp}
-                onChangeText={setOtp}
+                onChangeText={(text) => {
+                  setOtp(text);
+                  setError("");
+                }}
                 keyboardType="number-pad"
+                editable={!isLoading}
               />
 
               <TextInput
@@ -141,8 +212,12 @@ export const ChangePasswordPopup: React.FC<ChangePasswordPopupProps> = ({
                 placeholderTextColor={Theme.colors.mutedForeground}
                 style={styles.input}
                 value={newPassword}
-                onChangeText={setNewPassword}
+                onChangeText={(text) => {
+                  setNewPassword(text);
+                  setError("");
+                }}
                 secureTextEntry
+                editable={!isLoading}
               />
 
               <TextInput
@@ -150,20 +225,30 @@ export const ChangePasswordPopup: React.FC<ChangePasswordPopupProps> = ({
                 placeholderTextColor={Theme.colors.mutedForeground}
                 style={styles.input}
                 value={confirmPassword}
-                onChangeText={setConfirmPassword}
+                onChangeText={(text) => {
+                  setConfirmPassword(text);
+                  setError("");
+                }}
                 secureTextEntry
+                editable={!isLoading}
               />
 
               <TouchableOpacity
                 style={[
                   styles.primaryButton,
-                  (!otp || !newPassword || !confirmPassword) &&
+                  (!otp || !newPassword || !confirmPassword || isLoading) &&
                     styles.disabled,
                 ]}
-                disabled={!otp || !newPassword || !confirmPassword}
+                disabled={
+                  !otp || !newPassword || !confirmPassword || isLoading
+                }
                 onPress={handleSubmit}
               >
-                <Text style={styles.primaryText}>Update Password</Text>
+                {isLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.primaryText}>Update Password</Text>
+                )}
               </TouchableOpacity>
             </>
           )}
@@ -234,5 +319,17 @@ const styles = StyleSheet.create({
 
   disabled: {
     opacity: 0.5,
+  },
+
+  errorContainer: {
+    backgroundColor: "#FEE2E2",
+    borderRadius: Theme.radius.md,
+    padding: 10,
+    marginBottom: Theme.spacing.m,
+  },
+
+  errorText: {
+    color: "#DC2626",
+    fontSize: 13,
   },
 });
