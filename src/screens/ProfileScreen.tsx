@@ -128,7 +128,7 @@ import {
 export function ProfileScreen() {
   const navigation = useAppNavigation();
   const { logout, changeEmail, changePassword, deleteAccount, loading: authLoading } = useAuthStore();
-  const { profile, fetchUser, updateUser, uploadPhotos, loading, setProfile } =
+  const { profile, fetchUser, updateUser, uploadPhotos, deletePhoto, loading, setProfile } =
     useUserStore();
   const { user: authUser } = useAuthStore();
   const user = profile || authUser; // Use profile if available, otherwise auth user
@@ -337,7 +337,7 @@ export function ProfileScreen() {
           onPress: async () => {
             try {
               setDeletingPhotoUrl(photoUrl);
-              // await deletePhoto(user.id, photoUrl);
+              await deletePhoto(user.id, photoUrl);
               Toast.show({
                 type: "success",
                 text1: "Photo deleted successfully",
