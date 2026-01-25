@@ -27,6 +27,7 @@ export type UpdateUserPayload = Partial<{
   latitude: number;
   longitude: number;
   locationVisibility: boolean;
+  photos: string[];
 }>;
 
 export const updateUserApi = (
@@ -76,5 +77,27 @@ export const uploadPhotosApi = (
     headers: {
       "Content-Type": "multipart/form-data",
     },
+  });
+};
+
+/* ================= DELETE PHOTO ================= */
+
+export const deletePhotoApi = (
+  userId: string,
+  photoUrl: string
+): Promise<ApiResponse<User>> => {
+  // Get current user to get photos array
+  return getUserByIdApi(userId).then((userResponse) => {
+    if (!userResponse.data) {
+      throw new Error("User not found");
+    }
+
+    const currentPhotos = userResponse.data.photos || [];
+    const updatedPhotos = currentPhotos.filter((photo) => photo !== photoUrl);
+
+    // Update user with new photos array
+    return updateUserApi(userId, {
+      photos: updatedPhotos,
+    });
   });
 };
