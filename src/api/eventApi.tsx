@@ -21,10 +21,10 @@ export interface CreateEventPayload {
   maxCapacity: number;
 
   ageLimit:
-    | "SIXTEEN_PLUS"
-    | "EIGHTEEN_PLUS"
-    | "TWENTY_ONE_PLUS"
-    | "TWENTY_FIVE_PLUS";
+  | "SIXTEEN_PLUS"
+  | "EIGHTEEN_PLUS"
+  | "TWENTY_ONE_PLUS"
+  | "TWENTY_FIVE_PLUS";
 
   allowance: "PUBLIC" | "PRIVATE";
 
@@ -33,23 +33,21 @@ export interface CreateEventPayload {
 
   description: string;
 
-  // optional geo
   latitude?: number;
   longitude?: number;
 
-  // files
-  images: File[];
-
-  // frontend friendly
+  images: File[]; // multipart
   tickets: Ticket[];
 }
 
+// ✅ Draft = same payload, but all optional
 export type DraftEventPayload = Partial<CreateEventPayload>;
 
 /* ================= HELPERS ================= */
 
+// 🔒 DO NOT TOUCH (used by publish & draft)
 const buildEventFormData = (
-  payload: CreateEventPayload
+  payload: Partial<CreateEventPayload>
 ): FormData => {
   const formData = new FormData();
 
@@ -58,7 +56,7 @@ const buildEventFormData = (
 
     if (key === "images") {
       (value as File[]).forEach((file) => {
-        formData.append("images", file);
+        formData.append("images", file as any);
       });
     } else if (key === "tickets") {
       formData.append("tickets", JSON.stringify(value));
@@ -70,8 +68,9 @@ const buildEventFormData = (
   return formData;
 };
 
-/* ================= CREATE EVENT ================= */
+/* ================= CREATE EVENT (PUBLISH) ================= */
 
+// ❌ UNCHANGED
 export const createEventApi = (
   payload: CreateEventPayload
 ): Promise<Event> => {
@@ -101,27 +100,52 @@ export const getEventCategoriesApi = (): Promise<{
 /* ================= EVENT API OBJECT ================= */
 
 export const eventApi = {
+  // ❌ UNCHANGED
   createEvent: (payload: CreateEventPayload) =>
     createEventApi(payload),
 
   getCategories: () =>
     getEventCategoriesApi(),
 
-  getDraftEvents: (): Promise<Event[]> => {
-    return apiClient.get("/events/drafts");
+  // ✅ FIXED: unwrap backend response → always return array
+  getDraftEvents: async (): Promise<Event[]> => {
+    const res = await apiClient.get("/events/drafts");
+
+    console.log(
+      "📦 getDraftEvents API raw response:",
+      JSON.stringify(res.data, null, 2)
+    );
+
+    // 🔑 BACKEND RETURNS ARRAY DIRECTLY
+    return Array.isArray(res.data) ? res.data : [];
   },
 
+
+  // ✅ Draft create (multipart, no required fields)
   saveDraft: (
     payload: DraftEventPayload
   ): Promise<Event> => {
-    return apiClient.post("/events/drafts", payload);
+    const formData = buildEventFormData(payload);
+
+    return apiClient.post("/events/drafts", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
   },
 
+  // ✅ Draft update (multipart)
   updateDraft: (
     draftId: string,
     payload: DraftEventPayload
   ): Promise<Event> => {
-    return apiClient.put(`/events/drafts/${draftId}`, payload);
+    const formData = buildEventFormData(payload);
+
+    return apiClient.put(`/events/drafts/${draftId}`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
   },
 
   deleteDraft: (

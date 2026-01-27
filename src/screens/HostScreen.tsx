@@ -105,15 +105,39 @@ interface EventForm {
   photos: string[];
   tickets: TicketType[];
 }
+interface DraftEvent {
+  id: string;
 
-interface HostProps {
-  onShowDrafts?: () => void;
-  onShowPublished?: () => void;
-  onBack?: () => void;
-  editingDraft?:
-  | (EventForm & { id: string; createdAt: string; lastModified: string })
-  | null;
+  eventName?: string;
+  genre?: string;
+  category?: string;
+  eventType?: "public" | "private";
+
+  eventDate?: string;
+  eventTime?: string;
+  location?: string;
+
+  address?: string | null;
+  city?: string | null;
+  country?: string | null;
+  venue?: string | null;
+
+  maxCapacity?: number;
+  ageLimit?: string;
+  allowance?: string;
+
+  allowAlcohol?: boolean;
+  allowSmokingAreas?: boolean;
+
+  description?: string;
+  images?: string[];
+  tickets?: TicketType[];
+
+  createdAt: string;
+  lastModified: string;
 }
+
+
 
 const eventGenres = [
   "Arts, Culture & Entertainment",
@@ -201,24 +225,34 @@ export function HostStackScreen() {
   );
 }
 
-export function HostScreen({
-  onShowDrafts,
-  onShowPublished,
-  onBack,
-  editingDraft,
-}: HostProps) {
+export function HostScreen({ route }: any) {
+  const editingDraft = route?.params?.editingDraft;
+
+  console.log("🏠 HostScreen mounted");
+  console.log("🏠 editingDraft from route:", editingDraft);
+
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   useAnalytics("HostScreen");
+
   const [activeTab, setActiveTab] = useState<
     "private" | "public" | "published"
   >("private");
   const eventType = activeTab === "public" ? "public" : "private";
+
   const {
     createEvent,
+    saveDraft,
+    updateDraft,
+    publishDraft,
     loading: creatingEvent,
     error: eventError,
   } = useEventStore();
+
+
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [isDraftLoading, setIsDraftLoading] = useState(false);
+
   const [showPublicVerification, setShowPublicVerification] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [showTickets, setShowTickets] = useState(false);
@@ -229,9 +263,9 @@ export function HostScreen({
   });
   const [loginErrors, setLoginErrors] = useState<Record<string, string>>({});
 
-  const [localFormData, setLocalFormData] = useState<EventForm>(
-    editingDraft || initialFormData,
-  );
+  const [localFormData, setLocalFormData] =
+    useState<EventForm>(initialFormData);
+
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -284,10 +318,60 @@ export function HostScreen({
   }
   // Effect to load editing draft if provided
   useEffect(() => {
-    if (editingDraft) {
-      setLocalFormData(editingDraft);
-    }
+    if (!editingDraft || draftId !== null) return;
+
+    console.log("🧩 Mapping draft to form:", editingDraft);
+
+    setDraftId(editingDraft.id);
+
+    setActiveTab(editingDraft.eventType === "public" ? "public" : "private");
+
+    setLocalFormData({
+      name: editingDraft.eventName ?? "",
+      genre: editingDraft.genre ?? "",
+      category: editingDraft.category ?? "",
+
+      date: editingDraft.eventDate
+        ? new Date(editingDraft.eventDate)
+          .toISOString()
+          .slice(0, 10)
+          .split("-")
+          .reverse()
+          .join("-")
+        : "",
+
+      time: editingDraft.eventTime ?? "",
+      location: editingDraft.location ?? "",
+
+      address: editingDraft.address ?? "",
+      city: editingDraft.city ?? "",
+      country: editingDraft.country ?? "India",
+      venue: editingDraft.venue ?? "",
+
+      maxOccupancy: editingDraft.maxCapacity ?? 0,
+
+      ageRestriction:
+        editingDraft.ageLimit === "TWENTY_ONE_PLUS"
+          ? "21+"
+          : editingDraft.ageLimit === "EIGHTEEN_PLUS"
+            ? "18+"
+            : "",
+
+      genderAllowance:
+        editingDraft.allowance === "PRIVATE"
+          ? "Only Male"
+          : "All Genders",
+
+      alcoholAllowed: editingDraft.allowAlcohol ?? false,
+      smokingAllowed: editingDraft.allowSmokingAreas ?? false,
+
+      description: editingDraft.description ?? "",
+      photos: editingDraft.images ?? [],
+      tickets: editingDraft.tickets ?? [],
+    });
   }, [editingDraft]);
+
+
 
   // Handler for all standard text/number inputs
   const handleLocalFieldChange = useCallback(
@@ -415,47 +499,97 @@ export function HostScreen({
   };
 
   const handleSaveDraft = async () => {
-    setIsLoading(true);
     try {
+      setIsDraftLoading(true);
+
+      const payload = buildDraftPayload();
+
       if (draftId) {
-        // Update existing draft
-        const updated = await eventApi.updateDraft(draftId, localFormData);
-        Toast.show({
-          type: "success",
-          text1: "Draft updated successfully!",
-          position: "bottom",
-        });
-        console.log("Draft updated:", updated);
+        await updateDraft(draftId, payload);
+        Toast.show({ type: "success", text1: "Draft updated" });
       } else {
-        // Create new draft
-        const draft = await eventApi.saveDraft(localFormData);
-        setDraftId(draft.id);
-        Toast.show({
-          type: "success",
-          text1: "Draft saved successfully!",
-          position: "bottom",
-        });
-        console.log("Draft saved:", draft);
+        await saveDraft(payload);
+        Toast.show({ type: "success", text1: "Draft saved" });
       }
-    } catch (error: any) {
-      console.error("Error saving draft:", error);
+
+      /* ✅ RESET FORM AFTER SAVE */
+      setDraftId(null);
+      setLocalFormData(initialFormData);
+      setActiveTab("private");
+
+
+    } catch (err: any) {
       Toast.show({
         type: "error",
-        text1: error.message || "Failed to save draft",
-        position: "bottom",
+        text1: err?.message || "Failed to save draft",
       });
     } finally {
-      setIsLoading(false);
+      setIsDraftLoading(false);
     }
   };
 
- const uriToFile = (uri: string, index: number) => {
-  return {
-    uri,
-    name: `event-image-${index}.jpg`,
-    type: "image/jpeg",
+
+
+
+  const uriToFile = (uri: string, index: number) => {
+    return {
+      uri,
+      name: `event-image-${index}.jpg`,
+      type: "image/jpeg",
+    };
   };
-};
+  const buildDraftPayload = () => {
+    const payload: any = {};
+
+    if (localFormData.name) payload.eventName = localFormData.name;
+    if (localFormData.genre) payload.genre = localFormData.genre;
+    if (localFormData.category) payload.category = localFormData.category;
+
+    payload.eventType = activeTab === "public" ? "public" : "private";
+
+    if (localFormData.date && localFormData.time) {
+      payload.eventDate = toISODateTime(
+        localFormData.date,
+        localFormData.time
+      );
+      payload.eventTime = localFormData.time;
+    }
+
+    if (localFormData.location) payload.location = localFormData.location;
+    if (localFormData.address) payload.address = localFormData.address;
+    if (localFormData.city) payload.city = localFormData.city;
+    if (localFormData.country) payload.country = localFormData.country;
+    if (localFormData.venue) payload.venue = localFormData.venue;
+
+    if (localFormData.maxOccupancy > 0)
+      payload.maxCapacity = localFormData.maxOccupancy;
+
+    if (localFormData.ageRestriction)
+      payload.ageLimit = mapAgeLimit(localFormData.ageRestriction);
+
+    if (localFormData.genderAllowance)
+      payload.allowance = mapAllowance(localFormData.genderAllowance);
+
+    payload.allowAlcohol = localFormData.alcoholAllowed;
+    payload.allowSmokingAreas = localFormData.smokingAllowed;
+
+    if (localFormData.description)
+      payload.description = localFormData.description;
+
+    if (localFormData.tickets.length > 0) {
+      payload.tickets = localFormData.tickets.map((t) => ({
+        ticketLabel: t.name,
+        ticketType: "PAID",
+        price: t.price,
+        currency: "INR",
+        serviceChargePercentage: SERVICE_CHARGE_PERCENT,
+        quantityTotal: t.quantityTotal,
+      }));
+    }
+
+    return payload;
+  };
+
 
   const handlePublishEvent = async () => {
     const validationErrors = validateForm(localFormData);
@@ -517,7 +651,10 @@ export function HostScreen({
       };
 
 
-      const response = await createEvent(payload);
+      const response = draftId
+        ? await publishDraft(draftId)
+        : await createEvent(payload);
+
 
       // ✅ SUCCESS FEEDBACK FROM BACKEND
       Toast.show({
@@ -1871,10 +2008,7 @@ export function HostScreen({
     );
   };
 
-  if (onShowPublished && activeTab === "published") {
-    // Parent component (AppNavigator or HostScreen wrapper) will handle the navigation to PublishedEventsScreen
-    return null;
-  }
+
 
   // --- MAIN RENDER ---
   return (
@@ -1917,9 +2051,12 @@ export function HostScreen({
         <View style={styles.tabMenu}>
           <TouchableOpacity
             onPress={() => {
-              setActiveTab("private");
-              setShowPublicVerification(false);
+              if (!editingDraft) {
+                setActiveTab("private");
+                setShowPublicVerification(false);
+              }
             }}
+
             style={[
               styles.tabButton,
               activeTab === "private" && styles.tabButtonActive,
@@ -2023,7 +2160,7 @@ export function HostScreen({
               <TouchableOpacity
                 activeOpacity={0.85}
                 onPress={handlePublishEvent}
-                disabled={creatingEvent}
+                disabled={creatingEvent || isDraftLoading}
                 style={{ flex: 1, opacity: creatingEvent ? 0.7 : 1 }}
               >
                 <LinearGradient

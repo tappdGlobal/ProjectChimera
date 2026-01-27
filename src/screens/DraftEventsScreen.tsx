@@ -1,106 +1,77 @@
 // src/screens/DraftEventsScreen.tsx
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
+  StyleSheet,
 } from "react-native";
-import { ArrowLeft, Calendar, MapPin, Users, Trash2, Edit } from "lucide-react-native";
-import { useNavigation } from "@react-navigation/native";
+import {
+  ArrowLeft,
+  Calendar,
+  MapPin,
+  Users,
+  Trash2,
+  Edit,
+} from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Theme } from "../styles/Theme";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
-interface DraftEvent {
-  id: string;
-  name: string;
-  description: string;
-  date: string;
-  time: string;
-  location: string;
-  maxOccupancy: number;
-  lastModified: string;
-}
+import { useEventStore } from "../store/eventStore";
+import { SCREEN_NAMES } from "../navigation/Routes";
 
-const DUMMY_DRAFTS: DraftEvent[] = [
-  {
-    id: "1",
-    name: "Summer Music Festival",
-    description: "A vibrant summer music festival featuring local and international artists across genres.",
-    date: "2024-07-15",
-    time: "18:00",
-    location: "Central Park Amphitheater",
-    maxOccupancy: 500,
-    lastModified: "2024-06-15",
-  },
-  {
-    id: "2",
-    name: "Tech Innovation Conference",
-    description: "Annual tech conference bringing together industry leaders and innovators.",
-    date: "2024-08-20",
-    time: "09:00",
-    location: "Convention Center Hall A",
-    maxOccupancy: 200,
-    lastModified: "2024-06-10",
-  },
-  {
-    id: "3",
-    name: "Startup Pitch Night",
-    description: "Pitch your startup idea to investors and mentors.",
-    date: "2024-09-05",
-    time: "17:30",
-    location: "WeWork Auditorium",
-    maxOccupancy: 150,
-    lastModified: "2024-06-18",
-  },
-  {
-    id: "4",
-    name: "Food Carnival",
-    description: "Street food, live music and fun activities for everyone.",
-    date: "2024-10-01",
-    time: "12:00",
-    location: "City Ground",
-    maxOccupancy: 800,
-    lastModified: "2024-06-20",
-  },
-  {
-    id: "5",
-    name: "AI Workshop",
-    description: "Hands-on workshop on modern AI tools and techniques.",
-    date: "2024-07-28",
-    time: "10:00",
-    location: "Tech Hub Lab 3",
-    maxOccupancy: 60,
-    lastModified: "2024-06-22",
-  },
-];
+/* ================= NAV TYPES ================= */
+
+type RootStackParamList = {
+  [SCREEN_NAMES.HOST]: { editingDraft?: any } | undefined;
+  [SCREEN_NAMES.DRAFT_EVENTS]: undefined;
+  [SCREEN_NAMES.PUBLISHED_EVENTS]: undefined;
+};
+
+type NavigationProp =
+  NativeStackNavigationProp<RootStackParamList>;
+
+/* ================= SCREEN ================= */
 
 export function DraftEventsScreen() {
-  const navigation = useNavigation();
-  const [drafts, setDrafts] = useState<DraftEvent[]>([]);
+  const navigation = useNavigation<NavigationProp>();
+
+  const {
+    draftEvents,
+    fetchDraftEvents,
+    deleteDraft,
+    loading,
+  } = useEventStore();
 
   useEffect(() => {
-    setDrafts(DUMMY_DRAFTS);
-  }, []);
+    fetchDraftEvents();
+  }, [fetchDraftEvents]);
 
-  const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString("en-US", {
+  const formatDate = (iso?: string) => {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleDateString("en-US", {
       weekday: "short",
       month: "short",
       day: "numeric",
     });
+  };
 
-  const DraftCard = ({ draft }: { draft: DraftEvent }) => (
+  const DraftCard = ({ draft }: { draft: any }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>{draft.name}</Text>
+          <Text style={styles.title}>
+            {draft.eventName || "Untitled Event"}
+          </Text>
           <Text style={styles.desc} numberOfLines={2}>
-            {draft.description}
+            {draft.description || "No description"}
           </Text>
         </View>
+
         <View style={styles.badge}>
           <Text style={styles.badgeText}>Draft</Text>
         </View>
@@ -109,27 +80,63 @@ export function DraftEventsScreen() {
       <View style={styles.infoRow}>
         <Calendar size={16} color={Theme.colors.mutedForeground} />
         <Text style={styles.infoText}>
-          {formatDate(draft.date)} at {draft.time}
+          {formatDate(draft.eventDate)} {draft.eventTime || ""}
         </Text>
       </View>
 
       <View style={styles.infoRow}>
         <MapPin size={16} color={Theme.colors.mutedForeground} />
-        <Text style={styles.infoText}>{draft.location}</Text>
+        <Text style={styles.infoText}>
+          {draft.location || "Location not set"}
+        </Text>
       </View>
 
       <View style={styles.infoRow}>
         <Users size={16} color={Theme.colors.mutedForeground} />
-        <Text style={styles.infoText}>Up to {draft.maxOccupancy} people</Text>
+        <Text style={styles.infoText}>
+          Up to {draft.maxCapacity || 0} people
+        </Text>
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.modified}>Modified {formatDate(draft.lastModified)}</Text>
+        <Text style={styles.modified}>Saved as draft</Text>
+
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.iconBtn}>
+          {/* EDIT */}
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => {
+              console.log("📝 EDIT CLICKED");
+              console.log("📝 Draft object:", draft);
+              console.log("📝 Draft ID:", draft.id);
+
+              // ✅ CORRECT
+              navigation.navigate(SCREEN_NAMES.HOST, {
+                screen: SCREEN_NAMES.HOST_MAIN,
+                params: {
+                  editingDraft: draft,
+                },
+              });
+
+
+
+
+
+
+
+
+
+            }}
+          >
             <Edit size={16} color="#fff" />
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.iconBtn, styles.deleteBtn]}>
+
+
+          {/* DELETE */}
+          <TouchableOpacity
+            style={[styles.iconBtn, styles.deleteBtn]}
+            onPress={() => deleteDraft(draft.id)}
+          >
             <Trash2 size={16} color="#ff4d4f" />
           </TouchableOpacity>
         </View>
@@ -138,23 +145,35 @@ export function DraftEventsScreen() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Theme.colors.background }}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: Theme.colors.background }}
+    >
+      {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <ArrowLeft size={22} color="#fff" />
         </TouchableOpacity>
+
         <Text style={styles.headerTitle}>Draft Events</Text>
+
         <View style={{ width: 24 }} />
       </View>
 
+      {/* CONTENT */}
       <ScrollView contentContainerStyle={styles.list}>
-        {drafts.map((d) => (
-          <DraftCard key={d.id} draft={d} />
-        ))}
+        {draftEvents.length === 0 && !loading ? (
+          <Text style={styles.emptyText}>No drafts found</Text>
+        ) : (
+          draftEvents.map((draft) => (
+            <DraftCard key={draft.id} draft={draft} />
+          ))
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+/* ================= STYLES ================= */
 
 const styles = StyleSheet.create({
   header: {
@@ -173,6 +192,11 @@ const styles = StyleSheet.create({
   list: {
     padding: 16,
     gap: 16,
+  },
+  emptyText: {
+    color: Theme.colors.mutedForeground,
+    textAlign: "center",
+    marginTop: 40,
   },
   card: {
     backgroundColor: "#120b2a",
@@ -201,10 +225,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 20,
     alignSelf: "flex-start",
-    borderWidth: 1,
-    borderColor: "#ffb37a", // light orange border
   },
-
   badgeText: {
     color: "#fff",
     fontSize: 12,
