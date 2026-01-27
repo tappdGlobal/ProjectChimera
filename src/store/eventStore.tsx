@@ -14,15 +14,16 @@ interface EventState {
   loading: boolean;
   error: string | null;
 
-  // ✅ return Event instead of void
+  // publish
   createEvent: (data: CreateEventPayload) => Promise<Event>;
   fetchCategories: () => Promise<void>;
 
+  // drafts
   fetchDraftEvents: () => Promise<void>;
-  saveDraft: (data: DraftEventPayload) => Promise<void>;
-  updateDraft: (draftId: string, data: DraftEventPayload) => Promise<void>;
+  saveDraft: (data: DraftEventPayload) => Promise<Event>;
+  updateDraft: (draftId: string, data: DraftEventPayload) => Promise<Event>;
   deleteDraft: (draftId: string) => Promise<void>;
-  publishDraft: (draftId: string) => Promise<void>;
+  publishDraft: (draftId: string) => Promise<Event>;
 
   clearEvent: () => void;
 }
@@ -47,7 +48,7 @@ export const useEventStore = create<EventState>((set) => ({
         loading: false,
       });
 
-      return event; // ✅ IMPORTANT
+      return event;
     } catch (err: unknown) {
       set({
         loading: false,
@@ -56,8 +57,7 @@ export const useEventStore = create<EventState>((set) => ({
             ? err.message
             : "Failed to create event",
       });
-
-      throw err; // ✅ allow UI to catch
+      throw err;
     }
   },
 
@@ -93,7 +93,7 @@ export const useEventStore = create<EventState>((set) => ({
       const drafts = await eventApi.getDraftEvents();
 
       set({
-        draftEvents: drafts,
+        draftEvents: Array.isArray(drafts) ? drafts : [],
         loading: false,
       });
     } catch (err: unknown) {
@@ -117,6 +117,8 @@ export const useEventStore = create<EventState>((set) => ({
         draftEvents: [...state.draftEvents, draft],
         loading: false,
       }));
+
+      return draft;
     } catch (err: unknown) {
       set({
         loading: false,
@@ -125,6 +127,7 @@ export const useEventStore = create<EventState>((set) => ({
             ? err.message
             : "Failed to save draft",
       });
+      throw err;
     }
   },
 
@@ -132,17 +135,16 @@ export const useEventStore = create<EventState>((set) => ({
     try {
       set({ loading: true, error: null });
 
-      const updatedDraft = await eventApi.updateDraft(
-        draftId,
-        data
-      );
+      const updatedDraft = await eventApi.updateDraft(draftId, data);
 
       set((state) => ({
         draftEvents: state.draftEvents.map((d) =>
-          d._id === draftId ? updatedDraft : d
+          d.id === draftId ? updatedDraft : d
         ),
         loading: false,
       }));
+
+      return updatedDraft;
     } catch (err: unknown) {
       set({
         loading: false,
@@ -151,6 +153,7 @@ export const useEventStore = create<EventState>((set) => ({
             ? err.message
             : "Failed to update draft",
       });
+      throw err;
     }
   },
 
@@ -162,7 +165,7 @@ export const useEventStore = create<EventState>((set) => ({
 
       set((state) => ({
         draftEvents: state.draftEvents.filter(
-          (d) => d._id !== draftId
+          (d) => d.id !== draftId
         ),
         loading: false,
       }));
@@ -174,6 +177,7 @@ export const useEventStore = create<EventState>((set) => ({
             ? err.message
             : "Failed to delete draft",
       });
+      throw err;
     }
   },
 
@@ -186,10 +190,12 @@ export const useEventStore = create<EventState>((set) => ({
       set((state) => ({
         createdEvent: event,
         draftEvents: state.draftEvents.filter(
-          (d) => d._id !== draftId
+          (d) => d.id !== draftId
         ),
         loading: false,
       }));
+
+      return event;
     } catch (err: unknown) {
       set({
         loading: false,
@@ -198,6 +204,7 @@ export const useEventStore = create<EventState>((set) => ({
             ? err.message
             : "Failed to publish draft",
       });
+      throw err;
     }
   },
 

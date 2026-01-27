@@ -12,14 +12,16 @@ const HostStack = createStackNavigator();
 export function HostStackScreen() {
   return (
     <HostStack.Navigator screenOptions={{ headerShown: false }}>
-      {/* HostScreen is the main entry point for the tab */}
-      <HostStack.Screen name="HostMain" component={HostScreen} />
+      <HostStack.Screen
+        name={SCREEN_NAMES.HOST_MAIN}
+        component={HostScreen}
+      />
 
-      {/* Secondary screens accessible from the HostScreen header/tabs */}
       <HostStack.Screen
         name={SCREEN_NAMES.PUBLISHED_EVENTS}
         component={PublishedEventsScreen}
       />
+
       <HostStack.Screen
         name={SCREEN_NAMES.DRAFT_EVENTS}
         component={DraftEventsScreen}
@@ -27,3 +29,4 @@ export function HostStackScreen() {
     </HostStack.Navigator>
   );
 }
+
