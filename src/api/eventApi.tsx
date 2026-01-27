@@ -1,14 +1,15 @@
 import { apiClient } from "../services/api";
 import { Event, Ticket } from "../types/eventTypes";
 
-/* ================= CREATE EVENT ================= */
+/* ================= TYPES ================= */
 
 export interface CreateEventPayload {
   eventName: string;
   genre: string;
   category: string;
+  eventType: "public" | "private";
 
-  eventDate: string;     // ISO
+  eventDate: string; // ISO
   eventTime: string;
 
   location: string;
@@ -31,15 +32,56 @@ export interface CreateEventPayload {
   allowSmokingAreas: boolean;
 
   description: string;
-  images: string[];
 
+  // optional geo
+  latitude?: number;
+  longitude?: number;
+
+  // files
+  images: File[];
+
+  // frontend friendly
   tickets: Ticket[];
 }
+
+export type DraftEventPayload = Partial<CreateEventPayload>;
+
+/* ================= HELPERS ================= */
+
+const buildEventFormData = (
+  payload: CreateEventPayload
+): FormData => {
+  const formData = new FormData();
+
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+
+    if (key === "images") {
+      (value as File[]).forEach((file) => {
+        formData.append("images", file);
+      });
+    } else if (key === "tickets") {
+      formData.append("tickets", JSON.stringify(value));
+    } else {
+      formData.append(key, String(value));
+    }
+  });
+
+  return formData;
+};
+
+/* ================= CREATE EVENT ================= */
 
 export const createEventApi = (
   payload: CreateEventPayload
 ): Promise<Event> => {
-  return apiClient.post("/events/create", payload);
+  const formData = buildEventFormData(payload);
+
+  return apiClient.post("/events/create", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
 };
 
 /* ================= GET EVENT CATEGORIES ================= */
@@ -59,21 +101,38 @@ export const getEventCategoriesApi = (): Promise<{
 /* ================= EVENT API OBJECT ================= */
 
 export const eventApi = {
-  createEvent: (payload: CreateEventPayload) => createEventApi(payload),
-  getCategories: () => getEventCategoriesApi(),
-  getDraftEvents: (): Promise<any> => {
+  createEvent: (payload: CreateEventPayload) =>
+    createEventApi(payload),
+
+  getCategories: () =>
+    getEventCategoriesApi(),
+
+  getDraftEvents: (): Promise<Event[]> => {
     return apiClient.get("/events/drafts");
   },
-  saveDraft: (payload: any): Promise<any> => {
+
+  saveDraft: (
+    payload: DraftEventPayload
+  ): Promise<Event> => {
     return apiClient.post("/events/drafts", payload);
   },
-  updateDraft: (draftId: string, payload: any): Promise<any> => {
+
+  updateDraft: (
+    draftId: string,
+    payload: DraftEventPayload
+  ): Promise<Event> => {
     return apiClient.put(`/events/drafts/${draftId}`, payload);
   },
-  deleteDraft: (draftId: string): Promise<any> => {
+
+  deleteDraft: (
+    draftId: string
+  ): Promise<void> => {
     return apiClient.delete(`/events/drafts/${draftId}`);
   },
-  publishDraft: (draftId: string): Promise<any> => {
+
+  publishDraft: (
+    draftId: string
+  ): Promise<Event> => {
     return apiClient.post(`/events/drafts/${draftId}/publish`);
   },
 };
