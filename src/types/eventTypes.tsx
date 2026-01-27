@@ -1,20 +1,28 @@
+/* ================= TICKETS ================= */
+
 export interface Ticket {
   ticketLabel: string;
   ticketType: "PAID" | "FREE";
-  price: number;
-  currency: string;               // ✅ flexible
+
+  // only for PAID
+  price?: number;
+  currency?: string;
+
   serviceChargePercentage: number;
   quantityTotal: number;
 }
 
+/* ================= EVENT ================= */
+
 export interface Event {
-  id?: string;                     // ✅ optional
+  _id: string; // Mongo ID (required)
 
   eventName: string;
   genre: string;
   category: string;
+  eventType: "public" | "private";
 
-  eventDate: string;               // ISO string
+  eventDate: string; // ISO
   eventTime: string;
 
   location: string;
@@ -37,7 +45,23 @@ export interface Event {
   allowSmokingAreas: boolean;
 
   description: string;
+
+  // optional geo
+  latitude?: number;
+  longitude?: number;
+
+  // image URLs returned by backend
   images: string[];
 
   tickets: Ticket[];
+
+  // timestamps (backend adds these)
+  createdAt?: string;
+  updatedAt?: string;
 }
+
+/* ================= DRAFT EVENT ================= */
+
+export type DraftEvent = Partial<Event> & {
+  _id: string;
+};

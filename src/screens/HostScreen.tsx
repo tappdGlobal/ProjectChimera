@@ -111,8 +111,8 @@ interface HostProps {
   onShowPublished?: () => void;
   onBack?: () => void;
   editingDraft?:
-    | (EventForm & { id: string; createdAt: string; lastModified: string })
-    | null;
+  | (EventForm & { id: string; createdAt: string; lastModified: string })
+  | null;
 }
 
 const eventGenres = [
@@ -213,6 +213,7 @@ export function HostScreen({
   const [activeTab, setActiveTab] = useState<
     "private" | "public" | "published"
   >("private");
+  const eventType = activeTab === "public" ? "public" : "private";
   const {
     createEvent,
     loading: creatingEvent,
@@ -337,14 +338,14 @@ export function HostScreen({
         tickets: prev.tickets.map((ticket) =>
           ticket.id === ticketId
             ? {
-                ...ticket,
-                [field]:
-                  field === "price"
-                    ? value === ""
-                      ? 0 // Handle empty string as 0 internally
-                      : parseInt(String(value)) || 0
-                    : value,
-              }
+              ...ticket,
+              [field]:
+                field === "price"
+                  ? value === ""
+                    ? 0 // Handle empty string as 0 internally
+                    : parseInt(String(value)) || 0
+                  : value,
+            }
             : ticket,
         ),
       }));
@@ -448,6 +449,14 @@ export function HostScreen({
     }
   };
 
+ const uriToFile = (uri: string, index: number) => {
+  return {
+    uri,
+    name: `event-image-${index}.jpg`,
+    type: "image/jpeg",
+  };
+};
+
   const handlePublishEvent = async () => {
     const validationErrors = validateForm(localFormData);
     setErrors(validationErrors);
@@ -461,12 +470,22 @@ export function HostScreen({
     }
 
     try {
+      const imageFiles = await Promise.all(
+        localFormData.photos.map((uri, index) =>
+          uriToFile(uri, index)
+        )
+      );
       const payload = {
         eventName: localFormData.name,
         genre: localFormData.genre,
         category: localFormData.category,
 
-        eventDate: toISODateTime(localFormData.date, localFormData.time),
+        eventType: activeTab === "public" ? "public" : "private",
+
+        eventDate: toISODateTime(
+          localFormData.date,
+          localFormData.time
+        ),
         eventTime: localFormData.time,
 
         location: localFormData.location,
@@ -483,7 +502,9 @@ export function HostScreen({
         allowSmokingAreas: localFormData.smokingAllowed,
 
         description: localFormData.description,
-        images: localFormData.photos,
+
+        // ✅ FIX
+        images: imageFiles,
 
         tickets: localFormData.tickets.map((t) => ({
           ticketLabel: t.name,
@@ -495,21 +516,30 @@ export function HostScreen({
         })),
       };
 
-      await createEvent(payload);
 
+      const response = await createEvent(payload);
+
+      // ✅ SUCCESS FEEDBACK FROM BACKEND
       Toast.show({
         type: "success",
-        text1: "Event published successfully 🎉",
+        text1: "Event created successfully 🎉",
+        text2: `Event ID: ${response?._id || "Generated"}`,
       });
+
+      console.log("Event created:", response);
 
       setLocalFormData(initialFormData);
     } catch (err: any) {
+      console.error("Create event error:", err);
+
       Toast.show({
         type: "error",
-        text1: err.message || "Failed to publish event",
+        text1: "Failed to create event",
+        text2: err?.message || "Something went wrong",
       });
     }
   };
+
 
   const handlePublicTabClick = () => {
     setActiveTab("public"); // Set active tab first
@@ -1046,6 +1076,27 @@ export function HostScreen({
                     PNG, JPG up to 5MB each
                   </Text>
                 </TouchableOpacity>
+                {/* PHOTO PREVIEW */}
+                {localFormData.photos.length > 0 && (
+                  <View style={styles.photoPreviewContainer}>
+                    {localFormData.photos.map((uri, index) => (
+                      <View key={uri} style={styles.photoPreviewItem}>
+                        <Image
+                          source={{ uri }}
+                          style={styles.previewImage}
+                        />
+
+                        <TouchableOpacity
+                          style={styles.removePhotoButton}
+                          onPress={() => removePhoto(index)}
+                        >
+                          <X size={12} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
               </View>
             </CardContent>
           </Card>
