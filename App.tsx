@@ -1,11 +1,14 @@
-import { RootNavigator } from "./src/navigation/RootNavigator";
-import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
+import { View, Text, StyleSheet, Platform } from "react-native";
+import { StatusBar } from "expo-status-bar";
+
+import { RootNavigator } from "./src/navigation/RootNavigator";
 import { databaseService } from "./src/services/databaseService";
 import { syncService } from "./src/services/syncService";
-import { View, Text, StyleSheet, Platform } from "react-native";
 import { ErrorBoundary } from "./src/components/common/ErrorBoundary";
 import { useAuthStore } from "./src/store/authStore";
+
+import { PostHogProvider } from "posthog-react-native";
 
 export default function App() {
   const [initError, setInitError] = useState<string | null>(null);
@@ -13,49 +16,55 @@ export default function App() {
 
   const addLog = (message: string) => {
     console.log(message);
-    setDebugLog(prev => [...prev.slice(-5), `${new Date().toLocaleTimeString()}: ${message}`]);
+    setDebugLog((prev) => [
+      ...prev.slice(-5),
+      `${new Date().toLocaleTimeString()}: ${message}`,
+    ]);
   };
 
   const hydrateAuth = useAuthStore((s) => s.hydrateAuth);
   const isHydrated = useAuthStore((s) => s.isHydrated);
 
   useEffect(() => {
-    // ✅ Restore token + userId from AsyncStorage
     hydrateAuth();
 
     const init = async () => {
       try {
         addLog(`App starting on ${Platform.OS}`);
-        if (Platform.OS !== 'web') {
+
+        if (Platform.OS !== "web") {
           addLog("Initializing database...");
           await databaseService.initDatabase();
+
           addLog("Database initialized, syncing actions...");
           await syncService.syncActions();
         }
+
         addLog("App initialization complete");
-      } catch (error: any) {
-        console.error("App initialization error:", error);
-        addLog(`Init error: ${error.message}`);
-        // Don't block the app from rendering if initialization fails
-        console.log("Initializing database...");
-        await databaseService.initDatabase();
+      } catch (error) {
+        const err = error as any;
 
-        console.log("Database initialized, syncing actions...");
-        await syncService.syncActions();
+        console.error("App initialization error:", err);
+        addLog(`Init error: ${err?.message || "Unknown error"}`);
 
-        console.log("App initialization complete");
-      } catch (error: any) {
-        console.error("App initialization error:", error);
-        // setInitError(error?.message || "Failed to initialize app");
+        setInitError(err?.message || "Failed to initialize app");
+
+        // Optional retry (safe)
+        try {
+          await databaseService.initDatabase();
+          await syncService.syncActions();
+        } catch (retryErr) {
+          console.error("Retry failed:", retryErr);
+        }
       }
     };
 
     init();
   }, []);
 
-  // ✅ Prevent app from rendering before auth hydration completes
+  // Wait until auth is restored
   if (!isHydrated) {
-    return null; // or splash screen / loader
+    return null; // or splash screen
   }
 
   if (initError) {
@@ -70,28 +79,22 @@ export default function App() {
   console.log("App rendering...", Platform.OS);
 
   return (
-    <>
-      <ErrorBoundary>
-        {Platform.OS === 'web' ? (
-          // Web: Don't use PostHog
-          <>
-            <RootNavigator />
-            <StatusBar style="light" />
-          </>
-        ) : (
-          // Native: Use PostHog
-          <PostHogProvider
-            apiKey="phc_FXpHLpLnFGLGRtvZOC9rFDXx8nUPoZVEqhqxslEXyhs"
-            options={{
-              host: "https://us.i.posthog.com",
-            }}
-          >
-            <RootNavigator />
-            <StatusBar style="light" />
-          </PostHogProvider>
-        )}
-      </ErrorBoundary>
-    </>
+    <ErrorBoundary>
+      {Platform.OS === "web" ? (
+        <>
+          <RootNavigator />
+          <StatusBar style="light" />
+        </>
+      ) : (
+        <PostHogProvider
+          apiKey="phc_FXpHLpLnFGLGRtvZOC9rFDXx8nUPoZVEqhqxslEXyhs"
+          options={{ host: "https://us.i.posthog.com" }}
+        >
+          <RootNavigator />
+          <StatusBar style="light" />
+        </PostHogProvider>
+      )}
+    </ErrorBoundary>
   );
 }
 
@@ -112,26 +115,5 @@ const styles = StyleSheet.create({
   errorSubtext: {
     color: "#888",
     fontSize: 14,
-  },
-  debugOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    padding: 10,
-    maxHeight: 120,
-    zIndex: 9999,
-  },
-  debugTitle: {
-    color: '#0f0',
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  debugText: {
-    color: '#0f0',
-    fontSize: 10,
-    fontFamily: 'monospace',
   },
 });
