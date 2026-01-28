@@ -56,14 +56,12 @@ export const LoginScreen = ({ navigation }: any) => {
       await signin({ email, password });
 
       // Identify user in PostHog
-      const user = useAuthStore.getState().user;
-      if (user) {
-        identifyUser(user.id, {
-          email: user.email,
-          name: user.name,
-          username: user.username,
-        });
+      const { userId } = useAuthStore.getState();
+
+      if (userId) {
+        identifyUser(userId);
       }
+
 
       trackFormSubmit("email_password_login", true);
       trackEvent("user_login", { method: "email" });
@@ -96,14 +94,12 @@ export const LoginScreen = ({ navigation }: any) => {
         await googleSignin({ idToken: data.idToken || "" });
 
         // Identify user in PostHog
-        const user = useAuthStore.getState().user;
-        if (user) {
-          identifyUser(user.id, {
-            email: user.email,
-            name: user.name,
-            username: user.username,
-          });
+        const { userId } = useAuthStore.getState();
+
+        if (userId) {
+          identifyUser(userId);
         }
+
 
         trackEvent("user_login", { method: "google" });
 
