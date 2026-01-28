@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, Alert } from "react-native";
-import Maplibre from "@maplibre/maplibre-react-native";
+import { View, Text, StyleSheet, ActivityIndicator, Alert, Platform } from "react-native";
 import * as Location from "expo-location";
 import { Theme } from "../../styles/Theme";
+
+// Only import MapLibre on native platforms
+let Maplibre: any = null;
+if (Platform.OS !== 'web') {
+  Maplibre = require("@maplibre/maplibre-react-native").default;
+}
 
 interface UserLocation {
   latitude: number;
@@ -80,6 +85,22 @@ export function MapTabContent() {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.errorText}>Unable to determine your location</Text>
+      </View>
+    );
+  }
+
+  // Web fallback - show message instead of map
+  if (Platform.OS === 'web') {
+    return (
+      <View style={styles.centerContainer}>
+        <View style={styles.errorCard}>
+          <Text style={styles.errorTitle}>Map View</Text>
+          <Text style={styles.errorText}>
+            Interactive maps are only available on the mobile app.
+            {"\n\n"}
+            Your location: {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}
+          </Text>
+        </View>
       </View>
     );
   }

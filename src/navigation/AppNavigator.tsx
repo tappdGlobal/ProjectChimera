@@ -16,6 +16,7 @@ import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { ReconnectScreen } from "../screens/ReconnectScreen";
 import { BottomNavigation } from "./BottomNavigation";
 import { EditProfileScreen } from "../screens/EditProfileScreen";
+import { SettingsScreen } from "../screens/SettingsScreen";
 import { EventDetailsScreen } from "../screens/EventDetailsScreen";
 import ExploreStack from "./ExploreStack";
 import EngageStack from "./EngageStack";
@@ -90,6 +91,10 @@ const AppNavigator = () => {
       <Stack.Screen
         name={SCREEN_NAMES.EDIT_PROFILE}
         component={EditProfileScreen}
+      />
+      <Stack.Screen
+        name={SCREEN_NAMES.SETTINGS}
+        component={SettingsScreen}
       />
       <Stack.Screen
         name={SCREEN_NAMES.EVENT_DETAILS_SCREEN}

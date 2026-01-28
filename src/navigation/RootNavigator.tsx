@@ -6,15 +6,12 @@ import { AuthStack } from "./AuthStack";
 import AppNavigator from "./AppNavigator";
 import { SplashScreen } from "../screens/SplashScreen";
 import { linking } from "./linking";
-import { PostHogProvider } from "posthog-react-native";
-
-import { usePostHog } from "posthog-react-native";
+import { Platform } from "react-native";
 import { useRef } from "react";
 
 export const RootNavigator = () => {
   const token = useAuthStore((s) => s.token);
   const setAuth = useAuthStore.setState;
-  const posthog = usePostHog();
   const navigationRef = useRef<any>(null);
   const routeNameRef = useRef<string | undefined>(undefined);
 
@@ -23,19 +20,27 @@ export const RootNavigator = () => {
   // 🔹 Hydrate token from storage
   useEffect(() => {
     const hydrateAuth = async () => {
+      console.log("RootNavigator: Starting auth hydration...");
       const storedToken = await AsyncStorage.getItem("token");
 
       if (storedToken) {
         setAuth({ token: storedToken });
+        console.log("RootNavigator: Token found and set");
+      } else {
+        console.log("RootNavigator: No stored token");
       }
 
       setIsHydrated(true);
+      console.log("RootNavigator: Hydration complete");
     };
 
     hydrateAuth();
   }, []);
 
+  console.log("RootNavigator rendering:", { isHydrated, hasToken: !!token });
+
   if (!isHydrated) {
+    console.log("RootNavigator: Showing splash screen");
     return <SplashScreen />;
   }
 
@@ -50,10 +55,6 @@ export const RootNavigator = () => {
         const previousRouteName = routeNameRef.current;
         const currentRoute = navigationRef.current?.getCurrentRoute();
         const currentRouteName = currentRoute?.name;
-
-        if (previousRouteName !== currentRouteName && posthog) {
-          posthog.screen(currentRouteName);
-        }
         routeNameRef.current = currentRouteName;
       }}
     >
