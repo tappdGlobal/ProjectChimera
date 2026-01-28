@@ -1,6 +1,6 @@
 // src/screens/PublishedEventsScreen.tsx
 
-import React, { useState } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   Alert,
   ViewStyle,
   TextStyle,
+  Platform,
+  StatusBar,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -21,9 +23,9 @@ import {
   Star,
   MessageSquare,
   BarChart3,
-  TrendingUp as TrendingUpIcon, // Rename to avoid conflict if we create a component
+  TrendingUp as TrendingUpIcon,
 } from "lucide-react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import Svg, { Path, Line, Circle } from "react-native-svg";
 import { useNavigation } from "@react-navigation/native";
 import { Theme } from "../styles/Theme";
 
@@ -37,9 +39,7 @@ import {
 } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { Separator } from "../components/ui/Separator";
-import { Textarea } from "../components/ui/Textarea"; // Needed for reply logic
-// Note: Tabs and Dialog will be integrated directly via Modal/react-native-tab-view if needed,
-// but for now we'll use placeholder or native structures for simplicity of a simple modal/view.
+import { Textarea } from "../components/ui/Textarea";
 import {
   Dialog,
   DialogContent,
@@ -47,9 +47,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from "../components/ui/Dialog";
-// Progress component is missing. We will use a basic View/Animated.View as a placeholder.
-import { StatusBar } from "react-native";
-
 
 interface PublishedEvent {
   id: string;
@@ -75,12 +72,6 @@ interface PublishedEvent {
   }>;
 }
 
-interface PublishedEventsProps {
-  onBack: () => void;
-  // Navigation props will be injected by React Navigation
-}
-
-// Mock data (from your source file)
 const mockPublishedEvents: PublishedEvent[] = [
   {
     id: "pub-1",
@@ -89,7 +80,7 @@ const mockPublishedEvents: PublishedEvent[] = [
     location: "Sky Lounge",
     maxOccupancy: 100,
     registrations: 85,
-    revenue: 127500, // Implied from net earnings / 0.8
+    revenue: 127500,
     serviceCharge: 25500,
     netEarnings: 102000,
     rating: 4.7,
@@ -132,304 +123,289 @@ const mockPublishedEvents: PublishedEvent[] = [
   },
 ];
 
-// Placeholder for Progress Bar
-const ProgressBar = ({
-  value,
-  style,
-}: {
-  value: number;
-  style?: ViewStyle;
-}) => (
-  <View style={[styles.progressBarContainer, style]}>
-    <View style={[styles.progressBarFill, { width: `${value}%` }]} />
-  </View>
-);
+const mockReviews = [
+  { id: 'r1', userName: 'Sarah M.', rating: 5, date: '2024-06-21', comment: 'Amazing atmosphere and great music! The venue was perfect for networking.' },
+  { id: 'r2', userName: 'Mike R.', rating: 4, date: '2024-06-21', comment: 'Good event overall, though the sound could have been better in some areas.' }
+];
 
-export function PublishedEventsScreen() {
-  const navigation = useNavigation();
-  const [events] = useState<PublishedEvent[]>(mockPublishedEvents);
-  const [selectedEvent, setSelectedEvent] = useState<PublishedEvent | null>(
-    null
+const getStatusColor = (status: string): TextStyle => {
+  switch (status) {
+    case "upcoming": return { color: "#60A5FA" };
+    case "ongoing": return { color: "#4ADE80" };
+    default: return { color: "#9CA3AF" };
+  }
+};
+
+const renderStars = (rating: number) => {
+  return Array.from({ length: 5 }, (_, i) => (
+    <Star
+      key={i}
+      size={16}
+      color={i < rating ? "#FBBF24" : Theme.colors.mutedForeground}
+      fill={i < rating ? "#FBBF24" : "none"}
+      style={styles.starIcon}
+    />
+  ));
+};
+
+const formatCurrency = (amount: number): string =>
+  `₹${amount.toLocaleString()}`;
+
+interface EventCardProps {
+  event: PublishedEvent;
+  onPress: (event: PublishedEvent) => void;
+}
+
+const EventCard = React.memo(({ event, onPress }: EventCardProps) => (
+  <Card onClick={() => onPress(event)} style={styles.eventCardBase}>
+    <CardContent style={styles.eventCardContent}>
+      <View style={styles.eventCardHeader}>
+        <Text style={styles.eventCardTitle}>{event.name}</Text>
+        <View style={[styles.statusBadge, { borderColor: "rgba(255,255,255,0.2)" }]}>
+          <Text style={[styles.statusText, { color: getStatusColor(event.status).color }]}>{event.status}</Text>
+        </View>
+      </View>
+      <Text style={styles.eventCardLocation}>{event.location}</Text>
+      <View style={styles.eventCardMetricsGrid}>
+        <View style={styles.metricItemLeft}>
+          <Text style={styles.metricBigNumber}>{event.registrations}</Text>
+          <Text style={styles.metricLabel}>Registrations</Text>
+        </View>
+        <View style={styles.metricItemRight}>
+          <Text style={styles.metricBigNumberGreen}>{formatCurrency(event.netEarnings)}</Text>
+          <Text style={styles.metricLabel}>Net Earnings</Text>
+        </View>
+      </View>
+      <View style={styles.eventCardFooter}>
+        <View style={styles.flexRowCenter}>
+          <Star size={14} color="#FBBF24" fill="#FBBF24" style={{ marginRight: 4 }} />
+          <Text style={styles.footerText}>{event.rating} ({event.totalReviews})</Text>
+        </View>
+        <View style={styles.flexRowCenter}>
+          <Users size={14} color={Theme.colors.mutedForeground} style={{ marginRight: 4 }} />
+          <Text style={styles.footerText}>{event.connections} connections</Text>
+        </View>
+      </View>
+    </CardContent>
+  </Card>
+));
+
+const EarningsChart = React.memo(() => {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"];
+  const values = [0, 52000, 75000, 89000, 95000, 102000, 145000];
+  const maxY = 180000;
+
+  const getX = (index: number) => (index / (months.length - 1)) * 100;
+  const getY = (value: number) => ((maxY - value) / maxY) * 100;
+
+  const points = useMemo(() => values.map((v, i) => ({ x: getX(i), y: getY(v) })), []);
+  
+  const activePoint = activeIndex !== null ? points[activeIndex] : null;
+  const activeValue = activeIndex !== null ? values[activeIndex] : null;
+  const activeMonth = activeIndex !== null ? months[activeIndex] : null;
+
+  return (
+    <View style={styles.chartCard}>
+      <View style={styles.chartHeader}>
+        <TrendingUpIcon size={18} color={Theme.colors.foreground} style={{ marginRight: 8 }} />
+        <Text style={styles.chartTitleText}>Earnings Overview</Text>
+      </View>
+
+      <View style={styles.chartBody}>
+        <View style={styles.chartYAxis}>
+          {[180, 135, 90, 45, 0].map((label, i) => (
+            <View key={i} style={styles.yAxisLabelContainer}>
+              <Text style={styles.chartLabel}>₹{label}k</Text>
+              <View style={styles.yTick} />
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.chartAreaContainer}>
+          <View style={styles.chartArea}>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <View key={i} style={[styles.gridLineHorizontal, { top: `${i * 25}%` }]} />
+            ))}
+            {months.map((_, i) => (
+              <View key={i} style={[styles.gridLineVertical, { left: `${getX(i)}%` }]} />
+            ))}
+
+            <Svg style={StyleSheet.absoluteFill} viewBox="0 0 100 100" preserveAspectRatio="none">
+              {activePoint && (
+                <Line x1={activePoint.x} y1="0" x2={activePoint.x} y2="100" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5" />
+              )}
+            </Svg>
+
+            {activePoint && (
+              <View
+                pointerEvents="none"
+                style={{
+                  position: "absolute",
+                  left: `${activePoint.x}%`,
+                  top: `${activePoint.y}%`,
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  borderWidth: 1.5,
+                  borderColor: "white",
+                  backgroundColor: "#110C24",
+                  transform: [{ translateX: -5 }, { translateY: -5 }],
+                  zIndex: 25,
+                }}
+              />
+            )}
+
+            {activePoint && activeMonth && activeValue !== null && (
+              <View
+                pointerEvents="none"
+                style={[
+                  styles.tooltipContainer,
+                  {
+                    left: activePoint.x > 50 ? `${activePoint.x - 45}%` : `${activePoint.x + 5}%`,
+                    top: activePoint.y > 50 ? `${activePoint.y - 35}%` : `${activePoint.y + 5}%`,
+                    zIndex: 30,
+                  },
+                ]}
+              >
+                <Text style={styles.tooltipMonth}>{activeMonth}</Text>
+                <Text style={styles.tooltipValue}>Earnings : ₹{activeValue.toLocaleString()}</Text>
+              </View>
+            )}
+
+            <View style={[StyleSheet.absoluteFill, { zIndex: 20 }]}>
+              <View style={{ flexDirection: "row", flex: 1 }}>
+                {months.map((_, i) => (
+                  <View
+                    key={i}
+                    style={{ flex: 1, backgroundColor: "transparent" }}
+                    {...({
+                      onPointerEnter: () => setActiveIndex(i),
+                      onPointerDown: () => setActiveIndex(i),
+                    } as any)}
+                  />
+                ))}
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.chartXAxis}>
+            {months.map((m, i) => (
+              <View key={i} style={styles.xAxisLabelContainer}>
+                <View style={styles.xTick} />
+                <Text style={styles.chartLabel}>{m}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      </View>
+    </View>
   );
+});
+
+interface EventDetailModalProps {
+  event: PublishedEvent;
+  onClose: () => void;
+}
+
+const EventDetailModal = React.memo(({ 
+  event, 
+  onClose,
+}: EventDetailModalProps) => {
   const [activeTab, setActiveTab] = useState("analytics");
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
 
-  // --- CALCULATIONS (Used in Overview Stats) ---
-  const totalRevenue = events.reduce((sum, event) => sum + event.revenue, 0);
-  const totalNetEarnings = events.reduce(
-    (sum, event) => sum + event.netEarnings,
-    0
-  );
-  const totalRegistrations = events.reduce(
-    (sum, event) => sum + event.registrations,
-    0
-  );
-  const averageRating =
-    events.reduce((sum, event) => sum + event.rating, 0) / events.length;
-
-  const getStatusColor = (status: string): TextStyle => {
-    switch (status) {
-      case "upcoming":
-        return { color: "#60A5FA", backgroundColor: "rgba(96, 165, 250, 0.2)" }; // blue
-      case "ongoing":
-        return { color: "#4ADE80", backgroundColor: "rgba(74, 222, 128, 0.2)" }; // green
-      case "completed":
-        return {
-          color: "#9CA3AF",
-          backgroundColor: "rgba(156, 163, 175, 0.2)",
-        }; // gray
-      default:
-        return {
-          color: "#9CA3AF",
-          backgroundColor: "rgba(156, 163, 175, 0.2)",
-        };
-    }
-  };
-
-  const formatCurrency = (amount: number): string =>
-    `₹${amount.toLocaleString()}`;
-
-  const handleReplySubmit = (reviewId: string) => {
-    // In a real app, logic to send reply to backend goes here
+  const handleReplySubmit = useCallback((reviewId: string) => {
     Alert.alert("Reply Sent", `Reply to ${reviewId} submitted: ${replyText}`);
     setReplyingTo(null);
     setReplyText("");
-  };
+  }, [replyText]);
 
-  const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <Star
-        key={i}
-        size={16}
-        color={i < rating ? "#FBBF24" : Theme.colors.mutedForeground} // Yellow-400
-        fill={i < rating ? "#FBBF24" : "none"}
-        style={styles.starIcon}
-      />
-    ));
-  };
-
-  // --- SUB COMPONENTS ---
-
-  const EarningsChart = () => (
-    <Card style={styles.chartCard}>
-      <CardHeader>
-        <CardTitle style={styles.chartTitle}>
-          <TrendingUpIcon
-            size={20}
-            color={Theme.colors.foreground}
-            style={{ marginRight: 8 }}
-          />
-          Earnings Overview
-        </CardTitle>
-      </CardHeader>
-      <CardContent style={styles.chartContent}>
-        {/* Y-Axis Labels */}
-        <View style={styles.chartYAxis}>
-          <Text style={styles.chartLabel}>₹180k</Text>
-          <Text style={styles.chartLabel}>₹135k</Text>
-          <Text style={styles.chartLabel}>₹90k</Text>
-          <Text style={styles.chartLabel}>₹45k</Text>
-          <Text style={styles.chartLabel}>₹0k</Text>
-        </View>
-
-        {/* Chart Area */}
-        <View style={styles.chartArea}>
-          {/* Grid Lines */}
-          {[0, 1, 2, 3, 4].map((i) => (
-            <View key={i} style={[styles.gridLine, { top: `${i * 25}%` }]} />
-          ))}
-
-          {/* Visual Chart Placeholder (Gradient Area) */}
-          <LinearGradient
-            colors={["rgba(192, 38, 211, 0.5)", "rgba(192, 38, 211, 0.0)"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={styles.chartGradientArea}
-          />
-          <View style={styles.chartLine} />
-
-          {/* X-Axis Labels */}
-          <View style={styles.chartXAxis}>
-            {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"].map((m) => (
-              <Text key={m} style={styles.chartLabel}>
-                {m}
-              </Text>
-            ))}
-          </View>
-        </View>
-      </CardContent>
-    </Card>
-  );
-
-  const EventCard = ({ event }: { event: PublishedEvent }) => (
-    <Card onClick={() => setSelectedEvent(event)} style={styles.eventCardBase}>
-      <CardContent style={styles.eventCardContent}>
-        {/* Header: Title + Badge */}
-        <View style={styles.eventCardHeader}>
-          <Text style={styles.eventCardTitle}>{event.name}</Text>
-          <View
-            style={[
-              styles.statusBadge,
-              { borderColor: getStatusColor(event.status).color },
-            ]}
-          >
-            <Text
-              style={[
-                styles.statusText,
-                { color: getStatusColor(event.status).color },
-              ]}
-            >
-              {event.status}
-            </Text>
-          </View>
-        </View>
-
-        {/* Location */}
-        <Text style={styles.eventCardLocation}>{event.location}</Text>
-
-        {/* Metrics Grid */}
-        <View style={styles.eventCardMetricsGrid}>
-          {/* Registrations */}
-          <View style={styles.metricItemLeft}>
-            <Text style={styles.metricBigNumber}>{event.registrations}</Text>
-            <Text style={styles.metricLabel}>Registrations</Text>
-          </View>
-
-          {/* Earnings */}
-          <View style={styles.metricItemRight}>
-            <Text style={styles.metricBigNumberGreen}>
-              {formatCurrency(event.netEarnings)}
-            </Text>
-            <Text style={styles.metricLabel}>Net Earnings</Text>
-          </View>
-        </View>
-
-        {/* Footer: Rating + Connections */}
-        <View style={styles.eventCardFooter}>
-          <View style={styles.flexRowCenter}>
-            <Star
-              size={14}
-              color="#FBBF24"
-              fill="#FBBF24"
-              style={{ marginRight: 4 }}
-            />
-            <Text style={styles.footerText}>
-              {event.rating} ({event.totalReviews})
-            </Text>
-          </View>
-          <View style={styles.flexRowCenter}>
-            <Users
-              size={14}
-              color={Theme.colors.mutedForeground}
-              style={{ marginRight: 4 }}
-            />
-            <Text style={styles.footerText}>
-              {event.connections} connections
-            </Text>
-          </View>
-        </View>
-      </CardContent>
-    </Card>
-  );
-
-  const EventDetailModal = ({ event }: { event: PublishedEvent }) => (
-    <Dialog open={!!event} onOpenChange={() => setSelectedEvent(null)}>
+  return (
+    <Dialog open={!!event} onOpenChange={onClose}>
       <DialogContent style={styles.detailModalContent}>
-        <DialogHeader>
-          <DialogTitle>{event.name}</DialogTitle>
-          <DialogDescription>
+        <TouchableOpacity 
+          onPress={onClose}
+          style={styles.modalCloseButton}
+        >
+          <Text style={{ color: 'white', fontSize: 24 }}>×</Text>
+        </TouchableOpacity>
+
+        <DialogHeader style={styles.modalHeader}>
+          <DialogTitle style={styles.modalTitle}>{event.name}</DialogTitle>
+          <DialogDescription style={styles.modalDescription}>
             Analytics, reviews, and financial details for your published event
           </DialogDescription>
         </DialogHeader>
 
-        {/* Tabs - Simplified to buttons and conditional rendering for RN */}
-        <View style={styles.modalTabsList}>
-          {["analytics", "reviews", "financials"].map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              onPress={() => setActiveTab(tab)}
-              style={[
-                styles.modalTabButton,
-                activeTab === tab && styles.modalTabButtonActive,
-              ]}
-            >
-              <Text
-                style={
-                  activeTab === tab
-                    ? styles.modalTabTextActive
-                    : styles.modalTabTextInactive
-                }
+        <View style={styles.modalTabsContainer}>
+          <View style={styles.modalTabsList}>
+            {["analytics", "reviews", "financials"].map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                onPress={() => setActiveTab(tab)}
+                style={[
+                  styles.modalTabButton,
+                  activeTab === tab && styles.modalTabButtonActive,
+                ]}
               >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Text
+                  style={[
+                    styles.modalTabText,
+                    activeTab === tab && styles.modalTabTextActive,
+                  ]}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
-        {/* Tab Content */}
-        <ScrollView style={styles.flex1}>
+        <ScrollView style={styles.modalContentScroll} showsVerticalScrollIndicator={false}>
           {activeTab === "analytics" && (
             <View style={styles.tabContentContainer}>
-              {/* Analytics Content */}
-              <View style={{ flexDirection: "row", gap: 16 }}>
+              <View style={styles.analyticsStatsRow}>
                 <Card style={styles.analyticCard}>
-                  <CardContent style={styles.p4}>
-                    <Users
-                      size={32}
-                      color={Theme.colors.primary}
-                      style={styles.mxAutoMb2}
-                    />
-                    <Text style={styles.analyticMetricText}>
-                      {event.registrations}
-                    </Text>
+                  <CardContent style={styles.analyticCardContent}>
+                    <Users size={32} color="#C026D3" style={styles.mb2} />
+                    <Text style={styles.analyticMetricText}>{event.registrations}</Text>
                     <Text style={styles.analyticMetricLabel}>Registered</Text>
-                    <ProgressBar
-                      value={(event.registrations / event.maxOccupancy) * 100}
-                      style={styles.mt2H2}
-                    />
+                    <View style={styles.analyticsProgressContainer}>
+                      <View style={[styles.analyticsProgressFill, { width: `${(event.registrations / event.maxOccupancy) * 100}%` }]} />
+                    </View>
                   </CardContent>
                 </Card>
                 <Card style={styles.analyticCard}>
-                  <CardContent style={styles.p4}>
-                    <TrendingUp
-                      size={32}
-                      color={"#4ADE80"}
-                      style={styles.mxAutoMb2}
-                    />
-                    <Text style={styles.analyticMetricText}>
-                      {event.connections}
-                    </Text>
-                    <Text style={styles.analyticMetricLabel}>
-                      Connections Made
-                    </Text>
+                  <CardContent style={styles.analyticCardContent}>
+                    <TrendingUp size={32} color="#4ADE80" style={styles.mb2} />
+                    <Text style={styles.analyticMetricText}>{event.connections}</Text>
+                    <Text style={styles.analyticMetricLabel}>Connections Made</Text>
                   </CardContent>
                 </Card>
               </View>
-              {/* Ratings Card */}
-              <Card>
-                <CardHeader>
-                  <CardTitle style={styles.flexRowCenterGap2}>
-                    <Star size={20} /> Ratings & Reviews
+
+              <Card style={styles.ratingsCard}>
+                <CardHeader style={styles.ratingsHeader}>
+                  <CardTitle style={styles.ratingsTitle}>
+                    <Star size={20} color="white" style={{ marginRight: 8 }} />
+                    <Text style={{ color: 'white' }}>Ratings & Reviews</Text>
                   </CardTitle>
                 </CardHeader>
-                <CardContent style={styles.p4}>
-                  <View style={styles.flexRowGap4}>
-                    <View style={{ alignItems: "center" }}>
-                      <Text style={styles.ratingText}>{event.rating}</Text>
-                      <Text style={styles.analyticMetricLabel}>
-                        Average Rating
-                      </Text>
+                <CardContent style={styles.ratingsContent}>
+                  <View style={styles.ratingsOverview}>
+                    <View style={styles.averageRatingContainer}>
+                      <Text style={styles.averageRatingValue}>{event.rating}</Text>
+                      <Text style={styles.averageRatingLabel}>Average Rating</Text>
                     </View>
-                    <View style={styles.flex1}>
-                      {/* Simplified Progress Bars */}
+                    <View style={styles.ratingBarsContainer}>
                       {[5, 4, 3, 2, 1].map((star) => (
-                        <View key={star} style={styles.flexRowCenterGap2}>
-                          <Text style={styles.starLabel}>{star}★</Text>
-                          <ProgressBar
-                            value={star === 5 ? 70 : star === 4 ? 20 : 10}
-                            style={styles.h2}
-                          />
+                        <View key={star} style={styles.ratingBarRow}>
+                          <Text style={styles.ratingBarStarLabel}>{star}★</Text>
+                          <View style={styles.ratingBarBg}>
+                            <View style={[styles.ratingBarFill, { width: star === 5 ? '75%' : star === 4 ? '20%' : star === 3 ? '15%' : '10%' }]} />
+                          </View>
                         </View>
                       ))}
                     </View>
@@ -441,141 +417,103 @@ export function PublishedEventsScreen() {
 
           {activeTab === "reviews" && (
             <View style={styles.tabContentContainer}>
-              {/* Reviews Content */}
-              {event.reviews.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <MessageSquare
-                    size={48}
-                    color={Theme.colors.mutedForeground}
-                    style={styles.mxAutoMb4}
-                  />
-                  <Text style={styles.emptyStateText}>No reviews yet</Text>
-                </View>
-              ) : (
-                event.reviews.map((review) => (
-                  <Card key={review.id}>
-                    <CardContent style={styles.p4}>
-                      <View style={styles.reviewHeader}>
-                        <Text style={styles.reviewUserName}>
-                          {review.userName}
-                        </Text>
-                        <Text style={styles.reviewDate}>{review.date}</Text>
-                      </View>
-                      <View style={styles.flexRowCenterGap2}>
-                        {renderStars(review.rating)}
-                      </View>
-                      <Text style={styles.reviewComment}>{review.comment}</Text>
-
-                      {/* Reply Logic */}
-                      {review.reply && (
-                        <View style={styles.hostReplyBox}>
-                          <Text style={styles.hostReplyTitle}>Host Reply:</Text>
-                          <Text style={styles.hostReplyText}>
-                            {review.reply}
-                          </Text>
+              {mockReviews.map((review) => (
+                <Card key={review.id} style={styles.reviewCard}>
+                  <CardContent style={styles.reviewCardContent}>
+                    <View style={styles.reviewHeaderRow}>
+                      <Text style={styles.reviewUserName}>{review.userName}</Text>
+                      <Text style={styles.reviewDate}>{review.date}</Text>
+                    </View>
+                    <View style={styles.reviewStarsRow}>
+                      {renderStars(review.rating)}
+                    </View>
+                    <Text style={styles.reviewCommentText}>{review.comment}</Text>
+                    
+                    {replyingTo === review.id ? (
+                      <View style={styles.replyInputContainer}>
+                        <Textarea
+                          value={replyText}
+                          onChangeText={setReplyText}
+                          placeholder="Write your reply..."
+                          style={styles.replyTextarea}
+                          placeholderTextColor="rgba(255,255,255,0.4)"
+                        />
+                        <View style={styles.replyActionsRow}>
+                          <TouchableOpacity 
+                            style={styles.sendReplyButton}
+                            onPress={() => handleReplySubmit(review.id)}
+                          >
+                            <Text style={styles.sendReplyButtonText}>Send Reply</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            style={styles.cancelReplyButton}
+                            onPress={() => setReplyingTo(null)}
+                          >
+                            <Text style={styles.cancelReplyButtonText}>Cancel</Text>
+                          </TouchableOpacity>
                         </View>
-                      )}
-
-                      {!review.reply && (
-                        <View style={styles.mt3}>
-                          {replyingTo === review.id ? (
-                            <View style={styles.spaceY2}>
-                              <Textarea
-                                value={replyText}
-                                onChangeText={setReplyText}
-                                placeholder="Write your reply..."
-                                rows={2}
-                              />
-                              <View style={styles.flexRowGap2}>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleReplySubmit(review.id)}
-                                >
-                                  Send Reply
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => setReplyingTo(null)}
-                                >
-                                  Cancel
-                                </Button>
-                              </View>
-                            </View>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setReplyingTo(review.id)}
-                            >
-                              Reply
-                            </Button>
-                          )}
-                        </View>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))
-              )}
+                      </View>
+                    ) : (
+                      <TouchableOpacity 
+                        style={styles.reviewReplyButton}
+                        onPress={() => {
+                          setReplyingTo(review.id);
+                          setReplyText("");
+                        }}
+                      >
+                        <Text style={styles.reviewReplyButtonText}>Reply</Text>
+                      </TouchableOpacity>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
             </View>
           )}
 
           {activeTab === "financials" && (
             <View style={styles.tabContentContainer}>
-              {/* Financials Content */}
-              <Card>
-                <CardHeader>
-                  <CardTitle style={styles.flexRowCenterGap2}>
-                    <DollarSign size={20} /> Revenue Breakdown
+              <Card style={styles.financialCard}>
+                <CardHeader style={styles.financialHeader}>
+                  <CardTitle style={styles.financialTitle}>
+                    <DollarSign size={20} color="white" style={{ marginRight: 8 }} />
+                    <Text style={{ color: 'white' }}>Revenue Breakdown</Text>
                   </CardTitle>
                 </CardHeader>
-                <CardContent style={styles.p4}>
-                  <View style={styles.spaceY2}>
-                    <View style={styles.flexRowSpaceBetween}>
-                      <Text style={styles.financialLabel}>Total Revenue:</Text>
-                      <Text style={styles.financialValue}>
-                        {formatCurrency(event.revenue)}
-                      </Text>
-                    </View>
-                    <View style={styles.flexRowSpaceBetween}>
-                      <Text style={styles.financialLabel}>
-                        TAPPD Service Charge (20%):
-                      </Text>
-                      <Text style={styles.financialDestructiveValue}>
-                        -{formatCurrency(event.serviceCharge)}
-                      </Text>
-                    </View>
-                    <Separator
-                      style={{ backgroundColor: Theme.colors.border }}
-                    />
-                    <View style={styles.flexRowSpaceBetween}>
-                      <Text style={styles.financialNetLabel}>
-                        Net Earnings:
-                      </Text>
-                      <Text style={styles.financialNetValue}>
-                        {formatCurrency(event.netEarnings)}
-                      </Text>
-                    </View>
+                <CardContent style={styles.financialContent}>
+                  <View style={styles.financialRow}>
+                    <Text style={styles.financialLabel}>Total Revenue:</Text>
+                    <Text style={styles.financialValue}>{formatCurrency(event.revenue)}</Text>
+                  </View>
+                  <View style={styles.financialRow}>
+                    <Text style={styles.financialLabel}>TAPPD Service Charge (20%):</Text>
+                    <Text style={styles.financialValueDestructive}>-{formatCurrency(event.serviceCharge)}</Text>
+                  </View>
+                  <View style={styles.financialDivider} />
+                  <View style={styles.financialRow}>
+                    <Text style={styles.financialNetLabel}>Net Earnings:</Text>
+                    <Text style={styles.financialNetValue}>{formatCurrency(event.netEarnings)}</Text>
                   </View>
                 </CardContent>
               </Card>
-              {/* Performance Metrics */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Performance Metrics</CardTitle>
+
+              <Card style={styles.financialCard}>
+                <CardHeader style={styles.financialHeader}>
+                  <CardTitle style={styles.financialTitle}>
+                    <Text style={{ color: 'white' }}>Performance Metrics</Text>
+                  </CardTitle>
                 </CardHeader>
-                <CardContent style={styles.p4}>
-                  <View style={styles.spaceY2}>
-                    <View style={styles.flexRowSpaceBetween}>
-                      <Text style={styles.financialLabel}>Occupancy Rate:</Text>
-                      <Text style={styles.financialValue}>
-                        {Math.round(
-                          (event.registrations / event.maxOccupancy) * 100
-                        )}
-                        %
-                      </Text>
-                    </View>
-                    {/* ... other metrics ... */}
+                <CardContent style={styles.financialContent}>
+                  <View style={styles.financialRow}>
+                    <Text style={styles.financialLabel}>Occupancy Rate:</Text>
+                    <Text style={styles.financialValue}>85%</Text>
+                  </View>
+                  <View style={styles.financialRow}>
+                    <Text style={styles.financialLabel}>Revenue per Attendee:</Text>
+                    <Text style={styles.financialValue}>₹1,500</Text>
+                  </View>
+                  <View style={styles.financialRow}>
+                    <Text style={styles.financialLabel}>Connection Rate:</Text>
+                    <Text style={styles.financialValue}>92%</Text>
                   </View>
                 </CardContent>
               </Card>
@@ -585,382 +523,171 @@ export function PublishedEventsScreen() {
       </DialogContent>
     </Dialog>
   );
+});
 
-  // --- MAIN RENDER ---
+export function PublishedEventsScreen() {
+  const navigation = useNavigation();
+  const [events] = useState<PublishedEvent[]>(mockPublishedEvents);
+  const [selectedEvent, setSelectedEvent] = useState<PublishedEvent | null>(null);
+
   return (
-    <SafeAreaView
-      style={[styles.flex1, { backgroundColor: Theme.colors.background }]}
-      edges={["top", "bottom"]}
-    >
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor={Theme.colors.background}
-        translucent={false}
-      />
-
-
+    <SafeAreaView style={[styles.flex1, { backgroundColor: Theme.colors.background }]} edges={["top", "bottom"]}>
+      <StatusBar barStyle="light-content" backgroundColor={Theme.colors.background} translucent={false} />
       <View style={styles.container}>
-        {/* Header */}
         <View style={styles.mainHeader}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-          >
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <ArrowLeft size={24} color={Theme.colors.foreground} />
           </TouchableOpacity>
           <Text style={styles.mainHeaderTitle}>Published Events</Text>
           <View style={styles.w10} />
         </View>
-
-        <ScrollView
-          style={styles.flex1}
-          contentContainerStyle={[styles.scrollPadding, { paddingBottom: 40 }]}
-        >
-          {/* Top Stats Cards */}
+        <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPadding, { paddingBottom: 40 }]}>
           <View style={styles.statsGrid}>
             <View style={styles.statsCardPurple}>
-              <Text style={[styles.statsValueGreen, { fontSize: 18 }]}>
-                ₹606,000
-              </Text>
+              <Text style={[styles.statsValueGreen, { fontSize: 18 }]}>₹606,000</Text>
               <Text style={styles.statsLabel}>Total Earnings</Text>
             </View>
             <View style={styles.statsCardPurple}>
-              <Text style={[styles.statsValuePurple, { fontSize: 18 }]}>
-                505
-              </Text>
+              <Text style={[styles.statsValuePurple, { fontSize: 18 }]}>505</Text>
               <Text style={styles.statsLabel}>Total Registrations</Text>
             </View>
           </View>
-
-          {/* Secondary Stats Row */}
           <View style={styles.secondaryStatsRow}>
-            <Text style={styles.secondaryStatText}>
-              {events.length} events published
-            </Text>
+            <Text style={styles.secondaryStatText}>{events.length} events published</Text>
             <Text style={styles.secondaryStatText}>Avg. 4.7★ rating</Text>
           </View>
-
-          {/* Earnings Chart */}
           <EarningsChart />
-
-          {/* Events List */}
           <View style={styles.eventsListContainer}>
             {events.map((event) => (
-              <EventCard key={event.id} event={event} />
+              <EventCard 
+                key={event.id} 
+                event={event} 
+                onPress={setSelectedEvent} 
+              />
             ))}
           </View>
         </ScrollView>
-
-        {/* Event Detail Modal */}
-        {selectedEvent && <EventDetailModal event={selectedEvent} />}
+        {selectedEvent && (
+          <EventDetailModal 
+            event={selectedEvent} 
+            onClose={() => setSelectedEvent(null)}
+          />
+        )}
       </View>
     </SafeAreaView>
   );
 }
 
-// --- STYLESHEET ---
 const styles = StyleSheet.create({
   flex1: { flex: 1 },
-  container: {
-    flex: 1,
-    backgroundColor: Theme.colors.background,
-  },
-  scrollPadding: {
-    padding: 16,
-    gap: 24,
-  },
-  // Header
-  mainHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderColor: "rgba(255,255,255,0.05)",
-  },
-  mainHeaderTitle: {
-    color: Theme.colors.foreground,
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  backButton: {
-    padding: 4,
-  },
+  container: { flex: 1, backgroundColor: "#0A0322" },
+  scrollPadding: { padding: 16, gap: 24 },
+  mainHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderColor: "rgba(255,255,255,0.05)" },
+  mainHeaderTitle: { color: Theme.colors.foreground, fontSize: 16, fontWeight: "500" },
+  backButton: { padding: 4 },
   w10: { width: 32 },
-
-  // Stats Grid
-  statsGrid: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  statsCardPurple: {
-    flex: 1,
-    backgroundColor: "#18122F", // Dark purple bg
-    borderRadius: 12,
-    paddingVertical: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-  },
-  statsValueGreen: {
-    color: "#22c55e",
-    fontWeight: "bold",
-    marginBottom: 4,
-  },
-  statsValuePurple: {
-    color: "#C026D3",
-    fontWeight: "bold",
-    marginBottom: 4,
-  },
-  statsLabel: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 12,
-  },
-
-  // Secondary Stats
-  secondaryStatsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 4,
-  },
-  secondaryStatText: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 13,
-  },
-
-  // Chart
-  chartCard: {
-    backgroundColor: "#18122F",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    padding: 16,
-  },
-  chartTitle: {
-    flexDirection: "row",
-    alignItems: "center",
-    fontSize: 16,
-    color: Theme.colors.foreground,
-    marginBottom: 16,
-  },
-  chartContent: {
-    flexDirection: "row",
-    height: 180,
-  },
-  chartYAxis: {
-    justifyContent: "space-between",
-    paddingRight: 8,
-    height: "100%",
-    paddingBottom: 20, // Align with X axis space
-  },
-  chartLabel: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 10,
-  },
-  chartArea: {
-    flex: 1,
-    height: "100%",
-    position: "relative",
-  },
-  gridLine: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.05)",
-  },
-  chartXAxis: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  chartGradientArea: {
-    position: "absolute",
-    bottom: 20, // Above X-Axis
-    left: 0,
-    right: 0,
-    height: "100%", // Simplified
-    opacity: 0.3,
-  },
-  chartLine: {
-    // Placeholder for line
-  },
-
-  // Event List
-  eventsListContainer: {
-    gap: 16,
-  },
-  eventCardBase: {
-    backgroundColor: "#18122F",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    overflow: "hidden",
-  },
-  eventCardContent: {
-    padding: 20,
-  },
-  eventCardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 4,
-  },
-  eventCardTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: Theme.colors.foreground,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  statusText: {
-    fontSize: 10,
-    fontWeight: "500",
-  },
-  eventCardLocation: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 13,
-    marginBottom: 20,
-  },
-  eventCardMetricsGrid: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  metricItemLeft: {
-    alignItems: "center",
-    flex: 1,
-  },
-  metricItemRight: {
-    alignItems: "center",
-    flex: 1,
-  },
-  metricBigNumber: {
-    fontSize: 24,
-    color: "#C026D3",
-    fontWeight: "500",
-    marginBottom: 2,
-  },
-  metricBigNumberGreen: {
-    fontSize: 24,
-    color: "#22c55e",
-    fontWeight: "bold",
-    marginBottom: 2,
-  },
-  metricLabel: {
-    fontSize: 11,
-    color: Theme.colors.mutedForeground,
-  },
-  eventCardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  flexRowCenter: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  footerText: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 13,
-  },
-
-  // Shared / Utils
-  flexRowCenterGap2: { flexDirection: "row", alignItems: "center", gap: 8 },
-  flexRowGap4: { flexDirection: "row", gap: 16 },
-  p3: { padding: 12 },
-  p4: { padding: 16 },
-  mt2H2: { marginTop: 8, height: 8 },
-  h2: { height: 8 },
-  mt3: { marginTop: 12 },
-  spaceY2: { gap: 8 },
-  flexRowGap2: { flexDirection: "row", gap: 8 },
-  mxAutoMb2: { alignSelf: "center", marginBottom: 8 },
-  mxAutoMb4: { alignSelf: "center", marginBottom: 16 },
-
-  // Modal Styles (Preserved)
-  detailModalContent: { width: "95%", maxHeight: "90%", padding: 16 },
-  modalTabsList: {
-    flexDirection: "row",
-    marginTop: 16,
-    backgroundColor: Theme.colors.muted,
-    borderRadius: Theme.radius.md,
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-  },
-  modalTabButton: {
-    flex: 1,
-    padding: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  modalTabButtonActive: { backgroundColor: Theme.colors.primary },
-  modalTabTextActive: { color: Theme.colors.foreground, fontWeight: "bold" },
-  modalTabTextInactive: { color: Theme.colors.mutedForeground },
-  tabContentContainer: { paddingVertical: 16, gap: 16 },
-  analyticCard: {
-    flex: 1,
-    backgroundColor: Theme.colors.muted,
-    borderColor: Theme.colors.border,
-  },
-  analyticMetricText: {
-    fontSize: 24,
-    color: Theme.colors.foreground,
-    fontWeight: "bold",
-  },
-  analyticMetricLabel: { fontSize: 14, color: Theme.colors.mutedForeground },
-  ratingText: { fontSize: 24, fontWeight: "bold" },
-  starLabel: { width: 20, fontSize: 12, color: Theme.colors.mutedForeground },
-  emptyState: { alignItems: "center", paddingVertical: 48 },
-  emptyStateText: { color: Theme.colors.mutedForeground },
-  reviewHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  reviewUserName: { fontWeight: "bold", color: Theme.colors.foreground },
-  reviewDate: { fontSize: 12, color: Theme.colors.mutedForeground },
-  reviewComment: { marginTop: 8, color: Theme.colors.foreground },
-  hostReplyBox: {
-    marginTop: 12,
-    padding: 12,
-    backgroundColor: Theme.colors.muted,
-    borderRadius: 8,
-  },
-  hostReplyTitle: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: Theme.colors.primary,
-    marginBottom: 4,
-  },
-  hostReplyText: { fontSize: 12, color: Theme.colors.mutedForeground },
-  flexRowSpaceBetween: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  financialLabel: { color: Theme.colors.mutedForeground },
-  financialValue: { color: Theme.colors.foreground, fontWeight: "500" },
-  financialDestructiveValue: {
-    color: Theme.colors.destructive,
-    fontWeight: "500",
-  },
-  financialNetLabel: { color: Theme.colors.foreground, fontWeight: "bold" },
-  financialNetValue: { color: "#22c55e", fontWeight: "bold" },
+  statsGrid: { flexDirection: "row", gap: 12 },
+  statsCardPurple: { flex: 1, backgroundColor: "#110C24", borderRadius: 12, paddingVertical: 24, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" },
+  statsValueGreen: { color: "#22c55e", fontWeight: "bold", marginBottom: 4 },
+  statsValuePurple: { color: "#C026D3", fontWeight: "bold", marginBottom: 4 },
+  statsLabel: { color: Theme.colors.mutedForeground, fontSize: 12 },
+  secondaryStatsRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 4 },
+  secondaryStatText: { color: Theme.colors.mutedForeground, fontSize: 13 },
+  chartCard: { backgroundColor: "#110C24", borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.05)", padding: 20, marginTop: 8, position: "relative", overflow: "hidden" },
+  chartHeader: { flexDirection: "row", alignItems: "center", marginBottom: 20, zIndex: 1 },
+  chartTitleText: { fontSize: 16, fontWeight: "600", color: Theme.colors.foreground },
+  chartBody: { flexDirection: "row", height: 160, zIndex: 1 },
+  chartYAxis: { justifyContent: "space-between", paddingRight: 4, height: "100%", paddingBottom: 20 },
+  yAxisLabelContainer: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end" },
+  yTick: { width: 4, height: 1, backgroundColor: "rgba(255,255,255,0.3)", marginLeft: 4 },
+  chartLabel: { color: Theme.colors.mutedForeground, fontSize: 10, fontFamily: Platform.OS === "ios" ? "Courier" : "monospace" },
+  chartAreaContainer: { flex: 1 },
+  chartArea: { flex: 1, position: "relative", borderLeftWidth: 1, borderBottomWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
+  gridLineHorizontal: { position: "absolute", left: 0, right: 0, height: 1, borderTopWidth: 1, borderColor: "rgba(255,255,255,0.05)", borderStyle: "dashed" },
+  gridLineVertical: { position: "absolute", top: 0, bottom: 0, width: 1, borderLeftWidth: 1, borderColor: "rgba(255,255,255,0.05)", borderStyle: "dashed" },
+  tooltipContainer: { position: "absolute", backgroundColor: "rgba(11, 7, 31, 0.8)", padding: 16, borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", minWidth: 140, zIndex: 10 },
+  tooltipMonth: { color: "white", fontSize: 18, fontWeight: "500", marginBottom: 8 },
+  tooltipValue: { color: "white", fontSize: 16, fontWeight: "400" },
+  chartXAxis: { flexDirection: "row", justifyContent: "space-between", height: 20 },
+  xAxisLabelContainer: { alignItems: "center", width: 30, marginLeft: -15 },
+  xTick: { width: 1, height: 4, backgroundColor: "rgba(255,255,255,0.3)", marginBottom: 2 },
+  eventsListContainer: { gap: 16 },
+  eventCardBase: { backgroundColor: "#110C24", borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.05)", overflow: "hidden", position: "relative" },
+  eventCardContent: { padding: 20, zIndex: 1 },
+  eventCardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 },
+  eventCardTitle: { fontSize: 16, fontWeight: "bold", color: Theme.colors.foreground },
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1 },
+  statusText: { fontSize: 10, fontWeight: "500" },
+  eventCardLocation: { color: Theme.colors.mutedForeground, fontSize: 13, marginBottom: 20 },
+  eventCardMetricsGrid: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
+  metricItemLeft: { alignItems: "center", flex: 1 },
+  metricItemRight: { alignItems: "center", flex: 1 },
+  metricBigNumber: { fontSize: 24, color: "#C026D3", fontWeight: "500", marginBottom: 2 },
+  metricBigNumberGreen: { fontSize: 24, color: "#22c55e", fontWeight: "bold", marginBottom: 2 },
+  metricLabel: { fontSize: 11, color: Theme.colors.mutedForeground },
+  eventCardFooter: { flexDirection: "row", justifyContent: "space-between" },
+  flexRowCenter: { flexDirection: "row", alignItems: "center" },
+  footerText: { color: Theme.colors.mutedForeground, fontSize: 13 },
   starIcon: { marginHorizontal: 1 },
-  progressBarContainer: {
-    height: 4,
-    backgroundColor: Theme.colors.border,
-    borderRadius: 2,
-    overflow: "hidden",
-    flex: 1,
-  },
-  progressBarFill: { height: "100%", backgroundColor: Theme.colors.primary },
+  detailModalContent: { width: "95%", maxHeight: "92%", padding: 24, backgroundColor: '#0F0821', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  modalCloseButton: { position: 'absolute', right: 20, top: 20, zIndex: 50 },
+  modalHeader: { marginBottom: 20, paddingRight: 40 },
+  modalTitle: { fontSize: 24, fontWeight: 'bold', color: 'white', marginBottom: 8 },
+  modalDescription: { fontSize: 14, color: 'rgba(255,255,255,0.6)' },
+  modalTabsContainer: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 6, marginBottom: 24 },
+  modalTabsList: { flexDirection: "row", gap: 4 },
+  modalTabButton: { flex: 1, paddingVertical: 12, alignItems: "center", justifyContent: "center", borderRadius: 12 },
+  modalTabButtonActive: { backgroundColor: '#C026D3' },
+  modalTabText: { fontSize: 14, fontWeight: '500', color: 'rgba(255,255,255,0.6)' },
+  modalTabTextActive: { color: 'white', fontWeight: "600" },
+  modalContentScroll: { flex: 1 },
+  tabContentContainer: { gap: 20, paddingBottom: 20 },
+  analyticsStatsRow: { flexDirection: 'row', gap: 16 },
+  analyticCard: { flex: 1, backgroundColor: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.1)', borderRadius: 20, padding: 0, overflow: 'hidden' },
+  analyticCardContent: { padding: 24, alignItems: 'center' },
+  analyticMetricText: { fontSize: 32, color: 'white', fontWeight: 'bold', marginBottom: 4 },
+  analyticMetricLabel: { fontSize: 14, color: 'rgba(255,255,255,0.6)', marginBottom: 12 },
+  analyticsProgressContainer: { width: '100%', height: 6, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 3, marginTop: 8 },
+  analyticsProgressFill: { height: '100%', backgroundColor: '#C026D3', borderRadius: 3 },
+  ratingsCard: { backgroundColor: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.1)', borderRadius: 20 },
+  ratingsHeader: { padding: 24, paddingBottom: 0 },
+  ratingsTitle: { flexDirection: 'row', alignItems: 'center' },
+  ratingsContent: { padding: 24 },
+  ratingsOverview: { flexDirection: 'row', alignItems: 'center', gap: 32 },
+  averageRatingContainer: { alignItems: 'center' },
+  averageRatingValue: { fontSize: 48, fontWeight: 'bold', color: '#FFD700' },
+  averageRatingLabel: { fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4 },
+  ratingBarsContainer: { flex: 1, gap: 8 },
+  ratingBarRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  ratingBarStarLabel: { width: 24, fontSize: 12, color: 'rgba(255,255,255,0.5)' },
+  ratingBarBg: { flex: 1, height: 6, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 3 },
+  ratingBarFill: { height: '100%', backgroundColor: '#C026D3', borderRadius: 3 },
+  reviewCard: { backgroundColor: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.1)', borderRadius: 20, marginBottom: 12 },
+  reviewCardContent: { padding: 24 },
+  reviewHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  reviewUserName: { fontSize: 18, fontWeight: '600', color: 'white' },
+  reviewDate: { fontSize: 12, color: 'rgba(255,255,255,0.4)' },
+  reviewStarsRow: { flexDirection: 'row', marginBottom: 16 },
+  reviewCommentText: { fontSize: 15, color: 'rgba(255,255,255,0.8)', lineHeight: 22, marginBottom: 20 },
+  reviewReplyButton: { backgroundColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 20, paddingVertical: 8, borderRadius: 10, alignSelf: 'flex-start', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  reviewReplyButtonText: { color: 'white', fontSize: 14, fontWeight: '500' },
+  replyInputContainer: { marginTop: 8, gap: 16 },
+  replyTextarea: { backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', borderRadius: 12, color: 'white', padding: 16, minHeight: 100, fontSize: 16, textAlignVertical: 'top' },
+  replyActionsRow: { flexDirection: 'row', gap: 12 },
+  sendReplyButton: { backgroundColor: '#C026D3', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
+  sendReplyButtonText: { color: 'white', fontSize: 14, fontWeight: '600' },
+  cancelReplyButton: { backgroundColor: 'transparent', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)' },
+  cancelReplyButtonText: { color: 'white', fontSize: 14, fontWeight: '500' },
+  financialCard: { backgroundColor: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.1)', borderRadius: 20, marginBottom: 16 },
+  financialHeader: { padding: 24, paddingBottom: 0 },
+  financialTitle: { flexDirection: 'row', alignItems: 'center' },
+  financialContent: { padding: 24, gap: 16 },
+  financialRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  financialLabel: { fontSize: 16, color: 'rgba(255,255,255,0.6)' },
+  financialValue: { fontSize: 16, color: 'white', fontWeight: '500' },
+  financialValueDestructive: { fontSize: 16, color: '#FF6B6B', fontWeight: '500' },
+  financialDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginVertical: 4 },
+  financialNetLabel: { fontSize: 18, fontWeight: 'bold', color: 'white' },
+  financialNetValue: { fontSize: 18, fontWeight: 'bold', color: '#4ADE80' },
+  mb2: { marginBottom: 8 },
 });
