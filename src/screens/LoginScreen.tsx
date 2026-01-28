@@ -23,12 +23,14 @@ import {
   statusCodes,
 } from "@react-native-google-signin/google-signin";
 
-// Configure Google Sign-In
-GoogleSignin.configure({
-  webClientId:
-    "931740229699-3m651s5etkhke6bh3i7kba0ij1irq48g.apps.googleusercontent.com",
-  offlineAccess: false,
-});
+// Configure Google Sign-In (only on native)
+if (Platform.OS !== 'web') {
+  GoogleSignin.configure({
+    webClientId:
+      "931740229699-3m651s5etkhke6bh3i7kba0ij1irq48g.apps.googleusercontent.com",
+    offlineAccess: false,
+  });
+}
 
 export const LoginScreen = ({ navigation }: any) => {
   const [email, setEmail] = useState("");

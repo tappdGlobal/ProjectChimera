@@ -7,6 +7,8 @@ import {
   Modal,
   Image,
   ScrollView,
+  Platform,
+  Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Upload, Image as ImageIcon, Camera, X } from "lucide-react-native";
@@ -27,40 +29,140 @@ export function UploadContentSheet({
   onCreatePost,
 }: UploadContentSheetProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [showWebCamera, setShowWebCamera] = useState(false);
 
   // ---------- GALLERY ----------
   const openGallery = async () => {
-    const permission =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) return;
+    try {
+      console.log("Opening gallery...");
+      
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      console.log("Media library permission:", permission);
+      
+      if (!permission.granted) {
+        if (Platform.OS === 'web') {
+          alert("Please allow access to your media library to upload photos.");
+        } else {
+          Alert.alert(
+            "Permission Required",
+            "Please allow access to your media library to upload photos.",
+            [{ text: "OK" }]
+          );
+        }
+        return;
+      }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 1,
-    });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 1,
+        allowsEditing: false,
+      });
 
-    if (!result.canceled) {
-      setSelectedImage(result.assets[0].uri);
+      console.log("Image picker result:", result);
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setSelectedImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error("Error opening gallery:", error);
+      if (Platform.OS === 'web') {
+        alert("Failed to open gallery. Please try again.");
+      }
     }
   };
 
   // ---------- CAMERA ----------
   const openCamera = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) return;
+    // On web, open webcam capture interface
+    if (Platform.OS === 'web') {
+      setShowWebCamera(true);
+      return;
+    }
 
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 1,
-    });
+    // Native camera handling
+    try {
+      console.log("Opening camera...");
+      
+      // Check if camera is available
+      const cameraAvailable = await ImagePicker.getCameraPermissionsAsync();
+      console.log("Camera availability:", cameraAvailable);
+      
+      // Request camera permission
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      console.log("Camera permission:", permission);
+      
+      if (!permission.granted) {
+        Alert.alert(
+          "Camera Permission Required",
+          "Please allow camera access in your device settings to take photos.",
+          [{ text: "OK" }]
+        );
+        return;
+      }
 
-    if (!result.canceled) {
-      setSelectedImage(result.assets[0].uri);
+      console.log("Launching camera...");
+      const result = await ImagePicker.launchCameraAsync({
+        quality: 1,
+        allowsEditing: false,
+      });
+
+      console.log("Camera result:", result);
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setSelectedImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error("Error opening camera:", error);
+      Alert.alert(
+        "Camera Error",
+        "Failed to open camera. Please try again or use Gallery.",
+        [{ text: "OK" }]
+      );
+    }
+  };
+
+  // ---------- WEB CAMERA CAPTURE ----------
+  const captureWebPhoto = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'user' } 
+      });
+      
+      // Create video element
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.autoplay = true;
+      
+      // Wait for video to be ready
+      await new Promise((resolve) => {
+        video.onloadedmetadata = resolve;
+      });
+      
+      // Create canvas to capture frame
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(video, 0, 0);
+      
+      // Stop camera stream
+      stream.getTracks().forEach(track => track.stop());
+      
+      // Convert to data URL
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      setSelectedImage(dataUrl);
+      setShowWebCamera(false);
+    } catch (error) {
+      console.error('Error accessing webcam:', error);
+      alert('Failed to access webcam. Please check your browser permissions or use Gallery instead.');
+      setShowWebCamera(false);
     }
   };
 
   // ---------- RESET ----------
   const handleClose = () => {
     setSelectedImage(null);
+    setShowWebCamera(false);
     onClose();
   };
 
@@ -91,7 +193,31 @@ export function UploadContentSheet({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
           >
-            {selectedImage ? (
+            {showWebCamera ? (
+              // Web Camera Capture UI
+              <View style={styles.webCameraContainer}>
+                <Text style={styles.webCameraTitle}>Camera Access</Text>
+                <Text style={styles.webCameraText}>
+                  Click "Take Photo" to capture a photo using your webcam.
+                  Your browser will ask for camera permission.
+                </Text>
+                <View style={styles.webCameraButtons}>
+                  <TouchableOpacity
+                    style={styles.webCameraButton}
+                    onPress={captureWebPhoto}
+                  >
+                    <Camera size={18} color={Theme.colors.foreground} />
+                    <Text style={styles.webCameraButtonText}>Take Photo</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.webCameraButton, styles.webCameraCancel]}
+                    onPress={() => setShowWebCamera(false)}
+                  >
+                    <Text style={styles.webCameraButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : selectedImage ? (
               <>
                 {/* Image Preview */}
                 <View style={styles.previewContainer}>
@@ -294,6 +420,59 @@ const styles = StyleSheet.create({
   },
 
   actionText: {
+    color: Theme.colors.foreground,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+
+  webCameraContainer: {
+    marginTop: 16,
+    padding: 20,
+    borderRadius: 12,
+    backgroundColor: Theme.colors.muted,
+    alignItems: "center",
+  },
+
+  webCameraTitle: {
+    color: Theme.colors.foreground,
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+
+  webCameraText: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 14,
+    textAlign: "center",
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+
+  webCameraButtons: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+
+  webCameraButton: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+
+  webCameraCancel: {
+    borderColor: "rgba(255,100,100,0.3)",
+    backgroundColor: "rgba(255,100,100,0.1)",
+  },
+
+  webCameraButtonText: {
     color: Theme.colors.foreground,
     fontSize: 14,
     fontWeight: "500",

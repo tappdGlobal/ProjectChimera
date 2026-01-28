@@ -9,6 +9,7 @@ export const SCREEN_NAMES = {
   // ================= APP STACK =================
   MAIN_TABS: "MainTabs",
   EDIT_PROFILE: "EditProfile",
+  SETTINGS: "Settings",
   CHAT_DETAIL: "ChatDetail",
   CHAT_SETTINGS: "ChatSettings",
 
@@ -23,6 +24,9 @@ export const SCREEN_NAMES = {
   EXPLORE_HOME: "ExploreHome",
   EVENT_DISCOVERY: "EventDiscovery",
   EVENT_DETAIL: "EventDetail",
+
+  // ================= ENGAGE STACK =================
+  ENGAGE_HOME: "EngageHome",
 
   // ================= HOST STACK =================
   HOST_MAIN: "HostMain",          // ✅ IMPORTANT (HostScreen)
@@ -56,6 +60,7 @@ export type RootTabParamList = {
 export type AppStackParamList = {
   [SCREEN_NAMES.MAIN_TABS]: undefined;
   [SCREEN_NAMES.EDIT_PROFILE]: undefined;
+  [SCREEN_NAMES.SETTINGS]: undefined;
   [SCREEN_NAMES.CHAT_DETAIL]: {
     chatId: string;
     name: string;
