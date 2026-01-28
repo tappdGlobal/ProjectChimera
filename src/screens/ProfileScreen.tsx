@@ -150,6 +150,7 @@ export function ProfileScreen() {
   const route = useRoute<any>();
 
   React.useEffect(() => {
+    // TEST MODE disabled - let Settings stay as is
     if (route.params?.initialTab === "settings") {
       setActiveTab("settings");
     } else {
@@ -1354,39 +1355,61 @@ export function ProfileScreen() {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.settingsRow}
-                      onPress={() =>
-                        Alert.alert(
-                          "Delete Account",
-                          "Are you sure you want to delete your account? This action cannot be undone.",
-                          [
-                            {
-                              text: "Cancel",
-                              style: "cancel",
-                            },
-                            {
-                              text: "Delete",
-                              style: "destructive",
-                              onPress: async () => {
-                                try {
-                                  await deleteAccount();
-                                  Toast.show({
-                                    type: "success",
-                                    text1: "Account Deleted",
-                                    text2: "Your account has been permanently deleted",
-                                  });
-                                  // Navigation will happen automatically due to auth state change
-                                } catch (err: any) {
-                                  Toast.show({
-                                    type: "error",
-                                    text1: "Failed to Delete Account",
-                                    text2: err.message || "An error occurred",
-                                  });
-                                }
+                      onPress={async () => {
+                        console.log("Delete Account button clicked");
+                        
+                        const handleDelete = async () => {
+                          console.log("Starting account deletion...");
+                          try {
+                            console.log("Calling deleteAccount API...");
+                            await deleteAccount();
+                            console.log("Account deleted successfully");
+                            Toast.show({
+                              type: "success",
+                              text1: "Account Deleted",
+                              text2: "Your account has been permanently deleted",
+                            });
+                          } catch (err: any) {
+                            console.error("Delete account error:", err);
+                            Toast.show({
+                              type: "error",
+                              text1: "Failed to Delete Account",
+                              text2: err.message || "An error occurred",
+                            });
+                          }
+                        };
+                        
+                        if (Platform.OS === 'web') {
+                          console.log("Using window.confirm for web");
+                          const confirmed = window.confirm(
+                            "Delete Account\n\nAre you sure you want to delete your account? This action cannot be undone."
+                          );
+                          console.log("User confirmation:", confirmed);
+                          
+                          if (confirmed) {
+                            await handleDelete();
+                          } else {
+                            console.log("User cancelled account deletion");
+                          }
+                        } else {
+                          Alert.alert(
+                            "Delete Account",
+                            "Are you sure you want to delete your account? This action cannot be undone.",
+                            [
+                              {
+                                text: "Cancel",
+                                style: "cancel",
+                                onPress: () => console.log("User cancelled"),
                               },
-                            },
-                          ]
-                        )
-                      }
+                              {
+                                text: "Delete",
+                                style: "destructive",
+                                onPress: handleDelete,
+                              },
+                            ]
+                          );
+                        }
+                      }}
                     >
                       <Trash2
                         size={18}

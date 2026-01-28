@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -26,6 +26,8 @@ import {
 import StoryViewer from "./StoryViewer";
 import { UploadContentSheet } from "./UploadContentSheet";
 import { CreateStoryModal } from "./CreateStoryModal";
+import { useStoryStore } from "../../store/storyStore";
+import { useAuthStore } from "../../store/authStore";
 
 /* ---------------- MOCK DATA ---------------- */
 
@@ -328,12 +330,42 @@ const FeedPost = ({ item }) => {
 export function EventInteractionSection() {
   const [showStoryModal, setShowStoryModal] = useState(false);
   const [storyIndex, setStoryIndex] = useState(0);
-
-  // Missing State Variables
   const [showUpload, setShowUpload] = useState(false);
   const [showCreateStory, setShowCreateStory] = useState(false);
   const [storyImage, setStoryImage] = useState<string | null>(null);
-  const [stories, setStories] = useState(STORIES);
+  
+  const { stories, getAllStories, loading } = useStoryStore();
+  const { user } = useAuthStore();
+
+  // Fetch stories on mount
+  useEffect(() => {
+    console.log("Fetching all stories...");
+    getAllStories();
+  }, []);
+
+  // Format stories for display
+  const displayStories = [
+    // Add "Add Story" button first
+    { 
+      id: "add-story", 
+      name: "Add Story", 
+      isUser: true, 
+      image: user?.profilePicUrl || DEFAULT_AVATAR 
+    },
+    // Then add actual stories
+    ...stories.map(story => ({
+      id: story.id,
+      name: story.user.name,
+      isUser: false,
+      image: story.media.url,
+      caption: story.caption,
+    }))
+  ];
+
+  const handleStoryCreated = () => {
+    console.log("Story created, refreshing stories list...");
+    getAllStories();
+  };
 
   return (
     <View style={styles.container}>
@@ -343,7 +375,7 @@ export function EventInteractionSection() {
         renderItem={({ item }) => <FeedPost item={item} />}
         ListHeaderComponent={
           <ScrollView horizontal style={{ padding: 16 }}>
-            {stories.map((story, index) => (
+            {displayStories.map((story, index) => (
               <StoryItem
                 key={story.id}
                 item={story}
@@ -352,7 +384,7 @@ export function EventInteractionSection() {
                     setShowUpload(true);
                   } else {
                     // Calculate index ignoring the "Add Story" button
-                    const filteredIndex = stories
+                    const filteredIndex = displayStories
                       .filter((s) => !s.isUser)
                       .findIndex((s) => s.id === story.id);
                     setStoryIndex(filteredIndex >= 0 ? filteredIndex : 0);
@@ -367,7 +399,7 @@ export function EventInteractionSection() {
 
       <StoryViewer
         visible={showStoryModal}
-        stories={stories
+        stories={displayStories
           .filter((s) => !s.isUser)
           .map((s) => ({
             id: s.id,
@@ -389,13 +421,15 @@ export function EventInteractionSection() {
           setShowCreateStory(true);
         }}
       />
+      
       <CreateStoryModal
         visible={showCreateStory}
         imageUri={storyImage}
-        onClose={() => setShowCreateStory(false)}
-        onPublish={(newStory) => {
-          setStories((prev) => [newStory, ...prev]);
+        onClose={() => {
+          setShowCreateStory(false);
+          setStoryImage(null);
         }}
+        onSuccess={handleStoryCreated}
       />
     </View>
   );

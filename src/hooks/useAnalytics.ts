@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { usePostHog } from "posthog-react-native";
+import { Platform } from "react-native";
 
 interface ScreenProperties {
   [key: string]: any;
@@ -14,7 +15,16 @@ interface EventProperties {
  * Provides consistent interface for tracking screens, events, and user identification
  */
 export function useAnalytics(screenName: string, screenProperties?: ScreenProperties) {
-  const posthog = usePostHog();
+  // Create a mock PostHog object for web
+  const mockPostHog = {
+    screen: () => {},
+    capture: () => {},
+    identify: () => {},
+    reset: () => {},
+  };
+
+  // Only use real PostHog on native platforms
+  const posthog = Platform.OS === 'web' ? mockPostHog : usePostHog();
 
   // Automatically track screen view when component mounts
   useEffect(() => {
