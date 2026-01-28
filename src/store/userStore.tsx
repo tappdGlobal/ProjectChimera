@@ -41,6 +41,7 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   fetchUser: async (userId) => {
     try {
+
       set({ loading: true, error: null });
       const res = await getUserByIdApi(userId);
       set({ profile: res.data ?? null, loading: false });
