@@ -1358,38 +1358,7 @@ export function ProfileScreen() {
                       onPress={async () => {
                         console.log("Delete Account button clicked");
                         
-                        // Web-compatible confirmation dialog
-                        let confirmed = false;
-                        
-                        if (Platform.OS === 'web') {
-                          console.log("Using window.confirm for web");
-                          confirmed = window.confirm(
-                            "Delete Account\n\nAre you sure you want to delete your account? This action cannot be undone."
-                          );
-                          console.log("User confirmation:", confirmed);
-                        } else {
-                          // For native, use Alert.alert
-                          Alert.alert(
-                            "Delete Account",
-                            "Are you sure you want to delete your account? This action cannot be undone.",
-                            [
-                              {
-                                text: "Cancel",
-                                style: "cancel",
-                              },
-                              {
-                                text: "Delete",
-                                style: "destructive",
-                                onPress: async () => {
-                                  confirmed = true;
-                                },
-                              },
-                            ]
-                          );
-                          return; // Alert.alert handles the rest
-                        }
-                        
-                        if (confirmed) {
+                        const handleDelete = async () => {
                           console.log("Starting account deletion...");
                           try {
                             console.log("Calling deleteAccount API...");
@@ -1400,7 +1369,6 @@ export function ProfileScreen() {
                               text1: "Account Deleted",
                               text2: "Your account has been permanently deleted",
                             });
-                            // Navigation will happen automatically due to auth state change
                           } catch (err: any) {
                             console.error("Delete account error:", err);
                             Toast.show({
@@ -1409,8 +1377,37 @@ export function ProfileScreen() {
                               text2: err.message || "An error occurred",
                             });
                           }
+                        };
+                        
+                        if (Platform.OS === 'web') {
+                          console.log("Using window.confirm for web");
+                          const confirmed = window.confirm(
+                            "Delete Account\n\nAre you sure you want to delete your account? This action cannot be undone."
+                          );
+                          console.log("User confirmation:", confirmed);
+                          
+                          if (confirmed) {
+                            await handleDelete();
+                          } else {
+                            console.log("User cancelled account deletion");
+                          }
                         } else {
-                          console.log("User cancelled account deletion");
+                          Alert.alert(
+                            "Delete Account",
+                            "Are you sure you want to delete your account? This action cannot be undone.",
+                            [
+                              {
+                                text: "Cancel",
+                                style: "cancel",
+                                onPress: () => console.log("User cancelled"),
+                              },
+                              {
+                                text: "Delete",
+                                style: "destructive",
+                                onPress: handleDelete,
+                              },
+                            ]
+                          );
                         }
                       }}
                     >
