@@ -1,13 +1,11 @@
 import { RootNavigator } from "./src/navigation/RootNavigator";
-import { PostHogProvider } from "posthog-react-native";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import { databaseService } from "./src/services/databaseService";
 import { syncService } from "./src/services/syncService";
 import { View, Text, StyleSheet, Platform } from "react-native";
 import { ErrorBoundary } from "./src/components/common/ErrorBoundary";
-
-// NOTE: The main logic from the Figma output App.tsx will move to AppNavigator.tsx
+import { useAuthStore } from "./src/store/authStore";
 
 export default function App() {
   const [initError, setInitError] = useState<string | null>(null);
@@ -18,7 +16,13 @@ export default function App() {
     setDebugLog(prev => [...prev.slice(-5), `${new Date().toLocaleTimeString()}: ${message}`]);
   };
 
+  const hydrateAuth = useAuthStore((s) => s.hydrateAuth);
+  const isHydrated = useAuthStore((s) => s.isHydrated);
+
   useEffect(() => {
+    // ✅ Restore token + userId from AsyncStorage
+    hydrateAuth();
+
     const init = async () => {
       try {
         addLog(`App starting on ${Platform.OS}`);
@@ -33,12 +37,26 @@ export default function App() {
         console.error("App initialization error:", error);
         addLog(`Init error: ${error.message}`);
         // Don't block the app from rendering if initialization fails
+        console.log("Initializing database...");
+        await databaseService.initDatabase();
+
+        console.log("Database initialized, syncing actions...");
+        await syncService.syncActions();
+
+        console.log("App initialization complete");
+      } catch (error: any) {
+        console.error("App initialization error:", error);
         // setInitError(error?.message || "Failed to initialize app");
       }
     };
-    // Don't await - let app render while initializing
+
     init();
   }, []);
+
+  // ✅ Prevent app from rendering before auth hydration completes
+  if (!isHydrated) {
+    return null; // or splash screen / loader
+  }
 
   if (initError) {
     return (
