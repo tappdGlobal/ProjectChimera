@@ -10,6 +10,7 @@ export const SCREEN_NAMES = {
   MAIN_TABS: "MainTabs",
   EDIT_PROFILE: "EditProfile",
   SETTINGS: "Settings",
+  CHAT_LIST: "ChatList",          // ✅ ADDED
   CHAT_DETAIL: "ChatDetail",
   CHAT_SETTINGS: "ChatSettings",
 
@@ -29,7 +30,7 @@ export const SCREEN_NAMES = {
   ENGAGE_HOME: "EngageHome",
 
   // ================= HOST STACK =================
-  HOST_MAIN: "HostMain",          // ✅ IMPORTANT (HostScreen)
+  HOST_MAIN: "HostMain",
   DRAFT_EVENTS: "DraftEvents",
   PUBLISHED_EVENTS: "PublishedEvents",
 
@@ -50,7 +51,7 @@ export type AuthStackParamList = {
 export type RootTabParamList = {
   [SCREEN_NAMES.EXPLORE]: undefined;
   [SCREEN_NAMES.ENGAGE]: undefined;
-  [SCREEN_NAMES.HOST]: undefined; // ⬅ HostStack is mounted here
+  [SCREEN_NAMES.HOST]: undefined;
   [SCREEN_NAMES.NOTIFICATIONS]: undefined;
   [SCREEN_NAMES.PROFILE]: undefined;
 };
@@ -89,6 +90,8 @@ export type ExploreStackParamList = {
 export type EngageStackParamList = {
   [SCREEN_NAMES.ENGAGE_HOME]: undefined;
 
+  [SCREEN_NAMES.CHAT_LIST]: undefined;   // ✅ ADDED
+
   [SCREEN_NAMES.CHAT_DETAIL]: {
     chatId: string;
     name: string;
@@ -102,7 +105,7 @@ export type EngageStackParamList = {
 
 export type HostStackParamList = {
   [SCREEN_NAMES.HOST_MAIN]: {
-    editingDraft?: any; // ✅ Draft edit support
+    editingDraft?: any;
   } | undefined;
 
   [SCREEN_NAMES.DRAFT_EVENTS]: undefined;
