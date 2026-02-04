@@ -23,7 +23,7 @@ const LabelMap = {
   [SCREEN_NAMES.ENGAGE]: "Engage",
   [SCREEN_NAMES.EXPLORE]: "Explore",
   [SCREEN_NAMES.HOST]: "Host",
-  [SCREEN_NAMES.NOTIFICATIONS]: "Reconnect", // Mapped to the Reconnect component/name
+  [SCREEN_NAMES.NOTIFICATIONS]: "Notifications",
   [SCREEN_NAMES.PROFILE]: "Profile",
 };
 

@@ -13,6 +13,7 @@ import {
 import {
   ArrowLeft,
   ChevronDown,
+  ChevronUp,
   X,
   Calendar,
   MapPin,
@@ -395,7 +396,11 @@ export function NotificationsScreen() {
                 </Badge>
               )}
             </View>
-            <ChevronDown size={16} color={Theme.colors.mutedForeground} />
+            {openSections[key] ? (
+              <ChevronUp size={16} color={Theme.colors.mutedForeground} />
+            ) : (
+              <ChevronDown size={16} color={Theme.colors.mutedForeground} />
+            )}
           </View>
         </CollapsibleTrigger>
         <CollapsibleContent>
@@ -469,14 +474,14 @@ export function NotificationsScreen() {
                       <Text
                         style={[
                           styles.cardInfoText,
-                          { color: Theme.colors.primary, marginTop: 4 },
+                          { color: Theme.colors.mutedForeground, marginTop: 4 },
                         ]}
                       >
                         in {n.eventName}
                       </Text>
-                      <Badge
+                      <TouchableOpacity
                         style={[
-                          styles.inlineBadge,
+                          styles.interactionButton,
                           getBadgeStyle(n.interactionType),
                         ]}
                       >
@@ -484,11 +489,12 @@ export function NotificationsScreen() {
                           style={{
                             color: getBadgeStyle(n.interactionType).color,
                             fontSize: 12,
+                            fontWeight: "600",
                           }}
                         >
                           {n.interactionType}
                         </Text>
-                      </Badge>
+                      </TouchableOpacity>
                     </View>
                   </View>
                 </NotificationCard>
@@ -609,8 +615,13 @@ export function NotificationsScreen() {
 
         {/* Notifications Content */}
         <ScrollView
-          style={styles.flex1}
+          style={styles.scrollView}
           contentContainerStyle={styles.scrollPadding}
+          showsVerticalScrollIndicator={true}
+          nestedScrollEnabled={true}
+          scrollEnabled={true}
+          bounces={true}
+          keyboardShouldPersistTaps="handled"
         >
           {renderSectionHeader(
             "Events",
@@ -667,7 +678,8 @@ export function NotificationsScreen() {
 const styles = StyleSheet.create({
   flex1: { flex: 1 },
   mainContainer: { flex: 1, backgroundColor: Theme.colors.background },
-  scrollPadding: { padding: 16, gap: 12 },
+  scrollView: { flex: 1 },
+  scrollPadding: { padding: 16, gap: 12, paddingBottom: 100 },
   w10: { width: 40 },
   safeBottom: { height: 80 },
 
@@ -813,6 +825,14 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     paddingHorizontal: 12,
     paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 0,
+  },
+  interactionButton: {
+    marginTop: 12,
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 0,
   },

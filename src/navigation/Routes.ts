@@ -24,6 +24,9 @@ export const SCREEN_NAMES = {
   EVENT_DISCOVERY: "EventDiscovery",
   EVENT_DETAIL: "EventDetail",
 
+  // ================= ENGAGE STACK =================
+  ENGAGE_HOME: "EngageHome",
+
   // ================= HOST STACK =================
   HOST_MAIN: "HostMain",          // ✅ IMPORTANT (HostScreen)
   DRAFT_EVENTS: "DraftEvents",
@@ -31,6 +34,7 @@ export const SCREEN_NAMES = {
 
   // ================= STANDALONE =================
   EVENT_DETAILS_SCREEN: "EventDetailsScreen",
+  NOTIFICATIONS_SCREEN: "NotificationsScreen",
 } as const;
 
 /* ================= AUTH STACK ================= */
@@ -63,6 +67,7 @@ export type AppStackParamList = {
   };
   [SCREEN_NAMES.CHAT_SETTINGS]: undefined;
   [SCREEN_NAMES.EVENT_DETAILS_SCREEN]: undefined;
+  [SCREEN_NAMES.NOTIFICATIONS_SCREEN]: undefined;
 };
 
 /* ================= EXPLORE STACK ================= */

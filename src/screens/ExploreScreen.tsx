@@ -84,7 +84,7 @@ export function ExploreScreen() {
             })
           }
           onNotificationClick={() =>
-            navigation.getParent()?.navigate(SCREEN_NAMES.NOTIFICATIONS)
+            navigation.getParent()?.navigate(SCREEN_NAMES.NOTIFICATIONS_SCREEN)
           }
           onSearchChange={handleSearchChange}
         />

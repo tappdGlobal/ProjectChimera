@@ -63,7 +63,7 @@ const MainTabs = () => {
       />
       <Tab.Screen
         name={SCREEN_NAMES.NOTIFICATIONS}
-        component={ReconnectScreen}
+        component={NotificationsScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
             <Icon name="bell" color={color} size={size} />
@@ -94,6 +94,10 @@ const AppNavigator = () => {
       <Stack.Screen
         name={SCREEN_NAMES.EVENT_DETAILS_SCREEN}
         component={EventDetailsScreen}
+      />
+      <Stack.Screen
+        name={SCREEN_NAMES.NOTIFICATIONS_SCREEN}
+        component={NotificationsScreen}
       />
     </Stack.Navigator>
   );
