@@ -1,5 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  TouchableOpacity,
+  Platform,
+} from "react-native";
+
 import * as Location from "expo-location";
 import { Theme } from "../../styles/Theme";
 import Constants from "expo-constants";
@@ -17,6 +26,12 @@ try {
   }
 } catch (error) {
   console.warn("MapLibre not available (requires development build):", error);
+}
+
+// Only import MapLibre on native platforms
+let Maplibre: any = null;
+if (Platform.OS !== 'web') {
+  Maplibre = require("@maplibre/maplibre-react-native").default;
 }
 
 interface UserLocation {
@@ -178,20 +193,37 @@ export function MapTabContent() {
     );
   }
 
-  // Check if MapLibre is available (not available in Expo Go)
-  if (!Maplibre || !Maplibre.MapView) {
-    return (
-      <View style={styles.centerContainer}>
-        <View style={styles.errorCard}>
-          <Text style={styles.errorTitle}>Map Unavailable</Text>
-          <Text style={styles.errorText}>
-            The map feature requires a development build and is not available in Expo Go.
-          </Text>
-          <Text style={[styles.errorText, { marginTop: 12, fontSize: 12 }]}>
-            To use the map, build the app using:{'\n'}
-            • Android: npx expo run:android{'\n'}
-            • iOS: npx expo run:ios{'\n'}
-            • Or: eas build --profile development --platform android
+// Web fallback
+if (Platform.OS === "web") {
+  return (
+    <View style={styles.centerContainer}>
+      <View style={styles.errorCard}>
+        <Text style={styles.errorTitle}>Map View</Text>
+        <Text style={styles.errorText}>
+          Interactive maps are only available on the mobile app.
+          {"\n\n"}
+          Your location: {userLocation.latitude.toFixed(4)},{" "}
+          {userLocation.longitude.toFixed(4)}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+// Native but MapLibre unavailable (Expo Go)
+if (!Maplibre || !Maplibre.MapView) {
+  return (
+    <View style={styles.centerContainer}>
+      <View style={styles.errorCard}>
+        <Text style={styles.errorTitle}>Map Unavailable</Text>
+        <Text style={styles.errorText}>
+          The map feature requires a development build and is not available in Expo Go.
+        </Text>
+      </View>
+    </View>
+  );
+}
+
           </Text>
         </View>
       </View>

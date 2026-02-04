@@ -3,10 +3,24 @@ import { ApiResponse, User } from "../types/authTypes";
 
 /* ================= GET USER PROFILE ================= */
 
-export const getUserByIdApi = (
+export const getUserByIdApi = async (
   userId: string
 ): Promise<ApiResponse<User>> => {
-  return apiClient.get(`/users/${userId}`);
+  console.log("📡 [API] getUserByIdApi called");
+  console.log("➡️ userId:", userId);
+
+  try {
+    const res = await apiClient.get(`/users/${userId}`);
+
+    console.log("✅ [API] getUserByIdApi success");
+    console.log("📦 response data:", res.data);
+
+    return res;
+  } catch (error: any) {
+    console.log("❌ [API] getUserByIdApi failed");
+    console.log("🧨 error:", error?.response?.data || error.message || error);
+    throw error;
+  }
 };
 
 /* ================= UPDATE USER PROFILE ================= */

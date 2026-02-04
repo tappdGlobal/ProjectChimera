@@ -8,44 +8,71 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  ActivityIndicator,
+  Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { X, Send } from "lucide-react-native";
 import { Theme, GRADIENT_COLORS } from "../../styles/Theme";
+import { useStoryStore } from "../../store/storyStore";
+import Toast from "react-native-toast-message";
 
 interface CreateStoryModalProps {
   visible: boolean;
   imageUri: string | null;
   onClose: () => void;
-  onPublish: (story: {
-    id: string;
-    name: string;
-    image: string;
-    isUser: boolean;
-    caption?: string;
-  }) => void;
+  onSuccess?: () => void;
 }
 
 export function CreateStoryModal({
   visible,
   imageUri,
   onClose,
-  onPublish,
+  onSuccess,
 }: CreateStoryModalProps) {
   const [caption, setCaption] = useState("");
+  const { createStory, loading } = useStoryStore();
 
   if (!imageUri) return null;
 
-  const handlePublish = () => {
-    onPublish({
-      id: Date.now().toString(),
-      name: "Your Story",
-      image: imageUri,
-      isUser: true,
-      caption,
-    });
-    setCaption("");
-    onClose();
+  const handlePublish = async () => {
+    try {
+      console.log("Publishing story with image:", imageUri);
+      
+      // Extract filename from URI
+      const filename = imageUri.split('/').pop() || 'story.jpg';
+      const match = /\.([\w]+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+      await createStory({
+        caption: caption || undefined,
+        media: {
+          uri: imageUri,
+          name: filename,
+          type: type,
+        },
+      });
+
+      console.log("Story created successfully");
+      
+      Toast.show({
+        type: "success",
+        text1: "Story Published",
+        text2: "Your story is now live!",
+      });
+      
+      setCaption("");
+      onClose();
+      onSuccess?.();
+    } catch (error: any) {
+      console.error("Failed to create story:", error);
+      
+      Toast.show({
+        type: "error",
+        text1: "Failed to Publish Story",
+        text2: error.message || "Please try again",
+      });
+    }
   };
 
   return (
@@ -89,6 +116,7 @@ export function CreateStoryModal({
               activeOpacity={0.85}
               onPress={handlePublish}
               style={styles.publishWrapper}
+              disabled={loading}
             >
               <LinearGradient
                 colors={GRADIENT_COLORS.primary as [string, string]}
@@ -96,8 +124,14 @@ export function CreateStoryModal({
                 end={{ x: 1, y: 0 }}
                 style={styles.publishButton}
               >
-                <Send size={16} color={Theme.colors.primaryForeground} />
-                <Text style={styles.publishText}>Publish Story</Text>
+                {loading ? (
+                  <ActivityIndicator size="small" color={Theme.colors.primaryForeground} />
+                ) : (
+                  <>
+                    <Send size={16} color={Theme.colors.primaryForeground} />
+                    <Text style={styles.publishText}>Publish Story</Text>
+                  </>
+                )}
               </LinearGradient>
             </TouchableOpacity>
           </ScrollView>

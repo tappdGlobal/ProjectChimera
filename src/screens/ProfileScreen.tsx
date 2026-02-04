@@ -15,9 +15,7 @@ import {
 import {
   ArrowLeft,
   Settings,
-  Edit,
   Plus,
-  Filter,
   LogOut,
   User as UserIcon,
   Shield,
@@ -35,7 +33,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
-
+import { AboutTab } from "../components/profile/AboutTab";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card"; // Assuming Card is the general container
 import {
@@ -127,6 +125,12 @@ import {
 
 export function ProfileScreen() {
   const navigation = useAppNavigation();
+  const { userId, token } = useAuthStore();
+
+  // console.log("ProfileScreen userId:", userId);
+  // console.log("ProfileScreen token:", token);
+
+
   const { logout, changeEmail, changePassword, deleteAccount, loading: authLoading } = useAuthStore();
   const { profile, fetchUser, updateUser, uploadPhotos, deletePhoto, loading, setProfile } =
     useUserStore();
@@ -150,6 +154,7 @@ export function ProfileScreen() {
   const route = useRoute<any>();
 
   React.useEffect(() => {
+    // TEST MODE disabled - let Settings stay as is
     if (route.params?.initialTab === "settings") {
       setActiveTab("settings");
     } else {
@@ -211,7 +216,8 @@ export function ProfileScreen() {
       });
     }
   };
-
+  //   console.log("ProfileScreen activeTab =", activeTab);
+  // console.log("ProfileScreen userId =", userId);
   // Update profile image if user avatar changes
   React.useEffect(() => {
     const newAvatar = user?.profilePicUrl || defaultAvatar;
@@ -717,12 +723,12 @@ export function ProfileScreen() {
                         <Text style={{ color: Theme.colors.foreground }}>
                           {name?.trim()
                             ? name
-                                .trim()
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")
-                                .substring(0, 2)
-                                .toUpperCase()
+                              .trim()
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
+                              .substring(0, 2)
+                              .toUpperCase()
                             : "HA"}
                         </Text>
                       </AvatarFallback>
@@ -756,7 +762,7 @@ export function ProfileScreen() {
               <View style={styles.infoRow}>
                 {[
                   user?.gender &&
-                    `${user.gender.charAt(0).toUpperCase()}${user.gender.slice(1).toLowerCase()}`,
+                  `${user.gender.charAt(0).toUpperCase()}${user.gender.slice(1).toLowerCase()}`,
                   user?.location,
                   user?.occupation,
                 ]
@@ -795,200 +801,8 @@ export function ProfileScreen() {
               </View>
 
               {/* Edit Details Button - Full Width Below Tabs */}
-              {activeTab === "about" && (
-                <View style={styles.editButtonFullWidthContainer}>
-                  <TouchableOpacity
-                    style={styles.editButtonFullWidth}
-                    onPress={() =>
-                      navigation.navigate(SCREEN_NAMES.EDIT_PROFILE)
-                    }
-                  >
-                    <Edit size={20} color="#FFFFFF" />
-                    <Text style={styles.editButtonTextLarge}>Edit Details</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+              {activeTab === "about" && <AboutTab userId={userId} />}
 
-              {/* Tab Contents */}
-              {activeTab === "about" && (
-                <View style={styles.tabContent}>
-                  <Text style={styles.sectionTitle}>About Me</Text>
-                  <Text style={styles.bioText}>
-                    {bio ?? "No bio available."}
-                  </Text>
-
-                  {/* Occupation & Education - Two Column */}
-                  <View style={styles.twoColumnRow}>
-                    <View style={styles.columnHalf}>
-                      <Text style={styles.detailLabel}>Occupation</Text>
-                      <Text style={styles.detailValue}>
-                        {user?.occupation ?? "Not specified"}
-                      </Text>
-                    </View>
-                    <View style={styles.columnHalf}>
-                      <Text style={styles.detailLabel}>Education</Text>
-                      <Text style={styles.detailValue}>
-                        {user?.education ?? "Not specified"}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Looking For */}
-                  <View style={styles.lookingForSection}>
-                    <Text style={styles.sectionTitle}>Looking For</Text>
-                    <View style={styles.lookingForButtons}>
-                      {user?.lookingFor ? (
-                        typeof user.lookingFor === "string" ? (
-                          user.lookingFor
-                            .split(",")
-                            .map((item: string, index: number) => (
-                              <View key={index} style={styles.lookingForButton}>
-                                <Text style={styles.lookingForButtonText}>
-                                  {item.trim()}
-                                </Text>
-                              </View>
-                            ))
-                        ) : Array.isArray(user.lookingFor) ? (
-                          (user.lookingFor as string[]).map(
-                            (item: string, index: number) => (
-                              <View key={index} style={styles.lookingForButton}>
-                                <Text style={styles.lookingForButtonText}>
-                                  {item}
-                                </Text>
-                              </View>
-                            ),
-                          )
-                        ) : (
-                          <View style={styles.lookingForButton}>
-                            <Text style={styles.lookingForButtonText}>
-                              {user.lookingFor}
-                            </Text>
-                          </View>
-                        )
-                      ) : (
-                        <View style={styles.lookingForButton}>
-                          <Text style={styles.lookingForButtonText}>
-                            Friendship
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-
-                  {/* Age & Height - Two Column */}
-                  <View style={styles.twoColumnRow}>
-                    <View style={styles.columnHalf}>
-                      <Text style={styles.detailLabel}>Age</Text>
-                      <Text style={styles.detailValue}>
-                        {user?.age ?? "22"}
-                      </Text>
-                    </View>
-                    <View style={styles.columnHalf}>
-                      <Text style={styles.detailLabel}>Height</Text>
-                      <Text style={styles.detailValue}>
-                        {user?.height
-                          ? typeof user.height === "number" &&
-                            user.height >= 30 &&
-                            user.height <= 300
-                            ? `${Math.floor(user.height / 30.48)}'${Math.round((user.height % 30.48) / 2.54)}"`
-                            : user.height
-                          : "5'10\""}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Gender & Location - Two Column */}
-                  <View style={styles.twoColumnRow}>
-                    <View style={styles.columnHalf}>
-                      <Text style={styles.detailLabel}>Gender</Text>
-                      <Text style={styles.detailValue}>
-                        {user?.gender
-                          ? user.gender.charAt(0).toUpperCase() +
-                            user.gender.slice(1).toLowerCase()
-                          : "Male"}
-                      </Text>
-                    </View>
-                    <View style={styles.columnHalf}>
-                      <Text style={styles.detailLabel}>Location</Text>
-                      <Text style={styles.detailValue}>
-                        {user?.location ?? "New Delhi, India"}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Interests */}
-                  <View style={styles.interestsSection}>
-                    <Text style={styles.sectionTitle}>Interests</Text>
-                    <View style={styles.interestsContainer}>
-                      {user?.interests && user.interests.length > 0 ? (
-                        user.interests.map((interest, index) => (
-                          <View key={index} style={styles.interestTag}>
-                            <Text style={styles.interestTagText}>
-                              {interest}
-                            </Text>
-                          </View>
-                        ))
-                      ) : (
-                        <>
-                          <View style={styles.interestTag}>
-                            <Text style={styles.interestTagText}>
-                              Entrepreneurship
-                            </Text>
-                          </View>
-                          <View style={styles.interestTag}>
-                            <Text style={styles.interestTagText}>
-                              Growth Marketing
-                            </Text>
-                          </View>
-                          <View style={styles.interestTag}>
-                            <Text style={styles.interestTagText}>Startups</Text>
-                          </View>
-                          <View style={styles.interestTag}>
-                            <Text style={styles.interestTagText}>Tech</Text>
-                          </View>
-                          <View style={styles.interestTag}>
-                            <Text style={styles.interestTagText}>Strategy</Text>
-                          </View>
-                          <View style={styles.interestTag}>
-                            <Text style={styles.interestTagText}>
-                              Innovation
-                            </Text>
-                          </View>
-                        </>
-                      )}
-                    </View>
-                  </View>
-
-                  {/* Smoking & Drinking - Two Column */}
-                  <View style={styles.twoColumnRow}>
-                    <View style={styles.columnHalf}>
-                      <Text style={styles.detailLabel}>Smoking</Text>
-                      <Text style={styles.detailValue}>
-                        {user?.smoking ? String(user.smoking) : "No"}
-                      </Text>
-                    </View>
-                    <View style={styles.columnHalf}>
-                      <Text style={styles.detailLabel}>Drinking</Text>
-                      <Text style={styles.detailValue}>
-                        {user?.drinking ?? "Socially"}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Edit Details Button - Bottom Right */}
-                  <View style={styles.editButtonContainerBottom}>
-                    <TouchableOpacity
-                      style={styles.editButton}
-                      onPress={() =>
-                        navigation.navigate(SCREEN_NAMES.EDIT_PROFILE)
-                      }
-                    >
-                      <Edit size={18} color="#FFFFFF" style={styles.editIcon} />
-                      <Text style={styles.editButtonText}>Edit Details</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
 
               {activeTab === "connections" && (
                 <View style={styles.tabContent}>
@@ -1006,14 +820,14 @@ export function ProfileScreen() {
                         style={[
                           styles.filterButton,
                           connectionFilter === filter.value &&
-                            styles.filterButtonActive,
+                          styles.filterButtonActive,
                         ]}
                       >
                         <Text
                           style={[
                             styles.filterButtonText,
                             connectionFilter === filter.value &&
-                              styles.filterButtonTextActive,
+                            styles.filterButtonTextActive,
                           ]}
                         >
                           {filter.label}
@@ -1165,22 +979,22 @@ export function ProfileScreen() {
                               style={[
                                 styles.connectionTypeBadge,
                                 connection.type === "friend" &&
-                                  styles.connectionTypeBadgeFriend,
+                                styles.connectionTypeBadgeFriend,
                                 connection.type === "match" &&
-                                  styles.connectionTypeBadgeMatch,
+                                styles.connectionTypeBadgeMatch,
                                 connection.type === "business" &&
-                                  styles.connectionTypeBadgeBusiness,
+                                styles.connectionTypeBadgeBusiness,
                               ]}
                             >
                               <Text
                                 style={[
                                   styles.connectionTypeBadgeText,
                                   connection.type === "friend" &&
-                                    styles.connectionTypeBadgeTextFriend,
+                                  styles.connectionTypeBadgeTextFriend,
                                   connection.type === "match" &&
-                                    styles.connectionTypeBadgeTextMatch,
+                                  styles.connectionTypeBadgeTextMatch,
                                   connection.type === "business" &&
-                                    styles.connectionTypeBadgeTextBusiness,
+                                  styles.connectionTypeBadgeTextBusiness,
                                 ]}
                               >
                                 {connection.type || "friend"}
@@ -1354,39 +1168,61 @@ export function ProfileScreen() {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.settingsRow}
-                      onPress={() =>
-                        Alert.alert(
-                          "Delete Account",
-                          "Are you sure you want to delete your account? This action cannot be undone.",
-                          [
-                            {
-                              text: "Cancel",
-                              style: "cancel",
-                            },
-                            {
-                              text: "Delete",
-                              style: "destructive",
-                              onPress: async () => {
-                                try {
-                                  await deleteAccount();
-                                  Toast.show({
-                                    type: "success",
-                                    text1: "Account Deleted",
-                                    text2: "Your account has been permanently deleted",
-                                  });
-                                  // Navigation will happen automatically due to auth state change
-                                } catch (err: any) {
-                                  Toast.show({
-                                    type: "error",
-                                    text1: "Failed to Delete Account",
-                                    text2: err.message || "An error occurred",
-                                  });
-                                }
+                      onPress={async () => {
+                        console.log("Delete Account button clicked");
+                        
+                        const handleDelete = async () => {
+                          console.log("Starting account deletion...");
+                          try {
+                            console.log("Calling deleteAccount API...");
+                            await deleteAccount();
+                            console.log("Account deleted successfully");
+                            Toast.show({
+                              type: "success",
+                              text1: "Account Deleted",
+                              text2: "Your account has been permanently deleted",
+                            });
+                          } catch (err: any) {
+                            console.error("Delete account error:", err);
+                            Toast.show({
+                              type: "error",
+                              text1: "Failed to Delete Account",
+                              text2: err.message || "An error occurred",
+                            });
+                          }
+                        };
+                        
+                        if (Platform.OS === 'web') {
+                          console.log("Using window.confirm for web");
+                          const confirmed = window.confirm(
+                            "Delete Account\n\nAre you sure you want to delete your account? This action cannot be undone."
+                          );
+                          console.log("User confirmation:", confirmed);
+                          
+                          if (confirmed) {
+                            await handleDelete();
+                          } else {
+                            console.log("User cancelled account deletion");
+                          }
+                        } else {
+                          Alert.alert(
+                            "Delete Account",
+                            "Are you sure you want to delete your account? This action cannot be undone.",
+                            [
+                              {
+                                text: "Cancel",
+                                style: "cancel",
+                                onPress: () => console.log("User cancelled"),
                               },
-                            },
-                          ]
-                        )
-                      }
+                              {
+                                text: "Delete",
+                                style: "destructive",
+                                onPress: handleDelete,
+                              },
+                            ]
+                          );
+                        }
+                      }}
                     >
                       <Trash2
                         size={18}
@@ -1787,59 +1623,12 @@ const styles = StyleSheet.create({
   tabTriggerTextActive: { color: Theme.colors.foreground },
   tabContent: { padding: 24 },
   // Edit Button
-  editButtonContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    alignItems: "flex-end",
-  },
-  editButtonFullWidthContainer: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-  },
-  editButtonFullWidth: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Theme.colors.primary,
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 10,
-  },
-  editButtonTextLarge: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  editButtonTop: {
-    position: "absolute",
-    right: 16,
-    top: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Theme.colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
-    zIndex: 10,
-  },
-  editButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Theme.colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    gap: 8,
-  },
-  editIcon: {
-    marginRight: 0,
-  },
-  editButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
-  },
+
+
+
+
+
+
   sectionTitle: {
     color: Theme.colors.foreground,
     fontSize: 18,
@@ -2132,12 +1921,6 @@ const styles = StyleSheet.create({
   },
   columnHalf: {
     flex: 1,
-  },
-  // Edit Button Bottom (for About tab)
-  editButtonContainerBottom: {
-    alignItems: "flex-end",
-    marginTop: 24,
-    marginBottom: 16,
   },
   // Connection Cards Grid
   connectionCardGrid: {

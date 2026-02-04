@@ -1,11 +1,41 @@
-import React from "react";
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, TextInput, SafeAreaView } from "react-native";
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  Image,
+  TouchableOpacity,
+  TextInput,
+  SafeAreaView,
+  Pressable,
+  Alert,
+} from "react-native";
 import { Theme } from "../../styles/Theme";
-import { ChevronLeft, Video, Phone, Search, MoreVertical } from "lucide-react-native";
+import {
+  ChevronLeft,
+  Video,
+  Phone,
+  Search,
+  MoreVertical,
+  Send,
+} from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import { StackNavigationProp } from "@react-navigation/stack";
+import { AppStackParamList, SCREEN_NAMES } from "../../navigation/Routes";
 
-// Mock Data
-const MESSAGES = [
+/* ---------------- TYPES ---------------- */
+
+type NavigationProp = StackNavigationProp<AppStackParamList>;
+type ChatDetailRouteProp = RouteProp<
+  AppStackParamList,
+  typeof SCREEN_NAMES.CHAT_DETAIL
+>;
+
+/* ---------------- MOCK DATA ---------------- */
+
+const INITIAL_MESSAGES = [
   {
     id: "1",
     text: "Hey! Are you going to the jazz event tonight?",
@@ -24,212 +54,313 @@ const MESSAGES = [
     time: "7:33 PM",
     isMe: false,
   },
-  {
-    id: "4",
-    text: "That's awesome! I can't wait to hear you play",
-    time: "7:35 PM",
-    isMe: true,
-  },
-  {
-    id: "5",
-    text: "Looking forward to the jazz night!",
-    time: "7:40 PM",
-    isMe: false,
-  },
 ];
 
-const MessageBubble = ({ item }: { item: typeof MESSAGES[0] }) => {
-  return (
-    <View style={[styles.messageRow, item.isMe ? styles.messageRowMe : styles.messageRowOther]}>
-       {item.isMe ? (
-           <LinearGradient
-            colors={['#c451c9', '#a22Ac9']} // Purple gradient for sent messages
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.bubble, styles.bubbleMe]}
-           >
-             <Text style={styles.messageTextMe}>{item.text}</Text>
-             <Text style={styles.timeTextMe}>{item.time}</Text>
-           </LinearGradient>
-       ) : (
-           <View style={[styles.bubble, styles.bubbleOther]}>
-             <Text style={styles.messageTextOther}>{item.text}</Text>
-             <Text style={styles.timeTextOther}>{item.time}</Text>
-           </View>
-       )}
-    </View>
-  );
-};
-
-import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
-import { StackNavigationProp } from "@react-navigation/stack";
-import { AppStackParamList, SCREEN_NAMES } from "../../navigation/Routes";
-
-type NavigationProp = StackNavigationProp<AppStackParamList>;
-type ChatDetailRouteProp = RouteProp<AppStackParamList, typeof SCREEN_NAMES.CHAT_DETAIL>;
+/* ---------------- COMPONENT ---------------- */
 
 export function ChatDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ChatDetailRouteProp>();
-  const { name, avatar } = route.params || { name: "Chat", avatar: "https://i.pravatar.cc/150" };
+  const { name, avatar } = route.params;
+
+  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  const [input, setInput] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const goToChatSettings = () => {
+    setMenuOpen(false);
+    navigation.navigate(SCREEN_NAMES.CHAT_SETTINGS);
+  };
+
+  const sendMessage = () => {
+    if (!input.trim()) return;
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        text: input,
+        time: "Now",
+        isMe: true,
+      },
+    ]);
+
+    setInput("");
+  };
+
+  const renderItem = ({ item }: any) => (
+    <View
+      style={[
+        styles.messageRow,
+        item.isMe ? styles.rowMe : styles.rowOther,
+      ]}
+    >
+      {item.isMe ? (
+        <LinearGradient
+          colors={["#D946EF", "#A855F7"]}
+          style={styles.bubbleMe}
+        >
+          <Text style={styles.textMe}>{item.text}</Text>
+          <Text style={styles.timeMe}>{item.time}</Text>
+        </LinearGradient>
+      ) : (
+        <View style={styles.bubbleOther}>
+          <Text style={styles.textOther}>{item.text}</Text>
+          <Text style={styles.timeOther}>{item.time}</Text>
+        </View>
+      )}
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
+      {/* ---------------- HEADER ---------------- */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-                <ChevronLeft size={28} color={Theme.colors.foreground || 'white'} />
-            </TouchableOpacity>
-            <View style={styles.avatarContainer}>
-                <Image 
-                    source={{ uri: avatar }} 
-                    style={styles.avatar} 
-                />
-                <View style={styles.onlineIndicator} />
-            </View>
-            <View style={styles.headerInfo}>
-                <Text style={styles.headerName}>{name}</Text>
-                <Text style={styles.headerStatus}>Online</Text>
-            </View>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <ChevronLeft size={26} color="#fff" />
+          </TouchableOpacity>
+
+          <Image source={{ uri: avatar }} style={styles.avatar} />
+
+          <View>
+            <Text style={styles.name}>{name}</Text>
+            <Text style={styles.status}>Online</Text>
+          </View>
         </View>
-        
+
         <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.headerIcon}>
-                <Video size={24} color={Theme.colors.foreground || 'white'} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.headerIcon}>
-                <Phone size={24} color={Theme.colors.foreground || 'white'} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.headerIcon}>
-                <Search size={24} color={Theme.colors.foreground || 'white'} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.headerIcon}>
-                <MoreVertical size={24} color={Theme.colors.foreground || 'white'} />
-            </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() =>
+              Alert.alert("Video Call", "Backend integration required")
+            }
+          >
+            <Video size={20} color="#fff" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() =>
+              Alert.alert("Voice Call", "Backend integration required")
+            }
+          >
+            <Phone size={20} color="#fff" />
+          </TouchableOpacity>
+
+          <TouchableOpacity>
+            <Search size={20} color="#fff" />
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => setMenuOpen(true)}>
+            <MoreVertical size={20} color="#fff" />
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* Message List */}
+      {/* ---------------- DROPDOWN ---------------- */}
+      {menuOpen && (
+        <Pressable
+          style={styles.fullScreenOverlay}
+          onPress={() => setMenuOpen(false)}
+        >
+          <Pressable style={styles.dropdownWrapper} onPress={() => {}}>
+            <View style={styles.dropdown}>
+              <TouchableOpacity onPress={goToChatSettings}>
+                <Text style={styles.dropdownItem}>Chat Settings</Text>
+              </TouchableOpacity>
+              <Text style={styles.dropdownItem}>When We Matched</Text>
+              <Text style={styles.dropdownItem}>Media Shared</Text>
+            </View>
+          </Pressable>
+        </Pressable>
+      )}
+
+      {/* ---------------- MESSAGES ---------------- */}
       <FlatList
-        data={MESSAGES}
+        data={messages}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <MessageBubble item={item} />}
-        contentContainerStyle={styles.listContent}
+        renderItem={renderItem}
+        contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
       />
+
+      {/* ---------------- INPUT ---------------- */}
+      <View style={styles.inputBar}>
+        <TextInput
+          value={input}
+          onChangeText={setInput}
+          placeholder="Add a message..."
+          placeholderTextColor="#aaa"
+          style={styles.input}
+          multiline
+          textAlignVertical="top"
+        />
+
+        <TouchableOpacity onPress={sendMessage}>
+          <LinearGradient
+            colors={["#D946EF", "#A855F7"]}
+            style={styles.sendBtn}
+          >
+            <Send size={18} color="#fff" />
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
+
+/* ---------------- STYLES ---------------- */
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Theme.colors.background,
   },
+
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 12,
+    padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderColor: "rgba(255,255,255,0.05)",
+    zIndex: 10,
   },
+
   headerLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flex: 1,
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "center",
   },
-  backButton: {
-      padding: 8,
-  },
-  avatarContainer: {
-      position: 'relative',
-      marginRight: 10,
-  },
-  avatar: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-  },
-  onlineIndicator: {
-      position: 'absolute',
-      bottom: 0,
-      right: 0,
-      width: 10,
-      height: 10,
-      borderRadius: 5,
-      backgroundColor: '#10B981', // Green
-      borderWidth: 1.5,
-      borderColor: Theme.colors.background,
-  },
-  headerInfo: {
-      justifyContent: 'center',
-  },
-  headerName: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: Theme.colors.foreground || 'white',
-  },
-  headerStatus: {
-      fontSize: 12,
-      color: Theme.colors.mutedForeground || '#aaa',
-  },
+
   headerRight: {
-      flexDirection: 'row',
-      alignItems: 'center',
+    flexDirection: "row",
+    gap: 14,
+    alignItems: "center",
   },
-  headerIcon: {
-      padding: 8,
-      marginLeft: 4,
+
+  avatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
   },
-  
-  listContent: {
-      padding: 16,
-      paddingBottom: 40,
+
+  name: {
+    color: "#fff",
+    fontWeight: "600",
   },
+
+  status: {
+    color: "#aaa",
+    fontSize: 12,
+  },
+
+  fullScreenOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 999,
+  },
+
+  dropdownWrapper: {
+    position: "absolute",
+    top: 64,
+    right: 12,
+  },
+
+  dropdown: {
+    width: 200,
+    backgroundColor: "#120E1C",
+    borderRadius: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    elevation: 12,
+  },
+
+  dropdownItem: {
+    color: "#fff",
+    fontSize: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+
+  list: {
+    padding: 16,
+  },
+
   messageRow: {
-      marginBottom: 16,
-      flexDirection: 'row',
+    marginBottom: 14,
   },
-  messageRowMe: {
-      justifyContent: 'flex-end',
+
+  rowMe: {
+    alignItems: "flex-end",
   },
-  messageRowOther: {
-      justifyContent: 'flex-start',
+
+  rowOther: {
+    alignItems: "flex-start",
   },
-  bubble: {
-      maxWidth: '80%',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      borderRadius: 16,
-  },
+
   bubbleMe: {
-      borderBottomRightRadius: 2,
+    maxWidth: "75%",
+    padding: 12,
+    borderRadius: 16,
   },
+
   bubbleOther: {
-      backgroundColor: '#2A2A3C', // Dark gray/navy
-      borderTopLeftRadius: 2, // Optional style choice
+    maxWidth: "75%",
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: "#2A2344",
   },
-  messageTextMe: {
-      color: 'white',
-      fontSize: 15,
-      marginBottom: 4,
+
+  textMe: {
+    color: "#fff",
   },
-  messageTextOther: {
-      color: 'white', // or Theme.colors.foreground
-      fontSize: 15,
-      marginBottom: 4,
+
+  textOther: {
+    color: "#fff",
   },
-  timeTextMe: {
-      color: 'rgba(255,255,255,0.7)',
-      fontSize: 10,
-      alignSelf: 'flex-end',
+
+  timeMe: {
+    fontSize: 10,
+    color: "#eee",
+    alignSelf: "flex-end",
+    marginTop: 4,
   },
-  timeTextOther: {
-      color: 'rgba(255,255,255,0.5)',
-      fontSize: 10,
-      alignSelf: 'flex-start',
+
+  timeOther: {
+    fontSize: 10,
+    color: "#aaa",
+    marginTop: 4,
+  },
+
+  inputBar: {
+    flexDirection: "row",
+    padding: 12,
+    borderTopWidth: 1,
+    borderColor: "rgba(255,255,255,0.05)",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  input: {
+    flex: 1,
+    backgroundColor: "#1F1B2E",
+    borderRadius: 18,
+    paddingHorizontal:14,
+    paddingVertical:3,
+    minHeight: 42,
+    maxHeight: 80,
+    color: "#fff",
+    fontSize: 15,
+  },
+
+  sendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

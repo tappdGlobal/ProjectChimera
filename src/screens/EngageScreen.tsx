@@ -5,20 +5,25 @@ import { Button } from "../components/ui/Button";
 import { Theme } from "../styles/Theme";
 
 // Engage Sections
-import { ChatSection } from "../components/engage/ChatSection";
 import { PreferableMatchSection } from "../components/engage/PreferableMatchSection";
 import { EventInteractionSection } from "../components/engage/EventInteractionSection";
 import { TapToConnectSection } from "../components/engage/TapToConnectSection";
 import { useAnalytics } from "../hooks/useAnalytics";
+
+import { useNavigation } from "@react-navigation/native";
+import { SCREEN_NAMES } from "../navigation/Routes";
 
 type SectionType = "chat" | "match" | "interaction" | "connect";
 
 export function EngageScreen() {
   const [activeSection, setActiveSection] =
     useState<SectionType>("interaction");
+
   const { trackEvent } = useAnalytics("EngageScreen", {
     active_section: activeSection,
   });
+
+  const navigation = useNavigation<any>();
 
   const menuItems: { id: SectionType; label: string }[] = [
     { id: "chat", label: "Chat" },
@@ -29,8 +34,6 @@ export function EngageScreen() {
 
   const renderSection = () => {
     switch (activeSection) {
-      case "chat":
-        return <ChatSection />;
       case "match":
         return <PreferableMatchSection />;
       case "interaction":
@@ -64,7 +67,13 @@ export function EngageScreen() {
                   key={item.id}
                   variant={activeSection === item.id ? "default" : "ghost"}
                   size="sm"
-                  onClick={() => setActiveSection(item.id)}
+                  onClick={() => {
+                    if (item.id === "chat") {
+                      navigation.navigate(SCREEN_NAMES.CHAT_LIST);
+                    } else {
+                      setActiveSection(item.id);
+                    }
+                  }}
                   style={
                     activeSection === item.id
                       ? [styles.menuButton, styles.menuButtonActive]
@@ -93,7 +102,7 @@ export function EngageScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Theme.colors.background, // ✅ removes white strip
+    backgroundColor: Theme.colors.background,
   },
   mainContainer: {
     flex: 1,

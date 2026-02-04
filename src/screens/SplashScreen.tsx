@@ -9,6 +9,8 @@ export const SplashScreen = () => {
   const dot2Opacity = useRef(new Animated.Value(0.3)).current;
   const dot3Opacity = useRef(new Animated.Value(0.3)).current;
 
+  console.log("SplashScreen rendering...");
+
   useEffect(() => {
     const createPulseAnimation = (
       animatedValue: Animated.Value,
