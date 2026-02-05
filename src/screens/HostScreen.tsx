@@ -1645,29 +1645,30 @@ export function HostScreen({ route }: any) {
                 </View>
 
                 {/* Ride Booking */}
-                <View style={styles.rideCard}>
-                  <View style={styles.flexRowCenterGap3}>
-                    <View style={styles.carIconCircle}>
-                      <Car size={20} color={Theme.colors.foreground} />
-                    </View>
-                    <View>
-                      <Text style={styles.rideTitle}>
-                        Need to get to the venue?
-                      </Text>
-                      <Text style={styles.rideSubtitle}>
-                        Book a ride to manage your event
-                      </Text>
-                    </View>
+              <View style={styles.rideCard}>
+                {/* Top Row */}
+                <View style={styles.rideHeader}>
+                  <View style={styles.rideIconWrapper}>
+                    <Car size={18} color="#000000" />
                   </View>
-                  <TouchableOpacity style={styles.bookRideButton}>
-                    <CheckCircle2
-                      size={16}
-                      color={Theme.colors.foreground}
-                      style={{ marginRight: 6 }}
-                    />
-                    <Text style={styles.bookRideText}>Book Ride</Text>
-                  </TouchableOpacity>
+
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rideTitle}>
+                      Need to get to the venue?
+                    </Text>
+                    <Text style={styles.rideSubtitle}>
+                      Book a ride to manage your event
+                    </Text>
+                  </View>
                 </View>
+
+                {/* CTA */}
+                <TouchableOpacity style={styles.rideButton}>
+                  <Car size={16} color="#000000" />
+                  <Text style={styles.rideButtonText}>Book Ride</Text>
+                </TouchableOpacity>
+              </View>
+
               </ScrollView>
             )}
           </View>
@@ -2993,29 +2994,6 @@ const styles = StyleSheet.create({
     color: Theme.colors.mutedForeground,
     fontSize: 12,
   },
-  rideCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#18181B", // Darker card for contrast
-    padding: 16,
-    borderRadius: Theme.radius.lg,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-  },
-  flexRowCenterGap3: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  carIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Theme.colors.muted,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   rideTitle: {
     color: Theme.colors.foreground,
     fontSize: 14,
@@ -3026,19 +3004,59 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
-  bookRideButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
-  },
-  bookRideText: {
-    color: "#000000",
-    fontSize: 14,
-    fontWeight: "bold",
-  },
+  rideCard: {
+  backgroundColor: "#0B0B0F",
+  borderRadius: 16,
+  padding: 16,
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.08)",
+  marginTop: 16,
+},
+
+rideHeader: {
+  flexDirection: "row",
+  alignItems: "center",
+  marginBottom: 14,
+},
+
+rideIconWrapper: {
+  width: 40,
+  height: 40,
+  borderRadius: 20,
+  backgroundColor: "#FFFFFF",
+  alignItems: "center",
+  justifyContent: "center",
+  marginRight: 12,
+},
+
+rideTitle: {
+  color: "#FFFFFF",
+  fontSize: 16,
+  fontWeight: "700",
+},
+
+rideSubtitle: {
+  color: "#A1A1AA",
+  fontSize: 14,
+  marginTop: 2,
+},
+
+rideButton: {
+  height: 44,
+  backgroundColor: "#FFFFFF",
+  borderRadius: 12,
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
+},
+
+rideButtonText: {
+  color: "#000000",
+  fontSize: 15,
+  fontWeight: "600",
+},
+
 
   dropdownOverlay: {
     flex: 1,

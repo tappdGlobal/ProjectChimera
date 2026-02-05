@@ -53,7 +53,7 @@ import { useAppNavigation } from "../hooks/useAppNavigation";
 import Toast from "react-native-toast-message";
 import { TappdBandPopup } from "../components/profile/TappdBandPopup";
 import { ManageBandPopup } from "../components/profile/ManageBandPopup";
-import { ChangeEmailPopup } from "../components/profile/ChangeEmailPopup";
+// import { ChangeEmailPopup } from "../components/profile/ChangeEmailPopup";
 import { PaymentDetailForm } from "../components/profile/PaymentDetailForm";
 import { ChangePasswordPopup } from "../components/profile/ChangePasswordPopup";
 import { ManagePaymentInformationPopup } from "../components/profile/ManagePaymentInformationPopup";
@@ -183,7 +183,7 @@ export function ProfileScreen() {
   const [isLoadingConnections, setIsLoadingConnections] = useState(false);
   const [showTappdBandPopup, setShowTappdBandPopup] = useState(false);
   const [showManageBandPopup, setShowManageBandPopup] = useState(false);
-  const [showChangeEmailPopup, setShowChangeEmailPopup] = useState(false);
+  // const [showChangeEmailPopup, setShowChangeEmailPopup] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
 
@@ -414,7 +414,7 @@ export function ProfileScreen() {
           {/* Account Settings */}
           <Text style={styles.settingsSectionTitle}>Account Settings</Text>
           <View style={styles.settingsList}>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.settingsRow}
               onPress={() => setShowChangeEmailPopup(true)}
             >
@@ -425,7 +425,7 @@ export function ProfileScreen() {
               />
               <Text style={styles.settingsRowText}>Change Email</Text>
               <ChevronRight size={18} color={Theme.colors.mutedForeground} />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
             <TouchableOpacity
               style={styles.settingsRow}
@@ -752,11 +752,13 @@ export function ProfileScreen() {
               </Text>
 
               {/* Bio/Tagline */}
-              {user?.bio && (
-                <Text style={styles.tagline} numberOfLines={2}>
-                  {user.bio} ✨
-                </Text>
-              )}
+              
+              <Text style={styles.tagline} numberOfLines={2}>
+                {user?.bio?.trim()
+                  ? `${user.bio} ✨`
+                  : "Exploring every day like it’s the first ✨"}
+              </Text>
+
 
               {/* Info Pills Row */}
               <View style={styles.infoRow}>
@@ -1117,7 +1119,7 @@ export function ProfileScreen() {
                     Account Settings
                   </Text>
                   <View style={styles.settingsList}>
-                    <TouchableOpacity
+                    {/* <TouchableOpacity
                       style={styles.settingsRow}
                       onPress={() => setShowChangeEmailPopup(true)}
                     >
@@ -1131,7 +1133,7 @@ export function ProfileScreen() {
                         size={18}
                         color={Theme.colors.mutedForeground}
                       />
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
                     <TouchableOpacity
                       style={styles.settingsRow}
                       onPress={() => setShowChangePassword(true)}
@@ -1328,31 +1330,30 @@ export function ProfileScreen() {
 
                   <View style={styles.settingsLogoutWrapper}>
                     <Button
-                      style={styles.logoutButton}
-                      onClick={async () => {
-                        try {
-                          await logout();
-                          Toast.show({
-                            type: "success",
-                            text1: "Logged Out",
-                            text2: "You have been successfully logged out",
-                          });
-                        } catch (err: any) {
-                          Toast.show({
-                            type: "error",
-                            text1: "Logout Failed",
-                            text2: err.message || "An error occurred",
-                          });
-                        }
-                      }}
-                    >
-                      <LogOut
-                        size={16}
-                        color={Theme.colors.foreground}
-                        style={styles.mr2}
-                      />
-                      Logout
-                    </Button>
+                  style={styles.logoutButton}
+                  onClick={async () => {
+                    try {
+                      await logout();
+                      Toast.show({
+                        type: "success",
+                        text1: "Logged Out",
+                        text2: "You have been successfully logged out",
+                      });
+                    } catch (err: any) {
+                      Toast.show({
+                        type: "error",
+                        text1: "Logout Failed",
+                        text2: err.message || "An error occurred",
+                      });
+                    }
+                  }}
+                >
+                  <View style={styles.logoutInner}>
+                    <LogOut size={16} color={Theme.colors.foreground} />
+                    <Text style={styles.logoutText}>Logout</Text>
+                  </View>
+                </Button>
+
                   </View>
                 </View>
               )}
@@ -1375,7 +1376,7 @@ export function ProfileScreen() {
         visible={showManageBandPopup}
         onClose={() => setShowManageBandPopup(false)}
       />
-      <ChangeEmailPopup
+      {/* <ChangeEmailPopup
         visible={showChangeEmailPopup}
         onClose={() => setShowChangeEmailPopup(false)}
         onSubmit={async (email) => {
@@ -1400,7 +1401,7 @@ export function ProfileScreen() {
           }
         }}
         loading={authLoading}
-      />
+      /> */}
       <ChangePasswordPopup
         visible={showChangePassword}
         onClose={() => setShowChangePassword(false)}
@@ -1805,7 +1806,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   // Settings Tab
-  logoutButton: { backgroundColor: "#DC2626" },
+  logoutButton: {
+  backgroundColor: "#bc1313",
+  height: 48,
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+},
+
   // Dialogs
   settingsModal: { width: "90%", maxHeight: "80%" },
   settingsModalScroll: { maxHeight: 520 },
@@ -1967,4 +1975,24 @@ const styles = StyleSheet.create({
   connectionTypeBadgeTextBusiness: {
     color: "#FCD34D",
   },
+  logoutButton: {
+  backgroundColor: "#bc1313",
+  height: 48,
+  justifyContent: "center",
+},
+
+logoutInner: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+logoutText: {
+  color: Theme.colors.foreground,
+  fontSize: 16,
+  fontWeight: "600",
+  marginLeft: 8,
+  lineHeight: 16,
+},
+
 });
