@@ -191,30 +191,32 @@ export function ReconnectScreen() {
           )}
         </View>
 
-        {/* View Mode Toggle - Row 2 */}
-        <View style={styles.viewModeContainer}>
-          {renderGradientToggle(
-            "swipe",
-            <Layers
-              size={16}
-              color={activeButton === "swipe" ? "#FFFFFF" : "rgba(255, 255, 255, 0.7)"}
-              style={styles.tabIcon}
-            />,
-            "Swipe",
-            styles.viewModeButton,
-          )}
+        {/* View Mode Toggle - Row 2 (Hidden when Crossed Paths is active) */}
+        {activeButton !== "crossedPaths" && (
+          <View style={styles.viewModeContainer}>
+            {renderGradientToggle(
+              "swipe",
+              <Layers
+                size={16}
+                color={activeButton === "swipe" ? "#FFFFFF" : "rgba(255, 255, 255, 0.7)"}
+                style={styles.tabIcon}
+              />,
+              "Swipe",
+              styles.viewModeButton,
+            )}
 
-          {renderGradientToggle(
-            "list",
-            <LayoutGrid
-              size={16}
-              color={activeButton === "list" ? "#FFFFFF" : "rgba(255, 255, 255, 0.7)"}
-              style={styles.tabIcon}
-            />,
-            "List",
-            styles.viewModeButton,
-          )}
-        </View>
+            {renderGradientToggle(
+              "list",
+              <LayoutGrid
+                size={16}
+                color={activeButton === "list" ? "#FFFFFF" : "rgba(255, 255, 255, 0.7)"}
+                style={styles.tabIcon}
+              />,
+              "List",
+              styles.viewModeButton,
+            )}
+          </View>
+        )}
       </View>
 
       {/* Content */}

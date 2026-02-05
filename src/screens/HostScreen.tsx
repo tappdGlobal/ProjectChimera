@@ -284,7 +284,7 @@ export function HostScreen({ route }: any) {
     return new Date(`${yyyy}-${mm}-${dd}T${time}:00Z`).toISOString();
   };
 
-  const mapAgeLimit = (age: string) => {
+  const mapAgeLimit = (age: string): "SIXTEEN_PLUS" | "EIGHTEEN_PLUS" | "TWENTY_ONE_PLUS" | "TWENTY_FIVE_PLUS" => {
     switch (age) {
       case "16+":
         return "SIXTEEN_PLUS";
@@ -299,7 +299,7 @@ export function HostScreen({ route }: any) {
     }
   };
 
-  const mapAllowance = (gender: string) => {
+  const mapAllowance = (gender: string): "PUBLIC" | "PRIVATE" => {
     // backend expects PUBLIC / PRIVATE
     return gender === "Only Male" || gender === "Only Female"
       ? "PRIVATE"
@@ -614,7 +614,7 @@ export function HostScreen({ route }: any) {
         genre: localFormData.genre,
         category: localFormData.category,
 
-        eventType: activeTab === "public" ? "public" : "private",
+        eventType: (activeTab === "public" ? "public" : "private") as "public" | "private",
 
         eventDate: toISODateTime(
           localFormData.date,
@@ -1511,6 +1511,30 @@ export function HostScreen({ route }: any) {
                 contentContainerStyle={{ padding: 4, paddingBottom: 24 }}
                 showsVerticalScrollIndicator={false}
               >
+                {/* Stats Cards Row */}
+                <View style={styles.statsCardsRow}>
+                  {/* Booked */}
+                  <View style={styles.statsCard}>
+                    <Users size={24} color="#C026D3" style={{ marginBottom: 8 }} />
+                    <Text style={styles.statsCardNumber}>15</Text>
+                    <Text style={styles.statsCardLabel}>Booked</Text>
+                  </View>
+
+                  {/* Showed Up */}
+                  <View style={styles.statsCard}>
+                    <CheckCircle2 size={24} color="#22c55e" style={{ marginBottom: 8 }} />
+                    <Text style={styles.statsCardNumber}>7</Text>
+                    <Text style={styles.statsCardLabel}>Showed Up</Text>
+                  </View>
+
+                  {/* Remaining */}
+                  <View style={styles.statsCard}>
+                    <Clock size={24} color="#facc15" style={{ marginBottom: 8 }} />
+                    <Text style={styles.statsCardNumber}>8</Text>
+                    <Text style={styles.statsCardLabel}>Remaining</Text>
+                  </View>
+                </View>
+
                 {/* Attendance Rate */}
                 <View style={styles.analyticsCard}>
                   <View style={styles.analyticsHeader}>
@@ -2865,6 +2889,35 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 100, // Spacer at the bottom of the ScrollView
+  },
+
+  // Stats Cards Styles
+  statsCardsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 16,
+  },
+  statsCard: {
+    flex: 1,
+    backgroundColor: Theme.colors.muted,
+    borderRadius: Theme.radius.lg,
+    padding: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+  },
+  statsCardNumber: {
+    color: Theme.colors.foreground,
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  statsCardLabel: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 12,
+    fontWeight: "500",
   },
 
   // Analytics Styles
