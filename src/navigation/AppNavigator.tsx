@@ -36,48 +36,26 @@ const MainTabs = () => {
       <Tab.Screen
         name={SCREEN_NAMES.EXPLORE}
         component={ExploreStack}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="compass-outline" color={color} size={size} />
-          ),
-        }}
       />
 
       <Tab.Screen
         name={SCREEN_NAMES.ENGAGE}
         component={EngageStack}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="people-outline" color={color} size={size} />
-          ),
-        }}
       />
+
+      <Tab.Screen
+        name={SCREEN_NAMES.RECONNECT}
+        component={ReconnectScreen} // ✅ REAL TAB
+      />
+
       <Tab.Screen
         name={SCREEN_NAMES.HOST}
         component={HostStackScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="calendar-outline" color={color} size={size} />
-          ),
-        }}
       />
-      <Tab.Screen
-        name={SCREEN_NAMES.NOTIFICATIONS}
-        component={ReconnectScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="bell" color={color} size={size} />
-          ),
-        }}
-      />
+
       <Tab.Screen
         name={SCREEN_NAMES.PROFILE}
         component={ProfileScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="person-outline" color={color} size={size} />
-          ),
-        }}
       />
     </Tab.Navigator>
   );
@@ -86,11 +64,22 @@ const MainTabs = () => {
 const AppNavigator = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name={SCREEN_NAMES.MAIN_TABS} component={MainTabs} />
+      <Stack.Screen
+        name={SCREEN_NAMES.MAIN_TABS}
+        component={MainTabs}
+      />
+
+      {/* 🔔 Notifications opens from bell icon */}
+      <Stack.Screen
+        name={SCREEN_NAMES.NOTIFICATIONS}
+        component={NotificationsScreen}
+      />
+
       <Stack.Screen
         name={SCREEN_NAMES.EDIT_PROFILE}
         component={EditProfileScreen}
       />
+
       <Stack.Screen
         name={SCREEN_NAMES.EVENT_DETAILS_SCREEN}
         component={EventDetailsScreen}

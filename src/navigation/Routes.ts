@@ -19,6 +19,7 @@ export const SCREEN_NAMES = {
   ENGAGE: "Engage",
   HOST: "Host",
   PROFILE: "Profile",
+  RECONNECT: "Reconnect",
   NOTIFICATIONS: "Notifications",
 
   // ================= EXPLORE STACK =================
@@ -52,7 +53,8 @@ export type RootTabParamList = {
   [SCREEN_NAMES.EXPLORE]: undefined;
   [SCREEN_NAMES.ENGAGE]: undefined;
   [SCREEN_NAMES.HOST]: undefined;
-  [SCREEN_NAMES.NOTIFICATIONS]: undefined;
+  [SCREEN_NAMES.RECONNECT]: undefined;
+  
   [SCREEN_NAMES.PROFILE]: undefined;
 };
 
@@ -61,6 +63,7 @@ export type RootTabParamList = {
 export type AppStackParamList = {
   [SCREEN_NAMES.MAIN_TABS]: undefined;
   [SCREEN_NAMES.EDIT_PROFILE]: undefined;
+   [SCREEN_NAMES.NOTIFICATIONS]: undefined;
   [SCREEN_NAMES.SETTINGS]: undefined;
   [SCREEN_NAMES.CHAT_DETAIL]: {
     chatId: string;

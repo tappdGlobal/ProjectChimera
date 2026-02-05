@@ -98,6 +98,11 @@ const FeedPost = ({ item }) => {
   const [liked, setLiked] = useState(false);
   const [likes, setLikes] = useState(item.likes);
 
+  const toggleComments = () => {
+  setShowInlineComments((prev) => !prev);
+};
+
+
   const [comments, setComments] = useState(
     item.comments.map((c, i) => ({
       ...c,
@@ -186,12 +191,13 @@ const FeedPost = ({ item }) => {
           />
         </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => setShowCommentsModal(true)}
-          style={styles.actionButton}
-        >
-          <MessageCircle size={24} color={Theme.colors.foreground} />
-        </TouchableOpacity>
+       <TouchableOpacity
+  onPress={toggleComments}
+  style={styles.actionButton}
+>
+  <MessageCircle size={24} color={Theme.colors.foreground} />
+</TouchableOpacity>
+
 
         <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
           <Upload size={24} color={Theme.colors.foreground} />
@@ -207,11 +213,15 @@ const FeedPost = ({ item }) => {
           {item.caption}
         </Text>
 
-        <TouchableOpacity onPress={() => setShowInlineComments(true)}>
-          <Text style={styles.viewAllComments}>
-            View all {comments.length} comments
-          </Text>
-        </TouchableOpacity>
+       <TouchableOpacity onPress={toggleComments}>
+  <Text style={styles.viewAllComments}>
+    {showInlineComments
+      ? "Hide comments"
+      : `View all ${comments.length} comments`}
+  </Text>
+</TouchableOpacity>
+
+
 
         {/* INLINE COMMENTS */}
         {showInlineComments && (
@@ -267,60 +277,8 @@ const FeedPost = ({ item }) => {
         )}
       </View>
 
-      {/* MODAL COMMENTS */}
-      <Modal visible={showCommentsModal} animationType="slide">
-        <SafeAreaView
-          style={{ flex: 1, backgroundColor: Theme.colors.background }}
-        >
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowCommentsModal(false)}>
-              <ChevronLeft size={28} color={Theme.colors.foreground} />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Comments</Text>
-          </View>
+      
 
-          <FlatList
-            data={comments}
-            keyExtractor={(c) => c.id}
-            renderItem={({ item }) => (
-              <View style={styles.commentRow}>
-                <Image
-                  source={{ uri: DEFAULT_AVATAR }}
-                  style={styles.commentAvatar}
-                />
-                <View style={{ flex: 1 }}>
-                  <View style={styles.commentBubble}>
-                    <Text style={styles.commentText}>
-                      <Text style={styles.captionUser}>{item.username} </Text>
-                      {item.text}
-                    </Text>
-                  </View>
-
-                  <View style={styles.commentActions}>
-                    <Text style={styles.commentTime}>{item.time}</Text>
-
-                    <TouchableOpacity
-                      style={{ flexDirection: "row", gap: 4 }}
-                      onPress={() => toggleCommentLike(item.id)}
-                    >
-                      <Heart
-                        size={14}
-                        color={
-                          item.liked ? "red" : Theme.colors.mutedForeground
-                        }
-                        fill={item.liked ? "red" : "transparent"}
-                      />
-                      <Text style={styles.commentTime}>{item.likeCount}</Text>
-                    </TouchableOpacity>
-
-                    <Text style={styles.replyText}>Reply</Text>
-                  </View>
-                </View>
-              </View>
-            )}
-          />
-        </SafeAreaView>
-      </Modal>
     </View>
   );
 };
@@ -509,4 +467,34 @@ const styles = StyleSheet.create({
 
   modalHeader: { flexDirection: "row", padding: 16 },
   modalTitle: { color: Theme.colors.foreground, fontSize: 16 },
+
+  modalOverlay: {
+  flex: 1,
+  backgroundColor: "rgba(0,0,0,0.5)",
+  justifyContent: "flex-end",
+},
+
+bottomSheet: {
+  height: "65%",
+  backgroundColor: Theme.colors.background,
+  borderTopLeftRadius: 20,
+  borderTopRightRadius: 20,
+  overflow: "hidden",
+},
+
+bottomSheetHeader: {
+  alignItems: "center",
+  paddingVertical: 12,
+  borderBottomWidth: 1,
+  borderBottomColor: Theme.colors.muted,
+},
+
+dragHandle: {
+  width: 40,
+  height: 4,
+  borderRadius: 2,
+  backgroundColor: Theme.colors.mutedForeground,
+  marginBottom: 6,
+},
+
 });
