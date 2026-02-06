@@ -9,6 +9,7 @@ import { ErrorBoundary } from "./src/components/common/ErrorBoundary";
 import { useAuthStore } from "./src/store/authStore";
 
 import { PostHogProvider } from "posthog-react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context"; // 👈 ADD THIS
 
 export default function App() {
   const [initError, setInitError] = useState<string | null>(null);
@@ -49,7 +50,7 @@ export default function App() {
 
         setInitError(err?.message || "Failed to initialize app");
 
-        // Optional retry (safe)
+        // retry safe
         try {
           await databaseService.initDatabase();
           await syncService.syncActions();
@@ -62,9 +63,8 @@ export default function App() {
     init();
   }, []);
 
-  // Wait until auth is restored
   if (!isHydrated) {
-    return null; // or splash screen
+    return null;
   }
 
   if (initError) {
@@ -79,22 +79,24 @@ export default function App() {
   console.log("App rendering...", Platform.OS);
 
   return (
-    <ErrorBoundary>
-      {Platform.OS === "web" ? (
-        <>
-          <RootNavigator />
-          <StatusBar style="light" />
-        </>
-      ) : (
-        <PostHogProvider
-          apiKey="phc_FXpHLpLnFGLGRtvZOC9rFDXx8nUPoZVEqhqxslEXyhs"
-          options={{ host: "https://us.i.posthog.com" }}
-        >
-          <RootNavigator />
-          <StatusBar style="light" />
-        </PostHogProvider>
-      )}
-    </ErrorBoundary>
+    <SafeAreaProvider> {/* 👈 IMPORTANT WRAPPER */}
+      <ErrorBoundary>
+        {Platform.OS === "web" ? (
+          <>
+            <RootNavigator />
+            <StatusBar style="light" />
+          </>
+        ) : (
+          <PostHogProvider
+            apiKey="phc_FXpHLpLnFGLGRtvZOC9rFDXx8nUPoZVEqhqxslEXyhs"
+            options={{ host: "https://us.i.posthog.com" }}
+          >
+            <RootNavigator />
+            <StatusBar style="light" />
+          </PostHogProvider>
+        )}
+      </ErrorBoundary>
+    </SafeAreaProvider>
   );
 }
 
