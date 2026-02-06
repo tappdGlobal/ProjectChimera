@@ -4,9 +4,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuthStore } from "../store/authStore";
 import { AuthStack } from "./AuthStack";
 import AppNavigator from "./AppNavigator";
-import { SplashScreen } from "../screens/SplashScreen";
 import { linking } from "./linking";
-import { Platform } from "react-native";
+import { Platform, View } from "react-native";
 import { useRef } from "react";
 
 export const RootNavigator = () => {
@@ -40,8 +39,9 @@ export const RootNavigator = () => {
   console.log("RootNavigator rendering:", { isHydrated, hasToken: !!token });
 
   if (!isHydrated) {
-    console.log("RootNavigator: Showing splash screen");
-    return <SplashScreen />;
+    console.log("RootNavigator: Hydrating...");
+    // Show blank screen during hydration (very quick)
+    return <View style={{ flex: 1, backgroundColor: '#0A0322' }} />;
   }
 
   return (

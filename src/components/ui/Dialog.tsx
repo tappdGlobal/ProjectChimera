@@ -56,10 +56,11 @@ export function DialogContent({ children, style }: DialogContentProps) {
 interface DialogHeaderProps {
   children: React.ReactNode;
   className?: string;
+  style?: ViewStyle;
 }
 
-export function DialogHeader({ children }: DialogHeaderProps) {
-  return <View style={styles.headerBase}>{children}</View>;
+export function DialogHeader({ children, style }: DialogHeaderProps) {
+  return <View style={[styles.headerBase, style]}>{children}</View>;
 }
 
 // --- 4. Dialog Title ---
