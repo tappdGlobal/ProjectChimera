@@ -5,6 +5,7 @@ import { Theme, GRADIENT_COLORS } from "../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { SCREEN_NAMES } from "../navigation/Routes";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /* ---------------- ICON MAP ---------------- */
 const IconMap = {
@@ -19,7 +20,7 @@ const IconMap = {
 const LabelMap = {
   [SCREEN_NAMES.ENGAGE]: "Engage",
   [SCREEN_NAMES.EXPLORE]: "Explore",
-  [SCREEN_NAMES.RECONNECT]: "Reconnect",
+  [SCREEN_NAMES.RECONNECT]: "Reconnect", // 👈 stays same
   [SCREEN_NAMES.HOST]: "Host",
   [SCREEN_NAMES.PROFILE]: "Profile",
 };
@@ -29,10 +30,17 @@ export function BottomNavigation({
   descriptors,
   navigation,
 }: BottomTabBarProps) {
+
+  // 👇 detects Android navigation bar / gesture height
+  const insets = useSafeAreaInsets();
+
   return (
     <LinearGradient
       colors={GRADIENT_COLORS.primary as [string, string, ...string[]]}
-      style={styles.container}
+      style={[
+        styles.container,
+        { paddingBottom: insets.bottom } // 👈 pushes tab above system buttons
+      ]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 0 }}
     >
@@ -67,6 +75,7 @@ export function BottomNavigation({
               testID={options.tabBarTestID}
               onPress={onPress}
               style={styles.tabItem}
+              activeOpacity={0.8}
             >
               <View
                 style={[
@@ -82,7 +91,12 @@ export function BottomNavigation({
                       : Theme.colors.mutedForeground
                   }
                 />
+
+                {/* 🔥 prevents "Reconnect" from wrapping */}
                 <Text
+                  numberOfLines={1}
+                  ellipsizeMode="clip"
+                  adjustsFontSizeToFit
                   style={[
                     styles.tabLabel,
                     isFocused
@@ -106,27 +120,29 @@ const styles = StyleSheet.create({
   container: {
     borderTopWidth: 1,
     borderColor: Theme.colors.border,
+    paddingTop: 4,
   },
 
   tabBarInner: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-around",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    justifyContent: "space-between",
+    paddingVertical: 6,
+    paddingHorizontal: 6,
   },
 
   tabItem: {
     flex: 1,
     alignItems: "center",
+    minWidth: 68, // ensures "Reconnect" fits
   },
 
   tabButton: {
     flexDirection: "column",
     alignItems: "center",
-    gap: 4,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    justifyContent: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 6,
     borderRadius: Theme.radius.lg,
   },
 
@@ -135,11 +151,16 @@ const styles = StyleSheet.create({
   },
 
   tabLabel: {
-    fontSize: 12,
+    fontSize: 11,
+    marginTop: 2,
+    textAlign: "center",
+    includeFontPadding: false,
+    width: "100%",
   },
 
   tabLabelActive: {
     color: Theme.colors.primaryForeground,
+    fontWeight: "600",
   },
 
   tabLabelInactive: {
