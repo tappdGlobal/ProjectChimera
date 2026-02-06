@@ -761,21 +761,33 @@ export function ProfileScreen() {
 
 
               {/* Info Pills Row */}
-              <View style={styles.infoRow}>
-                {[
-                  user?.gender &&
-                  `${user.gender.charAt(0).toUpperCase()}${user.gender.slice(1).toLowerCase()}`,
-                  user?.location,
-                  user?.occupation,
-                ]
-                  .filter(Boolean)
-                  .map((item, index) => (
-                    <View key={index} style={styles.infoPill}>
-                      <View style={styles.infoDot} />
-                      <Text style={styles.infoText}>{item}</Text>
-                    </View>
-                  ))}
+              <View style={styles.metaRow}>
+              <View style={styles.metaItem}>
+                <View style={styles.metaDot} />
+                <Text style={styles.metaText}>
+                  {user?.gender
+                    ? user.gender.charAt(0).toUpperCase() +
+                      user.gender.slice(1).toLowerCase()
+                    : "gender"}
+                </Text>
               </View>
+
+              <View style={styles.metaItem}>
+                <View style={styles.metaDot} />
+                <Text style={styles.metaText}>
+                  {user?.location || "location"}
+                </Text>
+              </View>
+
+              <View style={styles.metaItem}>
+                <View style={styles.metaDot} />
+                <Text style={styles.metaText}>
+                  {user?.occupation || "occupation"}
+                </Text>
+              </View>
+            </View>
+
+
             </View>
 
             {/* Menu Tabs */}
@@ -1548,12 +1560,14 @@ const styles = StyleSheet.create({
   settingsButtonHeader: { padding: 4 },
   // Profile Header
   profileHeader: {
-    paddingVertical: 32,
-    paddingHorizontal: 16,
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderColor: Theme.colors.border,
-  },
+  paddingTop: 28,
+  paddingBottom: 18, 
+  paddingHorizontal: 16,
+  alignItems: "center",
+  borderBottomWidth: 1,
+  borderColor: Theme.colors.border,
+},
+
   photoWrapper: { position: "relative", marginBottom: 20 },
   avatarBorder: {
     width: 140,
@@ -1586,7 +1600,7 @@ const styles = StyleSheet.create({
   tagline: {
     color: Theme.colors.mutedForeground,
     fontSize: 16,
-    marginBottom: 16,
+    marginBottom: 4,
     textAlign: "center",
     paddingHorizontal: 24,
   },
@@ -1994,5 +2008,30 @@ logoutText: {
   marginLeft: 8,
   lineHeight: 16,
 },
+metaRow: {
+  flexDirection: "row",
+  justifyContent: "center",
+  alignItems: "center",
+  gap: 14,
+  marginTop: 6,
+},
 
+metaItem: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 6,
+},
+
+metaDot: {
+  width: 6,
+  height: 6,
+  borderRadius: 3,
+  backgroundColor: Theme.colors.primary, // 👈 FIGMA PINK
+},
+
+metaText: {
+  color: Theme.colors.mutedForeground,
+  fontSize: 14,
+  fontWeight: "500",
+},
 });
