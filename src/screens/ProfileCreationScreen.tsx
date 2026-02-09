@@ -33,7 +33,8 @@ import Toast from "react-native-toast-message";
 import { useAuthStore } from "../store/authStore";
 import { SCREEN_NAMES } from "../navigation/Routes";
 import { useAnalytics } from "../hooks/useAnalytics";
-
+import { TermsOfServiceModal } from "../components/Legal/TermsOfServiceModal";
+import { PrivacyPolicyModal } from "../components/Legal/PrivacyPolicyModal";
 const TOTAL_STEPS = 6;
 
 const INTERESTS = [
@@ -85,6 +86,8 @@ export const ProfileCreationScreen = () => {
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [location, setLocation] = useState({ country: "", city: "" });
   const [locationPermission, setLocationPermission] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
   // Step 5 State
   const [notifications, setNotifications] = useState({
@@ -647,9 +650,23 @@ export const ProfileCreationScreen = () => {
             )}
           </TouchableOpacity>
           <Text style={styles.checkboxText}>
-            I agree to the <Text style={styles.linkText}>Terms of Service</Text>{" "}
-            and <Text style={styles.linkText}>Privacy Policy</Text>
+            I agree to the{" "}
+            <Text
+              style={styles.linkText}
+              onPress={() => setShowTermsModal(true)}
+            >
+              Terms of Service
+            </Text>{" "}
+            and{" "}
+            <Text
+              style={styles.linkText}
+              onPress={() => setShowPrivacyModal(true)}
+            >
+              Privacy Policy
+            </Text>
+
           </Text>
+
         </View>
       </View>
     </View>
@@ -768,6 +785,15 @@ export const ProfileCreationScreen = () => {
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
+      <TermsOfServiceModal
+        visible={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
+      />
+      <PrivacyPolicyModal
+        visible={showPrivacyModal}
+        onClose={() => setShowPrivacyModal(false)}
+      />
+
     </LinearGradient>
   );
 };
