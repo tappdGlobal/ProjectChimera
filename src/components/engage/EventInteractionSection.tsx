@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  commentRow: { flexDirection: "row", marginBottom: 16 },
+  commentRow: { flexDirection: "row", marginBottom: 16 , flex: 1},
   commentAvatar: { width: 32, height: 32, borderRadius: 16, marginRight: 10 },
   commentBubble: {
     backgroundColor: "rgba(255,255,255,0.08)",
