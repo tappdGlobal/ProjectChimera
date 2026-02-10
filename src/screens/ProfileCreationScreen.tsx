@@ -35,6 +35,8 @@ import { SCREEN_NAMES } from "../navigation/Routes";
 import { useAnalytics } from "../hooks/useAnalytics";
 import { TermsOfServiceModal } from "../components/Legal/TermsOfServiceModal";
 import { PrivacyPolicyModal } from "../components/Legal/PrivacyPolicyModal";
+import { ActivityIndicator } from "react-native";
+
 const TOTAL_STEPS = 6;
 
 const INTERESTS = [
@@ -59,6 +61,19 @@ const INTERESTS = [
   "Charity",
   "Social",
 ];
+
+// 🔹 Loader Overlay Component
+const FullScreenLoader = ({ visible }: { visible: boolean }) => {
+  if (!visible) return null;
+
+  return (
+    <View style={styles.loaderOverlay}>
+      <ActivityIndicator size="large" color="#DB2777" />
+      <Text style={styles.loaderText}>Creating your account…</Text>
+    </View>
+  );
+};
+
 
 export const ProfileCreationScreen = () => {
   const navigation = useNavigation();
@@ -785,6 +800,7 @@ export const ProfileCreationScreen = () => {
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
+      <FullScreenLoader visible={loading && currentStep === 5} />
       <TermsOfServiceModal
         visible={showTermsModal}
         onClose={() => setShowTermsModal(false)}
@@ -900,6 +916,25 @@ const styles = StyleSheet.create({
     position: "relative",
     marginBottom: 10,
   },
+  loaderOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(10,10,31,0.85)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 999,
+  },
+
+  loaderText: {
+    marginTop: 16,
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+
   avatarPlaceholder: {
     width: 100,
     height: 100,
