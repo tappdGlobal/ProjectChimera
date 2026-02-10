@@ -34,7 +34,8 @@ import Toast from "react-native-toast-message";
 import { useAuthStore } from "../store/authStore";
 import { SCREEN_NAMES } from "../navigation/Routes";
 import { useAnalytics } from "../hooks/useAnalytics";
-
+import { TermsOfServiceModal } from "../components/Legal/TermsOfServiceModal";
+import { PrivacyPolicyModal } from "../components/Legal/PrivacyPolicyModal";
 const TOTAL_STEPS = 6;
 
 const INTERESTS = [
@@ -96,6 +97,8 @@ export const ProfileCreationScreen = () => {
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [location, setLocation] = useState({ country: "", city: "" });
   const [locationPermission, setLocationPermission] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showCityDropdown, setShowCityDropdown] = useState(false);
 
   // Step 5 State
@@ -710,9 +713,23 @@ export const ProfileCreationScreen = () => {
             )}
           </TouchableOpacity>
           <Text style={styles.checkboxText}>
-            I agree to the <Text style={styles.linkText}>Terms of Service</Text>{" "}
-            and <Text style={styles.linkText}>Privacy Policy</Text>
+            I agree to the{" "}
+            <Text
+              style={styles.linkText}
+              onPress={() => setShowTermsModal(true)}
+            >
+              Terms of Service
+            </Text>{" "}
+            and{" "}
+            <Text
+              style={styles.linkText}
+              onPress={() => setShowPrivacyModal(true)}
+            >
+              Privacy Policy
+            </Text>
+
           </Text>
+
         </View>
       </View>
     </View>
@@ -831,6 +848,15 @@ export const ProfileCreationScreen = () => {
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
+      <TermsOfServiceModal
+        visible={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
+      />
+      <PrivacyPolicyModal
+        visible={showPrivacyModal}
+        onClose={() => setShowPrivacyModal(false)}
+      />
+
     </LinearGradient>
   );
 };
@@ -1157,8 +1183,8 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   dropdownButtonText: {
-    fontSize: 16,
     color: "#FFFFFF",
+    fontSize: 16,
   },
   dropdownPlaceholder: {
     color: "rgba(255,255,255,0.4)",
@@ -1200,16 +1226,16 @@ const styles = StyleSheet.create({
     maxHeight: 400,
   },
   dropdownItem: {
-    padding: 16,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255,255,255,0.05)",
   },
   dropdownItemText: {
+    color: "rgba(255,255,255,0.6)",
     fontSize: 16,
-    color: "rgba(255,255,255,0.8)",
   },
   dropdownItemTextSelected: {
     color: "#DB2777",
