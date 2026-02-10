@@ -17,6 +17,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react-native";
 import { SCREEN_NAMES } from "../navigation/Routes";
 import { useAnalytics } from "../hooks/useAnalytics";
+import { ChangePasswordPopup } from "../components/profile/ChangePasswordPopup";
+import Toast from "react-native-toast-message";
 import {
   GoogleSignin,
   GoogleSigninButton,
@@ -36,8 +38,9 @@ export const LoginScreen = ({ navigation }: any) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
-  const { signin, googleSignin, loading, error } = useAuthStore();
+  const { signin, googleSignin, forgotPassword, resetPassword, loading, error } = useAuthStore();
   const { trackEvent, trackButtonClick, trackFormSubmit, identifyUser } =
     useAnalytics("LoginScreen");
 
@@ -209,7 +212,13 @@ export const LoginScreen = ({ navigation }: any) => {
                 </View>
               </View>
 
-              <TouchableOpacity style={styles.forgotPasswordButton}>
+              <TouchableOpacity 
+                style={styles.forgotPasswordButton}
+                onPress={() => {
+                  trackButtonClick("Forgot Password");
+                  setShowForgotPassword(true);
+                }}
+              >
                 <Text style={styles.forgotPasswordText}>Forgot password?</Text>
               </TouchableOpacity>
 
@@ -253,6 +262,48 @@ export const LoginScreen = ({ navigation }: any) => {
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
+
+      {/* Forgot Password Popup */}
+      <ChangePasswordPopup
+        visible={showForgotPassword}
+        onClose={() => setShowForgotPassword(false)}
+        onRequestOtp={async (email) => {
+          try {
+            await forgotPassword(email);
+            Toast.show({
+              type: "success",
+              text1: "OTP Sent",
+              text2: "Please check your email for the OTP",
+            });
+          } catch (err: any) {
+            Toast.show({
+              type: "error",
+              text1: "Failed to Send OTP",
+              text2: err.message || "An error occurred",
+            });
+            throw err;
+          }
+        }}
+        onSubmit={async (payload) => {
+          try {
+            await resetPassword(payload);
+            Toast.show({
+              type: "success",
+              text1: "Password Reset Complete",
+              text2: "You can now login with your new password",
+            });
+            setShowForgotPassword(false);
+          } catch (err: any) {
+            Toast.show({
+              type: "error",
+              text1: "Failed to Reset Password",
+              text2: err.message || "An error occurred",
+            });
+            throw err;
+          }
+        }}
+        loading={loading}
+      />
     </LinearGradient>
   );
 };

@@ -11,6 +11,7 @@ import {
   Platform,
   Image,
   Switch,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
@@ -59,6 +60,16 @@ const INTERESTS = [
   "Social",
 ];
 
+const CITIES = [
+  "Bangalore",
+  "Chandigarh",
+  "Delhi",
+  "Goa",
+  "Mumbai",
+  "Pune",
+  "Others",
+];
+
 export const ProfileCreationScreen = () => {
   const navigation = useNavigation();
   const [currentStep, setCurrentStep] = useState(1);
@@ -85,6 +96,7 @@ export const ProfileCreationScreen = () => {
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [location, setLocation] = useState({ country: "", city: "" });
   const [locationPermission, setLocationPermission] = useState(false);
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
 
   // Step 5 State
   const [notifications, setNotifications] = useState({
@@ -529,15 +541,66 @@ export const ProfileCreationScreen = () => {
 
       <View style={styles.inputGroup}>
         <Text style={styles.inputLabel}>City</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter your city"
-          placeholderTextColor="rgba(255,255,255,0.4)"
-          value={location.city}
-          onChangeText={(text) =>
-            setLocation((prev) => ({ ...prev, city: text }))
-          }
-        />
+        <TouchableOpacity
+          style={styles.dropdownButton}
+          onPress={() => setShowCityDropdown(true)}
+        >
+          <Text
+            style={[
+              styles.dropdownButtonText,
+              !location.city && styles.dropdownPlaceholder,
+            ]}
+          >
+            {location.city || "Select your city"}
+          </Text>
+          <ChevronDown color="rgba(255,255,255,0.4)" size={20} />
+        </TouchableOpacity>
+
+        <Modal
+          visible={showCityDropdown}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowCityDropdown(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowCityDropdown(false)}
+          >
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select City</Text>
+                <TouchableOpacity onPress={() => setShowCityDropdown(false)}>
+                  <Text style={styles.modalClose}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.modalScrollView}>
+                {CITIES.map((city) => (
+                  <TouchableOpacity
+                    key={city}
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setLocation((prev) => ({ ...prev, city }));
+                      setShowCityDropdown(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownItemText,
+                        location.city === city && styles.dropdownItemTextSelected,
+                      ]}
+                    >
+                      {city}
+                    </Text>
+                    {location.city === city && (
+                      <Check color="#DB2777" size={18} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </TouchableOpacity>
+        </Modal>
       </View>
 
       <View style={styles.permissionContainer}>
@@ -1092,5 +1155,64 @@ const styles = StyleSheet.create({
     color: "#DB2777",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  dropdownButtonText: {
+    fontSize: 16,
+    color: "#FFFFFF",
+  },
+  dropdownPlaceholder: {
+    color: "rgba(255,255,255,0.4)",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: "#1A1A3F",
+    borderRadius: 16,
+    width: "100%",
+    maxHeight: "70%",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.1)",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+  },
+  modalClose: {
+    fontSize: 24,
+    color: "rgba(255,255,255,0.6)",
+    fontWeight: "300",
+  },
+  modalScrollView: {
+    maxHeight: 400,
+  },
+  dropdownItem: {
+    padding: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.05)",
+  },
+  dropdownItemText: {
+    fontSize: 16,
+    color: "rgba(255,255,255,0.8)",
+  },
+  dropdownItemTextSelected: {
+    color: "#DB2777",
+    fontWeight: "600",
   },
 });
