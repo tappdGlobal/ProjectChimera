@@ -148,6 +148,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ loading: false });
     } catch (err: any) {
       set({ loading: false, error: err.message });
+      throw err;
     }
   },
 
@@ -158,6 +159,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ loading: false });
     } catch (err: any) {
       set({ loading: false, error: err.message });
+      throw err;
     }
   },
 
