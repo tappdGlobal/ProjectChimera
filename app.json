@@ -45,7 +45,8 @@
     },
     "owner": "keshav88",
     "plugins": [
-      "expo-localization"
+      "expo-localization",
+      "@react-native-community/datetimepicker"
     ]
   }
 }

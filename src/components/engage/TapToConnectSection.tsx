@@ -16,6 +16,7 @@ import {
 import { Theme } from "../../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
 import { QrCode, Smartphone, Watch, Camera, X } from "lucide-react-native";
+import { ConnectThroughQRCode } from "./ConnectThroughQRCode";
 
 // if (
 //   Platform.OS === "android" &&
@@ -176,43 +177,7 @@ export function TapToConnectSection() {
   }, [view]);
 
   if (view === "qr") {
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Show QR to Connect</Text>
-          <Text style={styles.headerSubtitle}>
-            Let others scan your QR code to connect instantly
-          </Text>
-        </View>
-
-        <View style={[styles.content, { alignItems: "center" }]}>
-          <View style={styles.qrContainer}>
-            <Image
-              source={{
-                uri: "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://tapped.app/u/amitverma",
-              }}
-              style={styles.qrImage}
-            />
-          </View>
-
-          <View style={{ marginTop: 40, alignItems: "center", gap: 16 }}>
-            <TouchableOpacity style={styles.scanButton}>
-              <View style={styles.scanIconContainer}>
-                <Camera size={24} color="#fff" />
-              </View>
-              <Text style={styles.scanButtonText}>Scan to Connect</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => changeView("menu")}
-            >
-              <Text style={styles.backButtonText}>Back to Menu</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    );
+    return <ConnectThroughQRCode onBack={() => changeView("menu")} />;
   }
 
   if (view === "tap") {
