@@ -31,6 +31,30 @@ export const signinApi = (
 
 /* ================= FORGOT PASSWORD ================= */
 
+/**
+ * Forgot Password API
+ * Endpoint: POST /api/v1/auth/forgot-password
+ * Documentation: https://tappd-backend-1.onrender.com/api-docs/#/Auth/post_api_v1_auth_forgot_password
+ *
+ * Request Body:
+ *   - email: string (required) - User's registered email address
+ *
+ * Response:
+ *   - Success (200): OTP sent successfully to the provided email
+ *   - Error (400): Invalid email format
+ *   - Error (404): User not found with the provided email
+ *
+ * Flow:
+ *   1. User clicks "Forgot password?" on LoginScreen
+ *   2. User enters their email in ChangePasswordPopup
+ *   3. This API is called to send OTP to the user's email
+ *   4. User receives OTP and enters it along with new password
+ *   5. resetPasswordApi is called to complete the password reset
+ *
+ * Used in:
+ *   - LoginScreen.tsx (via authStore.forgotPassword)
+ *   - ChangePasswordPopup component
+ */
 export const forgotPasswordApi = (
   email: string
 ): Promise<ApiResponse<null>> => {
