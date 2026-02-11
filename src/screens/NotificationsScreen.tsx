@@ -582,7 +582,10 @@ export function NotificationsScreen() {
 
   // --- MAIN RENDER ---
   return (
-    <SafeAreaView style={styles.flex1} edges={["top"]}>
+    <SafeAreaView
+  style={[styles.flex1, { backgroundColor: Theme.colors.background }]}
+  edges={["top", "bottom"]}
+>
       <View style={styles.mainContainer}>
         {/* Header */}
         <View style={styles.mainHeader}>

@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Image,
+  
   TouchableOpacity,
   FlatList,
   TextInput,
@@ -12,6 +12,8 @@ import {
   Modal,
   SafeAreaView,
 } from "react-native";
+import { Image } from "expo-image";
+
 import { Theme } from "../../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -242,9 +244,11 @@ const FeedPost = ({ item }) => {
             {comments.map((c) => (
               <View key={c.id} style={styles.commentRow}>
                 <Image
-                  source={{ uri: DEFAULT_AVATAR }}
-                  style={styles.commentAvatar}
-                />
+  source={{ uri: DEFAULT_AVATAR }}
+  style={styles.commentAvatar}
+  onError={(e) => console.log("Image error:", e.nativeEvent)}
+/>
+
                 <View style={{ flex: 1 }}>
                   <View style={styles.commentBubble}>
                     <Text style={styles.commentText}>
