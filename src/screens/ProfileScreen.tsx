@@ -131,7 +131,7 @@ export function ProfileScreen() {
   // console.log("ProfileScreen token:", token);
 
 
-  const { logout, changeEmail, changePassword, deleteAccount, loading: authLoading } = useAuthStore();
+  const { logout, changeEmail, resetPassword, deleteAccount, loading: authLoading } = useAuthStore();
   const { profile, fetchUser, updateUser, uploadPhotos, deletePhoto, loading, setProfile } =
     useUserStore();
   const { user: authUser } = useAuthStore();
@@ -1437,7 +1437,7 @@ export function ProfileScreen() {
         }}
         onSubmit={async (payload) => {
           try {
-            await changePassword(payload);
+            await resetPassword(payload);
             Toast.show({
               type: "success",
               text1: "Password Changed",
