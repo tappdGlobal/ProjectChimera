@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Platform } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { RootNavigator } from "./src/navigation/RootNavigator";
 import { databaseService } from "./src/services/databaseService";
@@ -9,19 +10,9 @@ import { ErrorBoundary } from "./src/components/common/ErrorBoundary";
 import { useAuthStore } from "./src/store/authStore";
 
 import { PostHogProvider } from "posthog-react-native";
-import { SafeAreaProvider } from "react-native-safe-area-context"; // 👈 ADD THIS
 
 export default function App() {
   const [initError, setInitError] = useState<string | null>(null);
-  const [debugLog, setDebugLog] = useState<string[]>([]);
-
-  const addLog = (message: string) => {
-    console.log(message);
-    setDebugLog((prev) => [
-      ...prev.slice(-5),
-      `${new Date().toLocaleTimeString()}: ${message}`,
-    ]);
-  };
 
   const hydrateAuth = useAuthStore((s) => s.hydrateAuth);
   const isHydrated = useAuthStore((s) => s.isHydrated);
@@ -31,71 +22,49 @@ export default function App() {
 
     const init = async () => {
       try {
-        addLog(`App starting on ${Platform.OS}`);
+        console.log("App starting on:", Platform.OS);
 
         if (Platform.OS !== "web") {
-          addLog("Initializing database...");
           await databaseService.initDatabase();
-
-          addLog("Database initialized, syncing actions...");
           await syncService.syncActions();
         }
 
-        addLog("App initialization complete");
-      } catch (error) {
-        const err = error as any;
-
-        console.error("App initialization error:", err);
-        addLog(`Init error: ${err?.message || "Unknown error"}`);
-
-        setInitError(err?.message || "Failed to initialize app");
-
-        // retry safe
-        try {
-          await databaseService.initDatabase();
-          await syncService.syncActions();
-        } catch (retryErr) {
-          console.error("Retry failed:", retryErr);
-        }
+        console.log("App initialization complete");
+      } catch (error: any) {
+        console.error("App initialization error:", error);
+        setInitError(error?.message || "Failed to initialize app");
       }
     };
 
     init();
   }, []);
 
-  if (!isHydrated) {
-    return null;
-  }
+  if (!isHydrated) return null;
 
   if (initError) {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>Error: {initError}</Text>
-        <Text style={styles.errorSubtext}>Check console for details</Text>
+        <Text style={styles.errorSubtext}>Check console</Text>
       </View>
     );
   }
 
-  console.log("App rendering...", Platform.OS);
-
   return (
-    <SafeAreaProvider> {/* 👈 IMPORTANT WRAPPER */}
-      <ErrorBoundary>
-        {Platform.OS === "web" ? (
-          <>
-            <RootNavigator />
-            <StatusBar style="light" />
-          </>
-        ) : (
-          <PostHogProvider
-            apiKey="phc_FXpHLpLnFGLGRtvZOC9rFDXx8nUPoZVEqhqxslEXyhs"
-            options={{ host: "https://us.i.posthog.com" }}
-          >
-            <RootNavigator />
-            <StatusBar style="light" />
-          </PostHogProvider>
-        )}
-      </ErrorBoundary>
+    <SafeAreaProvider>
+      <PostHogProvider
+        apiKey="phc_FXpHLpLnFGLGRtvZOC9rFDXx8nUPoZVEqhqxslEXyhs"
+        options={{
+          host: "https://us.i.posthog.com",
+          enableSessionReplay: false,
+          captureApplicationLifecycleEvents: true,
+        }}
+      >
+        <ErrorBoundary>
+          <RootNavigator />
+          <StatusBar style="light" />
+        </ErrorBoundary>
+      </PostHogProvider>
     </SafeAreaProvider>
   );
 }
