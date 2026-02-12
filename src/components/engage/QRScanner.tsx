@@ -10,8 +10,8 @@ import {
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { X, Image as ImageIcon } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
-import jsQR from "jsqr";
-import { Buffer } from "buffer";
+import BarcodeScanner from "@react-native-ml-kit/barcode-scanning";
+
 const { width } = Dimensions.get("window");
 const scanSize = width * 0.75;
 
@@ -29,65 +29,73 @@ export function QRScanner({ onClose }: QRScannerProps) {
     }
   }, []);
 
-  // 📸 CAMERA QR SCAN
+  // ✅ LIVE CAMERA SCAN
   const handleScan = ({ data }: { data: string }) => {
     if (scanned) return;
 
     setScanned(true);
 
     console.log("Scanned QR (Camera):", data);
-    Alert.alert("QR Scanned", data);
+
+    Alert.alert("QR Scanned", String(data));
 
     setTimeout(() => {
       setScanned(false);
     }, 2000);
   };
 
-  // 🖼️ GALLERY QR SCAN
-  
+  // ✅ GALLERY SCAN USING ML KIT
+  const pickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 1,
+      });
 
-const pickImage = async () => {
-  try {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      base64: true,
-      quality: 1,
-    });
+      if (result.canceled) return;
 
-    if (!result.canceled && result.assets[0].base64) {
-      const base64 = result.assets[0].base64;
+      const uri = result.assets[0].uri;
 
-      // Convert base64 → Uint8ClampedArray
-      const buffer = Buffer.from(base64, "base64");
-      const bytes = new Uint8ClampedArray(buffer);
+      console.log("Scanning image:", uri);
 
-      const width = result.assets[0].width;
-      const height = result.assets[0].height;
+      const barcodes = await BarcodeScanner.scan(uri);
 
-      const code = jsQR(bytes, width, height);
+      console.log("MLKit result:", barcodes);
 
-      if (code) {
-        console.log("Scanned QR (Gallery):", code.data);
-        Alert.alert("QR Scanned", code.data);
+      if (barcodes && barcodes.length > 0) {
+        const value = barcodes[0].value; // ✅ FIXED
+
+        Alert.alert("QR Scanned", value || "No Data");
       } else {
         Alert.alert("No QR found in image");
       }
+    } catch (error: any) {
+      console.log("Gallery Scan Error FULL:", error);
+      Alert.alert("Error scanning image", error?.message ?? "Unknown error");
     }
-  } catch (error) {
-    console.log("Gallery Scan Error:", error);
-    Alert.alert("Error scanning image");
-  }
-};
+  };
 
 
-  if (!permission) return <View />;
 
-  if (!permission.granted)
+
+  if (!permission) {
     return (
       <View style={styles.center}>
-        <Text style={{ color: "#fff" }}>Camera permission required</Text>
+        <Text style={{ color: "#fff" }}>Loading camera...</Text>
       </View>
     );
+  }
+
+
+  if (!permission.granted) {
+    return (
+      <View style={styles.center}>
+        <Text style={{ color: "#fff" }}>
+          Camera permission required
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -111,12 +119,18 @@ const pickImage = async () => {
       </View>
 
       {/* Close Button */}
-      <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+      <TouchableOpacity
+        style={styles.closeButton}
+        onPress={onClose}
+      >
         <X size={28} color="#fff" />
       </TouchableOpacity>
 
       {/* Gallery Button */}
-      <TouchableOpacity style={styles.galleryButton} onPress={pickImage}>
+      <TouchableOpacity
+        style={styles.galleryButton}
+        onPress={pickImage}
+      >
         <ImageIcon size={24} color="#fff" />
       </TouchableOpacity>
     </View>

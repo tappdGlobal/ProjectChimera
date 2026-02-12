@@ -10,9 +10,10 @@ import { Theme } from "../../styles/Theme";
 import QRCode from "react-native-qrcode-svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRef } from "react";
-import { Share } from "react-native";
 import { QRScanner } from "./QRScanner";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
+
 
 interface ConnectThroughQRCodeProps {
     onBack: () => void;
@@ -20,7 +21,7 @@ interface ConnectThroughQRCodeProps {
 
 const QR_EXPIRY_TIME = 5 * 60 * 1000; // 5 minutes in ms
 const STORAGE_KEY = "QR_GENERATED_TIME";
-
+const token: string = "dfgweudbe7dgwedv27d6g2dwqd7ewgdywedu7ygqwe"
 export function ConnectThroughQRCode({ onBack }: ConnectThroughQRCodeProps) {
     const [qrData, setQrData] = useState<string | null>(null);
     const [showScanner, setShowScanner] = useState(false);
@@ -30,19 +31,18 @@ export function ConnectThroughQRCode({ onBack }: ConnectThroughQRCodeProps) {
 
 
     // Generate QR
+    // Generate QR (Token based)
     const generateQR = async () => {
         const now = Date.now();
 
-        const data = JSON.stringify({
-            userId: "test_user",
-            timestamp: now,
-        });
-
         await AsyncStorage.setItem(STORAGE_KEY, now.toString());
 
-        setQrData(data);
+        // QR will now contain ONLY the token
+        setQrData(token);
+
         setRemainingTime(QR_EXPIRY_TIME);
     };
+
 
     // Restore QR if app reopened
     const restoreQR = async () => {
@@ -75,25 +75,21 @@ export function ConnectThroughQRCode({ onBack }: ConnectThroughQRCodeProps) {
 
         qrRef.current.toDataURL(async (data: string) => {
             try {
-                const file = new FileSystem.File(
-                    FileSystem.Paths.cache,
-                    "share_qr.png"
-                );
+                const fileUri = FileSystem.cacheDirectory + "share_qr.png";
 
-                await file.write(data, {
-                    encoding: "base64",
+                await FileSystem.writeAsStringAsync(fileUri, data, {
+                    encoding: FileSystem.EncodingType.Base64,
                 });
 
-                await Share.share({
-                    url: file.uri,
-                    message: "Scan this QR to connect on Tappd",
-                });
+                await Sharing.shareAsync(fileUri);
 
             } catch (error) {
                 console.log("Share error:", error);
             }
         });
     };
+
+
 
 
 
@@ -156,11 +152,14 @@ export function ConnectThroughQRCode({ onBack }: ConnectThroughQRCodeProps) {
                         <View style={styles.qrContainer}>
                             <QRCode
                                 value={qrData}
-                                size={220}
+                                size={300} // 
                                 backgroundColor="#ffffff"
                                 color="#000000"
+                                ecl="H" // 
+                                quietZone={20} // 
                                 getRef={(c) => (qrRef.current = c)}
                             />
+
                         </View>
 
                         <Text style={styles.timerText}>
