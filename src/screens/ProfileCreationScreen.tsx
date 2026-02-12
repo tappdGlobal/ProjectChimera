@@ -83,7 +83,7 @@ export const ProfileCreationScreen = () => {
   const [bio, setBio] = useState("");
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
-  const [location, setLocation] = useState({ country: "", city: "" });
+  const [location, setLocation] = useState({ country: "India", city: "" });
   const [locationPermission, setLocationPermission] = useState(false);
 
   // Step 5 State
@@ -524,6 +524,8 @@ export const ProfileCreationScreen = () => {
           onChangeText={(text) =>
             setLocation((prev) => ({ ...prev, country: text }))
           }
+          editable={false}
+          selectTextOnFocus={false}
         />
       </View>
 
