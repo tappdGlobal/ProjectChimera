@@ -44,10 +44,7 @@
       "favicon": "./assets/favicon.png"
     },
     "owner": "keshav88",
-    "plugins": [
-      "expo-localization",
-      "@react-native-community/datetimepicker"
-    ],
+    "plugins": [],
     "extra": {
       "eas": {
         "projectId": "0a5f65d2-a6f6-4398-8bad-a61516c5c57a"

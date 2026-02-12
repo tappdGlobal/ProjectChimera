@@ -132,7 +132,7 @@ export function ProfileScreen() {
 
 
   const { logout, changeEmail, resetPassword, deleteAccount, loading: authLoading } = useAuthStore();
-  const { profile, fetchUser, updateUser, uploadPhotos, deletePhoto, loading, setProfile } =
+  const { profile, fetchUser, updateUser, uploadPhotos, uploadProfilePicture, deletePhoto, loading, setProfile } =
     useUserStore();
   const { user: authUser } = useAuthStore();
   const user = profile || authUser; // Use profile if available, otherwise auth user
@@ -171,6 +171,7 @@ export function ProfileScreen() {
   const [tempProfileImage, setTempProfileImage] = useState<string | null>(null);
   const [showProfileImageConfirm, setShowProfileImageConfirm] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [uploadingProfilePicture, setUploadingProfilePicture] = useState(false);
   const [deletingPhotoUrl, setDeletingPhotoUrl] = useState<string | null>(null);
 
   // Use user avatar or profilePicUrl, fallback to a default placeholder instead of mock photos
@@ -626,6 +627,44 @@ export function ProfileScreen() {
     </Dialog>
   );
 
+  const handleConfirmProfilePicture = async () => {
+    if (!user?.id || !tempProfileImage) return;
+
+    setUploadingProfilePicture(true);
+    try {
+      // Extract filename from uri
+      const filename = tempProfileImage.split('/').pop() || `profile_${Date.now()}.jpg`;
+
+      await uploadProfilePicture(user.id, {
+        uri: tempProfileImage,
+        name: filename,
+        type: "image/jpeg",
+      });
+
+      // Update local state
+      setProfileImage(tempProfileImage);
+      setTempProfileImage(null);
+      setShowProfileImageConfirm(false);
+
+      Toast.show({
+        type: "success",
+        text1: "Profile picture updated successfully",
+      });
+
+      // Refresh user data to get updated profile
+      await fetchUser(user.id);
+    } catch (error: any) {
+      console.error("Profile picture upload error:", error);
+      Toast.show({
+        type: "error",
+        text1: "Failed to upload profile picture",
+        text2: error.message || "Please try again",
+      });
+    } finally {
+      setUploadingProfilePicture(false);
+    }
+  };
+
   const ProfilePhotoConfirmDialog = () => (
     <Dialog
       open={showProfileImageConfirm}
@@ -659,19 +698,21 @@ export function ProfileScreen() {
               setTempProfileImage(null);
               setShowProfileImageConfirm(false);
             }}
+            disabled={uploadingProfilePicture}
           >
             Cancel
           </Button>
 
           <Button
             style={{ flex: 1 }}
-            onClick={() => {
-              setProfileImage(tempProfileImage!);
-              setTempProfileImage(null);
-              setShowProfileImageConfirm(false);
-            }}
+            onClick={handleConfirmProfilePicture}
+            disabled={uploadingProfilePicture}
           >
-            Set Photo
+            {uploadingProfilePicture ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              "Set Photo"
+            )}
           </Button>
         </View>
       </DialogContent>
