@@ -735,7 +735,7 @@ export function ProfileScreen() {
 
   // --- MAIN RENDER ---
   return (
-    <SafeAreaView style={styles.flex1} edges={["left", "right"]}>
+    <SafeAreaView style={styles.flex1} edges={["top", "left", "right"]}>
       <StatusBar
         barStyle="light-content"
         backgroundColor={Theme.colors.background}

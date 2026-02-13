@@ -7,8 +7,8 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
-  SafeAreaView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ArrowLeft,
   Calendar,
@@ -296,7 +296,7 @@ export function EventDetailsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity

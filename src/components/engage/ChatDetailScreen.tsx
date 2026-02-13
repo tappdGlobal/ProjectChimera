@@ -7,10 +7,10 @@ import {
   Image,
   TouchableOpacity,
   TextInput,
-  SafeAreaView,
   Pressable,
   Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Theme } from "../../styles/Theme";
 import {
   ChevronLeft,
@@ -113,7 +113,7 @@ export function ChatDetailScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       {/* ---------------- HEADER ---------------- */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>

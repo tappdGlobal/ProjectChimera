@@ -145,7 +145,7 @@ export const LoginScreen = ({ navigation }: any) => {
 
   return (
     <LinearGradient colors={["#0A0A1F", "#1A1A3F"]} style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => {
