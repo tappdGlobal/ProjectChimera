@@ -31,7 +31,7 @@ import {
   X,
 } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { AboutTab } from "../components/profile/AboutTab";
 import { Button } from "../components/ui/Button";
@@ -613,17 +613,31 @@ export function ProfileScreen() {
     </Dialog>
   );
 
+  const insets = useSafeAreaInsets();
+
   const PhotoDialog = () => (
     <Dialog open={!!selectedPhoto} onOpenChange={() => setSelectedPhoto(null)}>
-      <DialogContent style={styles.photoModal}>
-        {selectedPhoto && (
-          <Image
-            source={{ uri: selectedPhoto }}
-            style={styles.fullSizePhoto}
-            resizeMode="contain"
-          />
-        )}
-      </DialogContent>
+      <View style={[styles.photoModalContainer, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        {/* Close Button */}
+        <TouchableOpacity
+          style={styles.closeButton}
+          onPress={() => setSelectedPhoto(null)}
+          activeOpacity={0.7}
+        >
+          <X size={28} color="white" />
+        </TouchableOpacity>
+
+        {/* Image Container */}
+        <View style={styles.photoImageContainer}>
+          {selectedPhoto && (
+            <Image
+              source={{ uri: selectedPhoto }}
+              style={styles.fullSizePhoto}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </View>
     </Dialog>
   );
 
@@ -1930,6 +1944,32 @@ const styles = StyleSheet.create({
   },
   photoModal: { padding: 0, backgroundColor: "black", width: "95%" },
   fullSizePhoto: { width: "100%", height: "100%", borderRadius: 8 },
+  photoModalContainer: {
+    flex: 1,
+    backgroundColor: "black",
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  closeButton: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  photoImageContainer: {
+    flex: 1,
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 10,
+  },
   // Details
   detailItem: {
     flex: 1,
@@ -2030,49 +2070,39 @@ const styles = StyleSheet.create({
   connectionTypeBadgeTextBusiness: {
     color: "#FCD34D",
   },
-  logoutButton: {
-  backgroundColor: "#bc1313",
-  height: 48,
-  justifyContent: "center",
-},
-
-logoutInner: {
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "center",
-},
-
-logoutText: {
-  color: Theme.colors.foreground,
-  fontSize: 16,
-  fontWeight: "600",
-  marginLeft: 8,
-  lineHeight: 16,
-},
-metaRow: {
-  flexDirection: "row",
-  justifyContent: "center",
-  alignItems: "center",
-  gap: 14,
-  marginTop: 6,
-},
-
-metaItem: {
-  flexDirection: "row",
-  alignItems: "center",
-  gap: 6,
-},
-
-metaDot: {
-  width: 6,
-  height: 6,
-  borderRadius: 3,
-  backgroundColor: Theme.colors.primary, // 👈 FIGMA PINK
-},
-
-metaText: {
-  color: Theme.colors.mutedForeground,
-  fontSize: 14,
-  fontWeight: "500",
-},
+  logoutInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoutText: {
+    color: Theme.colors.foreground,
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+    lineHeight: 16,
+  },
+  metaRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 14,
+    marginTop: 6,
+  },
+  metaItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  metaDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Theme.colors.primary,
+  },
+  metaText: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 14,
+    fontWeight: "500",
+  },
 });
