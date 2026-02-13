@@ -31,7 +31,7 @@ import {
   X,
 } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { AboutTab } from "../components/profile/AboutTab";
 import { Button } from "../components/ui/Button";
@@ -53,7 +53,7 @@ import { useAppNavigation } from "../hooks/useAppNavigation";
 import Toast from "react-native-toast-message";
 import { TappdBandPopup } from "../components/profile/TappdBandPopup";
 import { ManageBandPopup } from "../components/profile/ManageBandPopup";
-import { ChangeEmailPopup } from "../components/profile/ChangeEmailPopup";
+// import { ChangeEmailPopup } from "../components/profile/ChangeEmailPopup";
 import { PaymentDetailForm } from "../components/profile/PaymentDetailForm";
 import { ChangePasswordPopup } from "../components/profile/ChangePasswordPopup";
 import { ManagePaymentInformationPopup } from "../components/profile/ManagePaymentInformationPopup";
@@ -132,8 +132,8 @@ export function ProfileScreen() {
   // console.log("ProfileScreen token:", token);
 
 
-  const { logout, changeEmail, changePassword, deleteAccount, loading: authLoading } = useAuthStore();
-  const { profile, fetchUser, updateUser, uploadPhotos, deletePhoto, loading, setProfile } =
+  const { logout, changeEmail, resetPassword, deleteAccount, loading: authLoading } = useAuthStore();
+  const { profile, fetchUser, updateUser, uploadPhotos, uploadProfilePicture, deletePhoto, loading, setProfile } =
     useUserStore();
   const { user: authUser } = useAuthStore();
   const user = profile || authUser; // Use profile if available, otherwise auth user
@@ -172,6 +172,7 @@ export function ProfileScreen() {
   const [tempProfileImage, setTempProfileImage] = useState<string | null>(null);
   const [showProfileImageConfirm, setShowProfileImageConfirm] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [uploadingProfilePicture, setUploadingProfilePicture] = useState(false);
   const [deletingPhotoUrl, setDeletingPhotoUrl] = useState<string | null>(null);
 
   // Use user avatar or profilePicUrl, fallback to a default placeholder instead of mock photos
@@ -185,7 +186,7 @@ export function ProfileScreen() {
   const [showTappdBandPopup, setShowTappdBandPopup] = useState(false);
   const [showComingSoon, setShowComingSoon] = useState(false);
   const [showManageBandPopup, setShowManageBandPopup] = useState(false);
-  const [showChangeEmailPopup, setShowChangeEmailPopup] = useState(false);
+  // const [showChangeEmailPopup, setShowChangeEmailPopup] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
 
@@ -419,7 +420,7 @@ export function ProfileScreen() {
           {/* Account Settings */}
           <Text style={styles.settingsSectionTitle}>Account Settings</Text>
           <View style={styles.settingsList}>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.settingsRow}
               onPress={() => setShowChangeEmailPopup(true)}
             >
@@ -430,7 +431,7 @@ export function ProfileScreen() {
               />
               <Text style={styles.settingsRowText}>Change Email</Text>
               <ChevronRight size={18} color={Theme.colors.mutedForeground} />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
             <TouchableOpacity
               style={styles.settingsRow}
@@ -617,19 +618,71 @@ export function ProfileScreen() {
     </Dialog>
   );
 
+  const insets = useSafeAreaInsets();
+
   const PhotoDialog = () => (
     <Dialog open={!!selectedPhoto} onOpenChange={() => setSelectedPhoto(null)}>
-      <DialogContent style={styles.photoModal}>
-        {selectedPhoto && (
-          <Image
-            source={{ uri: selectedPhoto }}
-            style={styles.fullSizePhoto}
-            resizeMode="contain"
-          />
-        )}
-      </DialogContent>
+      <View style={[styles.photoModalContainer, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        {/* Close Button */}
+        <TouchableOpacity
+          style={styles.closeButton}
+          onPress={() => setSelectedPhoto(null)}
+          activeOpacity={0.7}
+        >
+          <X size={28} color="white" />
+        </TouchableOpacity>
+
+        {/* Image Container */}
+        <View style={styles.photoImageContainer}>
+          {selectedPhoto && (
+            <Image
+              source={{ uri: selectedPhoto }}
+              style={styles.fullSizePhoto}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </View>
     </Dialog>
   );
+
+  const handleConfirmProfilePicture = async () => {
+    if (!user?.id || !tempProfileImage) return;
+
+    setUploadingProfilePicture(true);
+    try {
+      // Extract filename from uri
+      const filename = tempProfileImage.split('/').pop() || `profile_${Date.now()}.jpg`;
+
+      await uploadProfilePicture(user.id, {
+        uri: tempProfileImage,
+        name: filename,
+        type: "image/jpeg",
+      });
+
+      // Update local state
+      setProfileImage(tempProfileImage);
+      setTempProfileImage(null);
+      setShowProfileImageConfirm(false);
+
+      Toast.show({
+        type: "success",
+        text1: "Profile picture updated successfully",
+      });
+
+      // Refresh user data to get updated profile
+      await fetchUser(user.id);
+    } catch (error: any) {
+      console.error("Profile picture upload error:", error);
+      Toast.show({
+        type: "error",
+        text1: "Failed to upload profile picture",
+        text2: error.message || "Please try again",
+      });
+    } finally {
+      setUploadingProfilePicture(false);
+    }
+  };
 
   const ProfilePhotoConfirmDialog = () => (
     <Dialog
@@ -664,19 +717,21 @@ export function ProfileScreen() {
               setTempProfileImage(null);
               setShowProfileImageConfirm(false);
             }}
+            disabled={uploadingProfilePicture}
           >
             Cancel
           </Button>
 
           <Button
             style={{ flex: 1 }}
-            onClick={() => {
-              setProfileImage(tempProfileImage!);
-              setTempProfileImage(null);
-              setShowProfileImageConfirm(false);
-            }}
+            onClick={handleConfirmProfilePicture}
+            disabled={uploadingProfilePicture}
           >
-            Set Photo
+            {uploadingProfilePicture ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              "Set Photo"
+            )}
           </Button>
         </View>
       </DialogContent>
@@ -757,28 +812,42 @@ export function ProfileScreen() {
               </Text>
 
               {/* Bio/Tagline */}
-              {user?.bio && (
-                <Text style={styles.tagline} numberOfLines={2}>
-                  {user.bio} ✨
-                </Text>
-              )}
+              
+              <Text style={styles.tagline} numberOfLines={2}>
+                {user?.bio?.trim()
+                  ? `${user.bio} ✨`
+                  : "Exploring every day like it’s the first ✨"}
+              </Text>
+
 
               {/* Info Pills Row */}
-              <View style={styles.infoRow}>
-                {[
-                  user?.gender &&
-                  `${user.gender.charAt(0).toUpperCase()}${user.gender.slice(1).toLowerCase()}`,
-                  user?.location,
-                  user?.occupation,
-                ]
-                  .filter(Boolean)
-                  .map((item, index) => (
-                    <View key={index} style={styles.infoPill}>
-                      <View style={styles.infoDot} />
-                      <Text style={styles.infoText}>{item}</Text>
-                    </View>
-                  ))}
+              <View style={styles.metaRow}>
+              <View style={styles.metaItem}>
+                <View style={styles.metaDot} />
+                <Text style={styles.metaText}>
+                  {user?.gender
+                    ? user.gender.charAt(0).toUpperCase() +
+                      user.gender.slice(1).toLowerCase()
+                    : "gender"}
+                </Text>
               </View>
+
+              <View style={styles.metaItem}>
+                <View style={styles.metaDot} />
+                <Text style={styles.metaText}>
+                  {user?.location || "location"}
+                </Text>
+              </View>
+
+              <View style={styles.metaItem}>
+                <View style={styles.metaDot} />
+                <Text style={styles.metaText}>
+                  {user?.occupation || "occupation"}
+                </Text>
+              </View>
+            </View>
+
+
             </View>
 
             {/* Menu Tabs */}
@@ -1125,7 +1194,7 @@ export function ProfileScreen() {
                     Account Settings
                   </Text>
                   <View style={styles.settingsList}>
-                    <TouchableOpacity
+                    {/* <TouchableOpacity
                       style={styles.settingsRow}
                       onPress={() => setShowChangeEmailPopup(true)}
                     >
@@ -1139,7 +1208,7 @@ export function ProfileScreen() {
                         size={18}
                         color={Theme.colors.mutedForeground}
                       />
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
                     <TouchableOpacity
                       style={styles.settingsRow}
                       onPress={() => setShowChangePassword(true)}
@@ -1336,31 +1405,30 @@ export function ProfileScreen() {
 
                   <View style={styles.settingsLogoutWrapper}>
                     <Button
-                      style={styles.logoutButton}
-                      onClick={async () => {
-                        try {
-                          await logout();
-                          Toast.show({
-                            type: "success",
-                            text1: "Logged Out",
-                            text2: "You have been successfully logged out",
-                          });
-                        } catch (err: any) {
-                          Toast.show({
-                            type: "error",
-                            text1: "Logout Failed",
-                            text2: err.message || "An error occurred",
-                          });
-                        }
-                      }}
-                    >
-                      <LogOut
-                        size={16}
-                        color={Theme.colors.foreground}
-                        style={styles.mr2}
-                      />
-                      Logout
-                    </Button>
+                  style={styles.logoutButton}
+                  onClick={async () => {
+                    try {
+                      await logout();
+                      Toast.show({
+                        type: "success",
+                        text1: "Logged Out",
+                        text2: "You have been successfully logged out",
+                      });
+                    } catch (err: any) {
+                      Toast.show({
+                        type: "error",
+                        text1: "Logout Failed",
+                        text2: err.message || "An error occurred",
+                      });
+                    }
+                  }}
+                >
+                  <View style={styles.logoutInner}>
+                    <LogOut size={16} color={Theme.colors.foreground} />
+                    <Text style={styles.logoutText}>Logout</Text>
+                  </View>
+                </Button>
+
                   </View>
                 </View>
               )}
@@ -1384,7 +1452,7 @@ export function ProfileScreen() {
         visible={showManageBandPopup}
         onClose={() => setShowManageBandPopup(false)}
       />
-      <ChangeEmailPopup
+      {/* <ChangeEmailPopup
         visible={showChangeEmailPopup}
         onClose={() => setShowChangeEmailPopup(false)}
         onSubmit={async (email) => {
@@ -1409,7 +1477,7 @@ export function ProfileScreen() {
           }
         }}
         loading={authLoading}
-      />
+      /> */}
       <ChangePasswordPopup
         visible={showChangePassword}
         onClose={() => setShowChangePassword(false)}
@@ -1433,7 +1501,7 @@ export function ProfileScreen() {
         }}
         onSubmit={async (payload) => {
           try {
-            await changePassword(payload);
+            await resetPassword(payload);
             Toast.show({
               type: "success",
               text1: "Password Changed",
@@ -1556,12 +1624,14 @@ const styles = StyleSheet.create({
   settingsButtonHeader: { padding: 4 },
   // Profile Header
   profileHeader: {
-    paddingVertical: 32,
-    paddingHorizontal: 16,
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderColor: Theme.colors.border,
-  },
+  paddingTop: 28,
+  paddingBottom: 18, 
+  paddingHorizontal: 16,
+  alignItems: "center",
+  borderBottomWidth: 1,
+  borderColor: Theme.colors.border,
+},
+
   photoWrapper: { position: "relative", marginBottom: 20 },
   avatarBorder: {
     width: 140,
@@ -1594,7 +1664,7 @@ const styles = StyleSheet.create({
   tagline: {
     color: Theme.colors.mutedForeground,
     fontSize: 16,
-    marginBottom: 16,
+    marginBottom: 4,
     textAlign: "center",
     paddingHorizontal: 24,
   },
@@ -1814,7 +1884,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   // Settings Tab
-  logoutButton: { backgroundColor: "#DC2626" },
+  logoutButton: {
+  backgroundColor: "#bc1313",
+  height: 48,
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+},
+
   // Dialogs
   settingsModal: { width: "90%", maxHeight: "80%" },
   settingsModalScroll: { maxHeight: 520 },
@@ -1876,6 +1953,32 @@ const styles = StyleSheet.create({
   },
   photoModal: { padding: 0, backgroundColor: "black", width: "95%" },
   fullSizePhoto: { width: "100%", height: "100%", borderRadius: 8 },
+  photoModalContainer: {
+    flex: 1,
+    backgroundColor: "black",
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  closeButton: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  photoImageContainer: {
+    flex: 1,
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 10,
+  },
   // Details
   detailItem: {
     flex: 1,
@@ -1975,5 +2078,40 @@ const styles = StyleSheet.create({
   },
   connectionTypeBadgeTextBusiness: {
     color: "#FCD34D",
+  },
+  logoutInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoutText: {
+    color: Theme.colors.foreground,
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+    lineHeight: 16,
+  },
+  metaRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 14,
+    marginTop: 6,
+  },
+  metaItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  metaDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Theme.colors.primary,
+  },
+  metaText: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 14,
+    fontWeight: "500",
   },
 });

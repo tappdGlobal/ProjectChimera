@@ -27,6 +27,7 @@ interface ButtonProps {
   onClick?: (event: GestureResponderEvent) => void;
   style?: ViewStyle | ViewStyle[];
   textStyle?: TextStyle;
+  disabled?: boolean;
   // We'll map the `className` logic to specific style props if needed
 }
 
@@ -135,6 +136,7 @@ export function Button({
   onClick,
   style,
   textStyle,
+  disabled = false,
 }: ButtonProps) {
   const { container: variantContainer, text: variantText } =
     getVariantStyle(variant);
@@ -143,8 +145,9 @@ export function Button({
   return (
     <TouchableOpacity
       onPress={onClick}
-      style={[baseStyles.button, variantContainer, sizeContainer, style]}
-      activeOpacity={0.7} // Simulates transition: hover:bg-primary/90
+      style={[baseStyles.button, variantContainer, sizeContainer, style, disabled && baseStyles.disabled]}
+      activeOpacity={disabled ? 1 : 0.7}
+      disabled={disabled}
     >
       <Text style={[baseStyles.text, variantText, textStyle]}>{children}</Text>
     </TouchableOpacity>

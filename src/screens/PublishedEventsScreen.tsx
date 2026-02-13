@@ -157,37 +157,39 @@ interface EventCardProps {
 }
 
 const EventCard = React.memo(({ event, onPress }: EventCardProps) => (
-  <Card onClick={() => onPress(event)} style={styles.eventCardBase}>
-    <CardContent style={styles.eventCardContent}>
-      <View style={styles.eventCardHeader}>
-        <Text style={styles.eventCardTitle}>{event.name}</Text>
-        <View style={[styles.statusBadge, { borderColor: "rgba(255,255,255,0.2)" }]}>
-          <Text style={[styles.statusText, { color: getStatusColor(event.status).color }]}>{event.status}</Text>
+  <TouchableOpacity activeOpacity={0.7} onPress={() => onPress(event)}>
+    <Card style={styles.eventCardBase}>
+      <CardContent style={styles.eventCardContent}>
+        <View style={styles.eventCardHeader}>
+          <Text style={styles.eventCardTitle}>{event.name}</Text>
+          <View style={[styles.statusBadge, { borderColor: "rgba(255,255,255,0.2)" }]}>
+            <Text style={[styles.statusText, { color: getStatusColor(event.status).color }]}>{event.status}</Text>
+          </View>
         </View>
-      </View>
-      <Text style={styles.eventCardLocation}>{event.location}</Text>
-      <View style={styles.eventCardMetricsGrid}>
-        <View style={styles.metricItemLeft}>
-          <Text style={styles.metricBigNumber}>{event.registrations}</Text>
-          <Text style={styles.metricLabel}>Registrations</Text>
+        <Text style={styles.eventCardLocation}>{event.location}</Text>
+        <View style={styles.eventCardMetricsGrid}>
+          <View style={styles.metricItemLeft}>
+            <Text style={styles.metricBigNumber}>{event.registrations}</Text>
+            <Text style={styles.metricLabel}>Registrations</Text>
+          </View>
+          <View style={styles.metricItemRight}>
+            <Text style={styles.metricBigNumberGreen}>{formatCurrency(event.netEarnings)}</Text>
+            <Text style={styles.metricLabel}>Net Earnings</Text>
+          </View>
         </View>
-        <View style={styles.metricItemRight}>
-          <Text style={styles.metricBigNumberGreen}>{formatCurrency(event.netEarnings)}</Text>
-          <Text style={styles.metricLabel}>Net Earnings</Text>
+        <View style={styles.eventCardFooter}>
+          <View style={styles.flexRowCenter}>
+            <Star size={14} color="#FBBF24" fill="#FBBF24" style={{ marginRight: 4 }} />
+            <Text style={styles.footerText}>{event.rating} ({event.totalReviews})</Text>
+          </View>
+          <View style={styles.flexRowCenter}>
+            <Users size={14} color={Theme.colors.mutedForeground} style={{ marginRight: 4 }} />
+            <Text style={styles.footerText}>{event.connections} connections</Text>
+          </View>
         </View>
-      </View>
-      <View style={styles.eventCardFooter}>
-        <View style={styles.flexRowCenter}>
-          <Star size={14} color="#FBBF24" fill="#FBBF24" style={{ marginRight: 4 }} />
-          <Text style={styles.footerText}>{event.rating} ({event.totalReviews})</Text>
-        </View>
-        <View style={styles.flexRowCenter}>
-          <Users size={14} color={Theme.colors.mutedForeground} style={{ marginRight: 4 }} />
-          <Text style={styles.footerText}>{event.connections} connections</Text>
-        </View>
-      </View>
-    </CardContent>
-  </Card>
+      </CardContent>
+    </Card>
+  </TouchableOpacity>
 ));
 
 const EarningsChart = React.memo(() => {
@@ -276,13 +278,11 @@ const EarningsChart = React.memo(() => {
             <View style={[StyleSheet.absoluteFill, { zIndex: 20 }]}>
               <View style={{ flexDirection: "row", flex: 1 }}>
                 {months.map((_, i) => (
-                  <View
+                  <TouchableOpacity
                     key={i}
+                    activeOpacity={1}
                     style={{ flex: 1, backgroundColor: "transparent" }}
-                    {...({
-                      onPointerEnter: () => setActiveIndex(i),
-                      onPointerDown: () => setActiveIndex(i),
-                    } as any)}
+                    onPress={() => setActiveIndex(i)}
                   />
                 ))}
               </View>
@@ -640,7 +640,7 @@ const styles = StyleSheet.create({
   modalTabButtonActive: { backgroundColor: '#C026D3' },
   modalTabText: { fontSize: 14, fontWeight: '500', color: 'rgba(255,255,255,0.6)' },
   modalTabTextActive: { color: 'white', fontWeight: "600" },
-  modalContentScroll: { flex: 1 },
+  modalContentScroll: { maxHeight: 400 },
   tabContentContainer: { gap: 20, paddingBottom: 20 },
   analyticsStatsRow: { flexDirection: 'row', gap: 16 },
   analyticCard: { flex: 1, backgroundColor: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.1)', borderRadius: 20, padding: 0, overflow: 'hidden' },
