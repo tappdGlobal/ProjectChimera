@@ -72,6 +72,7 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { PublishedEventsScreen } from "./PublishedEventsScreen";
 import { SCREEN_NAMES } from "../navigation/Routes";
 import { DraftsScreen } from "./DraftsScreen";
+import ComingSoon from "../components/common/ComingSoon";
 import { StatusBar } from "expo-status-bar";
 import { useAnalytics } from "../hooks/useAnalytics";
 const SERVICE_CHARGE_PERCENT = 20;
@@ -252,6 +253,7 @@ export function HostScreen({ route }: any) {
 
   const [draftId, setDraftId] = useState<string | null>(null);
   const [isDraftLoading, setIsDraftLoading] = useState(false);
+  const [showComingSoon, setShowComingSoon] = useState(false);
 
   const [showPublicVerification, setShowPublicVerification] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
@@ -688,7 +690,8 @@ export function HostScreen({ route }: any) {
   };
 
   const handlePublishedTabClick = () => {
-    navigation.navigate(SCREEN_NAMES.PUBLISHED_EVENTS as never);
+    setShowComingSoon(true);
+    // navigation.navigate(SCREEN_NAMES.PUBLISHED_EVENTS as never);
     // if (onShowPublished) {
     //   onShowPublished();
     //   navigation.navigate(SCREEN_NAMES.PUBLISHED_EVENTS as never);
@@ -2040,7 +2043,7 @@ export function HostScreen({ route }: any) {
           <Text style={styles.mainHeaderTitle}>Welcome Host</Text>
 
           <TouchableOpacity
-            onPress={() => setShowEventControlPopup(true)}
+            onPress={() => setShowComingSoon(true)}
             style={styles.headerIconRight}
           >
             <LayoutDashboard size={22} color={Theme.colors.foreground} />
@@ -2213,6 +2216,7 @@ export function HostScreen({ route }: any) {
         }}
         onCancel={() => setShowTimePicker(false)}
       />
+      <ComingSoon visible={showComingSoon} onClose={() => setShowComingSoon(false)} />
     </SafeAreaView>
   );
 }
