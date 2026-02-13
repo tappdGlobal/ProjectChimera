@@ -13,12 +13,14 @@ import { useAnalytics } from "../hooks/useAnalytics";
 import { useNavigation } from "@react-navigation/native";
 import { SCREEN_NAMES } from "../navigation/Routes";
 import { ChatListScreen } from "../components/engage/ChatListScreen";
+import ComingSoon from "../components/common/ComingSoon";
 
 type SectionType = "chat" | "match" | "interaction" | "connect";
 
 export function EngageScreen() {
   const [activeSection, setActiveSection] =
     useState<SectionType>("interaction");
+  const [showComingSoon, setShowComingSoon] = useState(false);
 
   const { trackEvent } = useAnalytics("EngageScreen", {
     active_section: activeSection,
@@ -70,7 +72,13 @@ export function EngageScreen() {
   key={item.id}
   variant={activeSection === item.id ? "default" : "ghost"}
   size="sm"
-  onClick={() => setActiveSection(item.id)}
+  onClick={() => {
+    if (item.id === "match") {
+      setShowComingSoon(true);
+    } else {
+      setActiveSection(item.id);
+    }
+  }}
   style={
     activeSection === item.id
       ? [styles.menuButton, styles.menuButtonActive]
@@ -93,6 +101,7 @@ export function EngageScreen() {
         {/* Active Section */}
         <View style={styles.contentContainer}>{renderSection()}</View>
       </View>
+      <ComingSoon visible={showComingSoon} onClose={() => setShowComingSoon(false)} />
     </SafeAreaView>
   );
 }

@@ -58,6 +58,7 @@ import { PaymentDetailForm } from "../components/profile/PaymentDetailForm";
 import { ChangePasswordPopup } from "../components/profile/ChangePasswordPopup";
 import { ManagePaymentInformationPopup } from "../components/profile/ManagePaymentInformationPopup";
 import { AddPaymentAccountTypePopup } from "../components/profile/AddPaymentAccountTypePopup";
+import ComingSoon from "../components/common/ComingSoon";
 const { width } = Dimensions.get("window");
 
 // --- MOCK DATA ---
@@ -183,6 +184,7 @@ export function ProfileScreen() {
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const [isLoadingConnections, setIsLoadingConnections] = useState(false);
   const [showTappdBandPopup, setShowTappdBandPopup] = useState(false);
+  const [showComingSoon, setShowComingSoon] = useState(false);
   const [showManageBandPopup, setShowManageBandPopup] = useState(false);
   // const [showChangeEmailPopup, setShowChangeEmailPopup] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -387,14 +389,17 @@ export function ProfileScreen() {
           <View style={styles.settingsList}>
             <TouchableOpacity
               style={styles.settingsRow}
-              onPress={() => setShowTappdBandPopup(true)}
+              onPress={() => {
+                // setShowTappdBandPopup(true);
+                setShowComingSoon(true);
+              }}
             >
               <Smartphone
                 size={18}
                 color={Theme.colors.mutedForeground}
                 style={styles.settingsRowIcon}
               />
-              <Text style={styles.settingsRowText}>Register TAPPD Band</Text>
+              <Text style={styles.settingsRowText}>Register TAPPD Band </Text>
               <ChevronRight size={18} color={Theme.colors.mutedForeground} />
             </TouchableOpacity>
 
@@ -1150,7 +1155,10 @@ export function ProfileScreen() {
                   <View style={styles.settingsList}>
                     <TouchableOpacity
                       style={styles.settingsRow}
-                      onPress={() => setShowTappdBandPopup(true)}
+                      onPress={() => {
+                        // setShowTappdBandPopup(true);
+                        setShowComingSoon(true);
+                      }}
                     >
                       <Smartphone
                         size={18}
@@ -1158,7 +1166,7 @@ export function ProfileScreen() {
                         style={styles.settingsRowIcon}
                       />
                       <Text style={styles.settingsRowText}>
-                        Register TAPPD Band
+                        Register TAPPD Band 
                       </Text>
                       <ChevronRight
                         size={18}
@@ -1220,7 +1228,7 @@ export function ProfileScreen() {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.settingsRow}
-                      onPress={() => setPaymentFlow("MANAGE")}
+                      onPress={() => setShowComingSoon(true)}
                     >
                       <CreditCard
                         size={18}
@@ -1431,6 +1439,7 @@ export function ProfileScreen() {
       <SettingsDialog />
       <PhotoDialog />
       <ProfilePhotoConfirmDialog />
+      <ComingSoon visible={showComingSoon} onClose={() => setShowComingSoon(false)} />
       <TappdBandPopup
         visible={showTappdBandPopup}
         onClose={() => setShowTappdBandPopup(false)}

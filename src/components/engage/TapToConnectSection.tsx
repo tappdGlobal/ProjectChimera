@@ -16,6 +16,8 @@ import {
 import { Theme } from "../../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
 import { QrCode, Smartphone, Watch, Camera, X } from "lucide-react-native";
+import ComingSoon from "../common/ComingSoon";
+
 import { ConnectThroughQRCode } from "./ConnectThroughQRCode";
 
 // if (
@@ -64,6 +66,8 @@ export function TapToConnectSection() {
   const [view, setView] = useState<"menu" | "qr" | "tap">("menu");
   const [tapMode, setTapMode] = useState<"p2p" | "p2b">("p2p"); // Phone to Phone vs Phone to Band
   const [showBandModal, setShowBandModal] = useState(false);
+  const [showComingSoon, setShowComingSoon] = useState(false);
+
   const [pairingStep, setPairingStep] = useState<
     "initial" | "searching" | "found"
   >("initial");
@@ -374,7 +378,8 @@ export function TapToConnectSection() {
           title="Tap to Connect"
           description="Tap phones or TAPPD bands together"
           gradientIcon
-          onPress={() => changeView("tap")}
+          onPress={() => setShowComingSoon(true)}
+
         />
 
         <ConnectionCard
@@ -382,7 +387,8 @@ export function TapToConnectSection() {
           title="Register TAPPD Band"
           description="Connect and manage your TAPPD bands"
           gradientIcon
-          onPress={() => setShowBandModal(true)}
+          onPress={() => setShowComingSoon(true)}
+
         />
 
         <View style={styles.footer}>
@@ -396,6 +402,12 @@ export function TapToConnectSection() {
       </ScrollView>
 
       {/* Band Registration Modal */}
+<ComingSoon
+  visible={showComingSoon}
+  onClose={() => setShowComingSoon(false)}
+/>
+
+
       <Modal
         visible={showBandModal}
         transparent
