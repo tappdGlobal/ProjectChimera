@@ -7,6 +7,7 @@ import {
   Image,
   TouchableOpacity,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Theme } from "../../styles/Theme";
 import { useNavigation } from "@react-navigation/native";
 import { SCREEN_NAMES } from "../../navigation/Routes";
@@ -86,7 +87,7 @@ export function ChatListScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       {/* ---------- HEADER (ONLY ADDITION) ---------- */}
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
@@ -108,7 +109,7 @@ export function ChatListScreen() {
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
