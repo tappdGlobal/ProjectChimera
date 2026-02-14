@@ -7,10 +7,10 @@ import {
   Image,
   TouchableOpacity,
   TextInput,
-  SafeAreaView,
   Pressable,
   Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Theme } from "../../styles/Theme";
 import {
   ChevronLeft,
@@ -24,6 +24,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { AppStackParamList, SCREEN_NAMES } from "../../navigation/Routes";
+
+/* ✅ IMPORT COMING SOON */
+import ComingSoon from "../common/ComingSoon";
 
 /* ---------------- TYPES ---------------- */
 
@@ -66,6 +69,9 @@ export function ChatDetailScreen() {
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [input, setInput] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+
+  /* ✅ NEW STATE FOR POPUP */
+  const [showComingSoon, setShowComingSoon] = useState(false);
 
   const goToChatSettings = () => {
     setMenuOpen(false);
@@ -113,7 +119,7 @@ export function ChatDetailScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       {/* ---------------- HEADER ---------------- */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -130,18 +136,28 @@ export function ChatDetailScreen() {
         </View>
 
         <View style={styles.headerRight}>
+          {/* ✅ VIDEO CLICK → COMING SOON */}
           <TouchableOpacity
-            onPress={() =>
-              Alert.alert("Video Call", "Backend integration required")
-            }
+            onPress={() => {
+              setShowComingSoon(true);
+
+              /* ❌ OLD ALERT (COMMENTED, NOT DELETED)
+              Alert.alert("Video Call", "Backend integration required");
+              */
+            }}
           >
             <Video size={20} color="#fff" />
           </TouchableOpacity>
 
+          {/* ✅ PHONE CLICK → COMING SOON */}
           <TouchableOpacity
-            onPress={() =>
-              Alert.alert("Voice Call", "Backend integration required")
-            }
+            onPress={() => {
+              setShowComingSoon(true);
+
+              /* ❌ OLD ALERT (COMMENTED, NOT DELETED)
+              Alert.alert("Voice Call", "Backend integration required");
+              */
+            }}
           >
             <Phone size={20} color="#fff" />
           </TouchableOpacity>
@@ -204,18 +220,24 @@ export function ChatDetailScreen() {
           </LinearGradient>
         </TouchableOpacity>
       </View>
+
+      {/* ✅ COMING SOON POPUP */}
+     <ComingSoon
+  visible={showComingSoon}
+  onClose={() => setShowComingSoon(false)}
+/>
+
     </SafeAreaView>
   );
 }
 
-/* ---------------- STYLES ---------------- */
+/* ---------------- STYLES (UNCHANGED) ---------------- */
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Theme.colors.background,
   },
-
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -224,35 +246,29 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.05)",
     zIndex: 10,
   },
-
   headerLeft: {
     flexDirection: "row",
     gap: 10,
     alignItems: "center",
   },
-
   headerRight: {
     flexDirection: "row",
     gap: 14,
     alignItems: "center",
   },
-
   avatar: {
     width: 38,
     height: 38,
     borderRadius: 19,
   },
-
   name: {
     color: "#fff",
     fontWeight: "600",
   },
-
   status: {
     color: "#aaa",
     fontSize: 12,
   },
-
   fullScreenOverlay: {
     position: "absolute",
     top: 0,
@@ -261,13 +277,11 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 999,
   },
-
   dropdownWrapper: {
     position: "absolute",
     top: 64,
     right: 12,
   },
-
   dropdown: {
     width: 200,
     backgroundColor: "#120E1C",
@@ -277,64 +291,52 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.1)",
     elevation: 12,
   },
-
   dropdownItem: {
     color: "#fff",
     fontSize: 14,
     paddingVertical: 10,
     paddingHorizontal: 14,
   },
-
   list: {
     padding: 16,
   },
-
   messageRow: {
     marginBottom: 14,
   },
-
   rowMe: {
     alignItems: "flex-end",
   },
-
   rowOther: {
     alignItems: "flex-start",
   },
-
   bubbleMe: {
     maxWidth: "75%",
     padding: 12,
     borderRadius: 16,
   },
-
   bubbleOther: {
     maxWidth: "75%",
     padding: 12,
     borderRadius: 16,
     backgroundColor: "#2A2344",
   },
-
   textMe: {
     color: "#fff",
   },
-
   textOther: {
     color: "#fff",
   },
-
   timeMe: {
     fontSize: 10,
     color: "#eee",
     alignSelf: "flex-end",
     marginTop: 4,
   },
-
   timeOther: {
     fontSize: 10,
     color: "#aaa",
     marginTop: 4,
   },
-
   inputBar: {
     flexDirection: "row",
     padding: 12,
@@ -343,19 +345,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
-
   input: {
     flex: 1,
     backgroundColor: "#1F1B2E",
     borderRadius: 18,
-    paddingHorizontal:14,
-    paddingVertical:3,
+    paddingHorizontal: 14,
+    paddingVertical: 3,
     minHeight: 42,
     maxHeight: 80,
     color: "#fff",
     fontSize: 15,
   },
-
   sendBtn: {
     width: 44,
     height: 44,

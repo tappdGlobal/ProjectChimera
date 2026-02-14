@@ -14,6 +14,7 @@ import { ExploreTab } from "../components/explore/ExploreTabs";
 import { ExploreTabContent } from "../components/explore/ExploreTabContent";
 import { MapTabContent } from "../components/explore/MapTabContent";
 import { BookingTabContent } from "../components/explore/BookingTabContent";
+import ComingSoon from "../components/common/ComingSoon";
 
 import { ExploreStackParamList, SCREEN_NAMES } from "../navigation/Routes";
 import { useAnalytics } from "../hooks/useAnalytics";
@@ -32,6 +33,7 @@ export function ExploreScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   type ExploreTabKey = "explore" | "map" | "bookings";
   const [activeTab, setActiveTab] = useState<ExploreTabKey>("explore");
+  const [showComingSoon, setShowComingSoon] = useState(false);
 
   const handleExploreAllClick = () => {
     setShowExploreAll(true);
@@ -90,7 +92,16 @@ export function ExploreScreen() {
         />
 
         <View style={{ paddingHorizontal: Theme.spacing.m }}>
-          <ExploreTab activeTab={activeTab} onChange={setActiveTab} />
+          <ExploreTab 
+            activeTab={activeTab} 
+            onChange={(tab) => {
+              if (tab === "map" || tab === "bookings") {
+                setShowComingSoon(true);
+              } else {
+                setActiveTab(tab);
+              }
+            }} 
+          />
         </View>
 
         <View style={{ flex: 1 }}>
@@ -108,6 +119,7 @@ export function ExploreScreen() {
           {activeTab === "bookings" && <BookingTabContent />}
         </View>
       </ScrollView>
+      <ComingSoon visible={showComingSoon} onClose={() => setShowComingSoon(false)} />
     </SafeAreaView>
   );
 }
