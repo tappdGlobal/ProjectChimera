@@ -3,8 +3,8 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { SCREEN_NAMES, EngageStackParamList } from "./Routes";
 
 import { EngageScreen } from "../screens/EngageScreen";
-import { ChatListScreen } from "../components/engage/ChatListScreen";
-import { ChatDetailScreen } from "../components/engage/ChatDetailScreen";
+import ChatListScreen from "../screens/ChatListScreen";
+import ChatDetailScreen from "../screens/ChatDetailScreen";
 import { ChatSettingsScreen } from "../screens/ChatSettingsScreen";
 
 const Stack = createNativeStackNavigator<EngageStackParamList>();

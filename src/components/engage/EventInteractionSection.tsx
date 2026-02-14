@@ -4,13 +4,10 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  
   TouchableOpacity,
   FlatList,
   TextInput,
   Share,
-  Modal,
-  SafeAreaView,
   Alert,
 } from "react-native";
 import { Image } from "expo-image";
@@ -23,7 +20,6 @@ import {
   MessageCircle,
   MoreHorizontal,
   Music,
-  ChevronLeft,
   Upload,
 } from "lucide-react-native";
 import StoryViewer from "./StoryViewer";
@@ -83,6 +79,7 @@ interface StoryItemProps {
     image?: string;
     thumbnailImage?: string;
     viewed?: boolean;
+    storyCount?: number;
   };
   onPress: () => void;
 }
@@ -123,16 +120,44 @@ const StoryItem = ({ item, onPress }: StoryItemProps) => (
 
 /* ---------------- FEED POST ---------------- */
 
-const FeedPost = ({ item }) => {
+interface Comment {
+  id: string;
+  username: string;
+  text: string;
+  time: string;
+  liked: boolean;
+  likeCount: number;
+}
+
+interface FeedPostItem {
+  id: string;
+  user: {
+    name: string;
+    avatar: string;
+  };
+  time: string;
+  media: string;
+  likes: number;
+  caption: string;
+  comments: {
+    username: string;
+    text: string;
+    time: string;
+  }[];
+  music: string;
+}
+
+const FeedPost = ({ item }: { item: FeedPostItem }) => {
   const [liked, setLiked] = useState(false);
   const [likes, setLikes] = useState(item.likes);
+  const [commentText, setCommentText] = useState("");
+  const [showInlineComments, setShowInlineComments] = useState(false);
 
   const toggleComments = () => {
-  setShowInlineComments((prev) => !prev);
-};
+    setShowInlineComments((prev) => !prev);
+  };
 
-
-  const [comments, setComments] = useState(
+  const [comments, setComments] = useState<Comment[]>(
     item.comments.map((c, i) => ({
       ...c,
       id: i.toString(),
@@ -140,6 +165,7 @@ const FeedPost = ({ item }) => {
       likeCount: 0,
     })),
   );
+
   const handleShare = async () => {
     try {
       await Share.share({
@@ -150,18 +176,14 @@ const FeedPost = ({ item }) => {
     }
   };
 
-  const [commentText, setCommentText] = useState("");
-  const [showCommentsModal, setShowCommentsModal] = useState(false);
-  const [showInlineComments, setShowInlineComments] = useState(false);
-
   const handleLike = () => {
     setLiked(!liked);
-    setLikes((p) => (liked ? p - 1 : p + 1));
+    setLikes((p: number) => (liked ? p - 1 : p + 1));
   };
 
-  const toggleCommentLike = (id) => {
-    setComments((prev) =>
-      prev.map((c) =>
+  const toggleCommentLike = (id: string) => {
+    setComments((prev: Comment[]) =>
+      prev.map((c: Comment) =>
         c.id === id
           ? {
               ...c,
@@ -175,7 +197,7 @@ const FeedPost = ({ item }) => {
 
   const addComment = () => {
     if (!commentText.trim()) return;
-    setComments((p) => [
+    setComments((p: Comment[]) => [
       ...p,
       {
         id: Date.now().toString(),
@@ -332,7 +354,42 @@ export function EventInteractionSection() {
     getAllStories();
   }, []);
 
-  // Format stories for display
+  // Format stories for display - group by user
+  const groupedStories = stories
+    .filter((story: any) => story && story.userId && story.mediaUrl)
+    .reduce((acc: any, story: any) => {
+      const existingUser = acc.find((group: any) => group.userId === story.userId);
+      
+      if (existingUser) {
+        // Add story to existing user's stories
+        existingUser.stories.push({
+          id: story.id,
+          mediaUrl: story.mediaUrl 
+            ? `https://tappd-backend-main.onrender.com/${story.mediaUrl}`
+            : DEFAULT_AVATAR,
+          caption: story.caption,
+          createdAt: story.createdAt,
+        });
+      } else {
+        // Create new user group
+        acc.push({
+          userId: story.userId,
+          name: story.user?.username || story.user?.name || 'Unknown',
+          profileImage: story.user?.profilePicUrl || DEFAULT_AVATAR,
+          isUser: story.userId === userId,
+          stories: [{
+            id: story.id,
+            mediaUrl: story.mediaUrl 
+              ? `https://tappd-backend-main.onrender.com/${story.mediaUrl}`
+              : DEFAULT_AVATAR,
+            caption: story.caption,
+            createdAt: story.createdAt,
+          }],
+        });
+      }
+      return acc;
+    }, []);
+
   const displayStories = [
     // Add "Add Story" button first
     { 
@@ -341,28 +398,20 @@ export function EventInteractionSection() {
       isUser: true, 
       image: DEFAULT_AVATAR,
       viewed: false,
+      storyCount: 0,
     },
-    // Then add actual stories
-    ...stories
-      .filter((story: any) => story && story.userId && story.mediaUrl)
-      .map((story: any) => {
-        const formattedStory = {
-          id: story.id,
-          name: story.user?.username || story.user?.name || 'Unknown',
-          isUser: story.userId === userId,
-          userId: story.userId,
-          thumbnailImage: story.mediaUrl 
-            ? `https://tappd-backend-main.onrender.com/${story.mediaUrl}`
-            : DEFAULT_AVATAR,
-          mediaUrl: story.mediaUrl 
-            ? `https://tappd-backend-main.onrender.com/${story.mediaUrl}` 
-            : DEFAULT_AVATAR,
-          profileImage: story.user?.profilePicUrl || DEFAULT_AVATAR,
-          caption: story.caption,
-          viewed: viewedStories.has(story.id),
-        };
-        return formattedStory;
-      }),
+    // Then add grouped user stories
+    ...groupedStories.map((group: any) => ({
+      id: group.userId,
+      name: group.name,
+      isUser: group.isUser,
+      userId: group.userId,
+      thumbnailImage: group.stories[0].mediaUrl, // Use first story as thumbnail
+      profileImage: group.profileImage,
+      viewed: group.stories.every((s: any) => viewedStories.has(s.id)), // All stories viewed
+      storyCount: group.stories.length,
+      stories: group.stories,
+    })),
   ];
 
   const handleStoryCreated = () => {
@@ -431,15 +480,17 @@ export function EventInteractionSection() {
         visible={showStoryModal}
         stories={displayStories
           .filter((s) => s.id !== "add-story")
-          .map((s: any) => ({
-            id: s.id,
-            username: s.name,
-            profileImage: s.profileImage,
-            image: s.mediaUrl,
-            caption: s.caption,
-            time: "Just now",
-            userId: s.userId,
-          }))}
+          .flatMap((userGroup: any) => 
+            userGroup.stories.map((story: any) => ({
+              id: story.id,
+              username: userGroup.name,
+              profileImage: userGroup.profileImage,
+              image: story.mediaUrl,
+              caption: story.caption,
+              time: "Just now",
+              userId: userGroup.userId,
+            }))
+          )}
         initialIndex={storyIndex}
         onClose={() => setShowStoryModal(false)}
         currentUserId={userId || undefined}
@@ -517,6 +568,23 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 20,
     right: -2,
+  },
+  storyCountBadge: {
+    position: "absolute",
+    top: 2,
+    right: 2,
+    backgroundColor: "#e91e63",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 6,
+  },
+  storyCountText: {
+    color: "white",
+    fontSize: 11,
+    fontWeight: "bold",
   },
   playButton: {
     width: 20,

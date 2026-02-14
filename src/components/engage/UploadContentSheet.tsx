@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -31,6 +31,14 @@ export function UploadContentSheet({
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [showWebCamera, setShowWebCamera] = useState(false);
 
+  // Reset state when modal opens
+  useEffect(() => {
+    if (visible) {
+      setSelectedImage(null);
+      setShowWebCamera(false);
+    }
+  }, [visible]);
+
   // ---------- GALLERY ----------
   const openGallery = async () => {
     try {
@@ -61,7 +69,8 @@ export function UploadContentSheet({
       console.log("Image picker result:", result);
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setSelectedImage(result.assets[0].uri);
+        // Directly call onCreateStory with the selected image
+        onCreateStory?.(result.assets[0].uri);
       }
     } catch (error) {
       console.error("Error opening gallery:", error);
@@ -109,7 +118,8 @@ export function UploadContentSheet({
       console.log("Camera result:", result);
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setSelectedImage(result.assets[0].uri);
+        // Directly call onCreateStory with the captured image
+        onCreateStory?.(result.assets[0].uri);
       }
     } catch (error) {
       console.error("Error opening camera:", error);
@@ -150,8 +160,9 @@ export function UploadContentSheet({
       
       // Convert to data URL
       const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-      setSelectedImage(dataUrl);
       setShowWebCamera(false);
+      // Directly call onCreateStory with the captured image
+      onCreateStory?.(dataUrl);
     } catch (error) {
       console.error('Error accessing webcam:', error);
       alert('Failed to access webcam. Please check your browser permissions or use Gallery instead.');
@@ -218,20 +229,24 @@ export function UploadContentSheet({
                 </View>
               </View>
             ) : selectedImage ? (
-              <>
+              <View style={{ minHeight: 400 }}>
                 {/* Image Preview */}
-                <View style={styles.previewContainer}>
+                <View style={[styles.previewContainer, { minHeight: 260 }]}>
                   <Image
                     source={{ uri: selectedImage }}
-                    style={styles.previewImage}
+                    style={[styles.previewImage, { height: 260 }]}
+                    resizeMode="cover"
                   />
                 </View>
 
                 {/* Buttons */}
-                <View style={styles.typeRow}>
+                <View style={[styles.typeRow, { marginTop: 20 }]}>
                   <TouchableOpacity
                     activeOpacity={0.85}
-                    onPress={() => onCreateStory?.(selectedImage)}
+                    onPress={() => {
+                      console.log("Create Story pressed with image:", selectedImage);
+                      onCreateStory?.(selectedImage);
+                    }}
                     style={styles.typeButtonWrapper}
                   >
                     <LinearGradient
@@ -246,7 +261,10 @@ export function UploadContentSheet({
 
                   <TouchableOpacity
                     activeOpacity={0.85}
-                    onPress={() => onCreatePost?.(selectedImage)}
+                    onPress={() => {
+                      console.log("Create Post pressed with image:", selectedImage);
+                      onCreatePost?.(selectedImage);
+                    }}
                     style={styles.typeButtonWrapper}
                   >
                     <LinearGradient
@@ -259,7 +277,7 @@ export function UploadContentSheet({
                     </LinearGradient>
                   </TouchableOpacity>
                 </View>
-              </>
+              </View>
             ) : (
               <>
                 {/* Upload Box */}
