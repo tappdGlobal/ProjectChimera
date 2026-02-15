@@ -36,21 +36,25 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   createStory: async (payload) => {
     try {
       set({ loading: true, error: null });
-      const res = await createStoryApi(payload);
+      const response = await createStoryApi(payload);
       
-      if (!res.data) {
-        throw new Error("Failed to create story");
+      // Handle different response structures
+      const storyData = (response as any).data || response;
+      
+      if (!storyData) {
+        throw new Error("Failed to create story - no data returned");
       }
 
       // Add new story to the beginning of stories list
       set((state) => ({
-        stories: [res.data!, ...state.stories],
-        userStories: [res.data!, ...state.userStories],
+        stories: [storyData, ...state.stories],
+        userStories: [storyData, ...state.userStories],
         loading: false,
       }));
 
-      return res.data;
+      return storyData;
     } catch (err: any) {
+      console.error("Create story error:", err);
       set({ loading: false, error: err.message || "Failed to create story" });
       throw err;
     }
@@ -70,8 +74,11 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     try {
       set({ loading: true, error: null });
       const res = await getAllStoriesApi();
-      set({ stories: res.data ?? [], loading: false });
+      // Handle different response structures
+      const storiesData = (res as any).data || res;
+      set({ stories: Array.isArray(storiesData) ? storiesData : [], loading: false });
     } catch (err: any) {
+      console.error("getAllStories error:", err);
       set({ loading: false, error: err.message || "Failed to fetch stories" });
     }
   },
@@ -99,7 +106,9 @@ export const useStoryStore = create<StoryState>((set, get) => ({
         ),
       }));
     } catch (err: any) {
-      console.error("Failed to record story view:", err.message);
+      // Silently log error - viewing your own story or other 400 errors are not critical
+      // The UI will still work correctly with local state
+      console.log("Story view not recorded (non-critical):", err.message || err);
     }
   },
 
@@ -116,7 +125,8 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       }));
     } catch (err: any) {
       set({ loading: false, error: err.message || "Failed to delete story" });
-      throw err;
+      // Don't re-throw - let the component handle the error display
+      console.error("Delete story error:", err.message || err);
     }
   },
 
