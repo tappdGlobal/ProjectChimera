@@ -1,5 +1,6 @@
 export * from './authApi';
 export * from './bookingApi';
+export * from './chatApi';
 export * from './connectionApi';
 export * from './eventApi';
 export * from './geoEventApi';
