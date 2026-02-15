@@ -23,7 +23,7 @@ export interface SendConnectionPayload {
 export const sendConnectionApi = (
   payload: SendConnectionPayload
 ): Promise<ApiResponse<null>> => {
-  return apiClient.post("/connections/send", payload);
+  return apiClient.post("/api/v1/connections/send", payload);
 };
 
 /* ================= RESPOND REQUEST ================= */
@@ -38,15 +38,15 @@ export interface RespondConnectionPayload {
 export const respondConnectionApi = (
   payload: RespondConnectionPayload
 ): Promise<ApiResponse<null>> => {
-  return apiClient.post("/connections/respond", payload);
+  return apiClient.post("/api/v1/connections/respond", payload);
 };
 
-/* ================= GET REQUESTS ================= */
+/* ================= GET ALL REQUESTS ================= */
 
 export const getConnectionRequestsApi = (): Promise<
   ApiResponse<ConnectionRequest[]>
 > => {
-  return apiClient.get("/connections");
+  return apiClient.get("/api/v1/connections");
 };
 
 /* ================= GET ACCEPTED ================= */
@@ -54,5 +54,13 @@ export const getConnectionRequestsApi = (): Promise<
 export const getAcceptedConnectionsApi = (): Promise<
   ApiResponse<User[]>
 > => {
-  return apiClient.get("/connections/accepted");
+  return apiClient.get("/api/v1/connections/accepted");
+};
+
+/* ================= GET PENDING ================= */
+
+export const getPendingConnectionsApi = (): Promise<
+  ApiResponse<ConnectionRequest[]>
+> => {
+  return apiClient.get("/api/v1/connections/pending");
 };

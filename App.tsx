@@ -8,7 +8,7 @@ import { databaseService } from "./src/services/databaseService";
 import { syncService } from "./src/services/syncService";
 import { ErrorBoundary } from "./src/components/common/ErrorBoundary";
 import { useAuthStore } from "./src/store/authStore";
-
+import Toast from "react-native-toast-message";
 import { PostHogProvider } from "posthog-react-native";
 
 export default function App() {
@@ -63,7 +63,9 @@ export default function App() {
         <ErrorBoundary>
           <RootNavigator />
           <StatusBar style="light" />
+          <Toast topOffset={60} />
         </ErrorBoundary>
+
       </PostHogProvider>
     </SafeAreaProvider>
   );

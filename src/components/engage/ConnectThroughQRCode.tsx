@@ -1,122 +1,153 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
+    ActivityIndicator,
 } from "react-native";
-import { Camera, Share2, Download } from "lucide-react-native";
+import { Camera, Share2 } from "lucide-react-native";
 import { Theme } from "../../styles/Theme";
 import QRCode from "react-native-qrcode-svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRef } from "react";
 import { QRScanner } from "./QRScanner";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
+import Toast from "react-native-toast-message";
+import { useQRStore } from "../../store/qrStore";
+import { ConnectPurposeModal } from "./ConnectPurposeModal";
+import { ConnectionIntent } from "../../types/qrTypes";
 
 
 interface ConnectThroughQRCodeProps {
     onBack: () => void;
 }
+type ConnectionType = "friend" | "date" | "networking";
+const STORAGE_KEY = "QR_DATA";
 
-const QR_EXPIRY_TIME = 5 * 60 * 1000; // 5 minutes in ms
-const STORAGE_KEY = "QR_GENERATED_TIME";
-const token: string = "dfgweudbe7dgwedv27d6g2dwqd7ewgdywedu7ygqwe"
+const intentMap: Record<ConnectionType, ConnectionIntent> = {
+    friend: "FRIENDSHIP",
+    date: "DATE",
+    networking: "NETWORKING",
+};
+
 export function ConnectThroughQRCode({ onBack }: ConnectThroughQRCodeProps) {
-    const [qrData, setQrData] = useState<string | null>(null);
-    const [showScanner, setShowScanner] = useState(false);
+    const { generateQRAction } = useQRStore();
 
+    const [token, setToken] = useState<string | null>(null);
+    const [showConnectModal, setShowConnectModal] = useState(false);
+
+    const [showScanner, setShowScanner] = useState(false);
     const [remainingTime, setRemainingTime] = useState<number>(0);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [selectedIntent, setSelectedIntent] = useState<ConnectionIntent[]>([]);
+
+
     const qrRef = useRef<any>(null);
 
 
-    // Generate QR
-    // Generate QR (Token based)
+
+    // ===============================
+    // Generate QR (Backend)
+    // ===============================
     const generateQR = async () => {
-        const now = Date.now();
+        try {
+            if (remainingTime > 0 || isGenerating) return;
 
-        await AsyncStorage.setItem(STORAGE_KEY, now.toString());
+            setIsGenerating(true);
 
-        // QR will now contain ONLY the token
-        setQrData(token);
+            const data = await generateQRAction();
 
-        setRemainingTime(QR_EXPIRY_TIME);
-    };
+            if (!data?.token || !data?.expiresAt) {
+                throw new Error("Invalid backend response");
+            }
 
-
-    // Restore QR if app reopened
-    const restoreQR = async () => {
-        const storedTime = await AsyncStorage.getItem(STORAGE_KEY);
-        if (!storedTime) return;
-
-        const generatedTime = parseInt(storedTime);
-        const now = Date.now();
-
-        const diff = now - generatedTime;
-
-        if (diff < QR_EXPIRY_TIME) {
-            const remaining = QR_EXPIRY_TIME - diff;
-
-            setQrData(
+            await AsyncStorage.setItem(
+                STORAGE_KEY,
                 JSON.stringify({
-                    userId: "test_user",
-                    timestamp: generatedTime,
+                    token: data.token,
+                    expiresAt: data.expiresAt,
                 })
             );
 
-            setRemainingTime(remaining);
-        } else {
-            await AsyncStorage.removeItem(STORAGE_KEY);
+            // 🔥 IMPORTANT — this controls UI
+            setToken(data.token);
+
+
+            const expiryTime = new Date(data.expiresAt).getTime();
+            const now = Date.now();
+            const remaining = expiryTime - now;
+
+            setRemainingTime(remaining > 0 ? remaining : 0);
+
+            Toast.show({
+                type: "success",
+                text1: "QR Generated Successfully",
+            });
+
+        } catch (error: any) {
+            Toast.show({
+                type: "error",
+                text1: "Failed to generate QR",
+            });
+        } finally {
+            setIsGenerating(false);
         }
     };
 
-    const shareQR = async () => {
-        if (!qrRef.current) return;
+    // ===============================
+    // Restore QR
+    // ===============================
+    const restoreQR = async () => {
+        const stored = await AsyncStorage.getItem(STORAGE_KEY);
 
-        qrRef.current.toDataURL(async (data: string) => {
-            try {
-                const fileUri = FileSystem.cacheDirectory + "share_qr.png";
+        if (!stored) {
+            setToken(null);
+            setRemainingTime(0);
+            return;
+        }
 
-                await FileSystem.writeAsStringAsync(fileUri, data, {
-                    encoding: FileSystem.EncodingType.Base64,
-                });
+        const { token, expiresAt } = JSON.parse(stored);
 
-                await Sharing.shareAsync(fileUri);
+        const expiryTime = new Date(expiresAt).getTime();
+        const now = Date.now();
+        const remaining = expiryTime - now;
 
-            } catch (error) {
-                console.log("Share error:", error);
-            }
-        });
+        if (remaining > 0) {
+            setToken(token);
+            setRemainingTime(remaining);
+        } else {
+            await AsyncStorage.removeItem(STORAGE_KEY);
+            setToken(null);
+            setRemainingTime(0);
+        }
     };
 
 
 
-
-
-    // Countdown timer
+    // ===============================
+    // Countdown Timer (Same as dummy)
+    // ===============================
     useEffect(() => {
-        if (!qrData) return;
+        if (!token) return;
 
         const interval = setInterval(() => {
-            setRemainingTime((prev) => {
-                if (prev <= 1000) {
+            setRemainingTime(prev => {
+                const updated = prev - 1000;
+
+                if (updated <= 0) {
+                    AsyncStorage.removeItem(STORAGE_KEY);
+                    setToken(null);
                     return 0;
                 }
-                return prev - 1000;
+
+                return updated;
             });
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [qrData]);
+    }, [token]);
 
-
-
-    useEffect(() => {
-        if (remainingTime === 0 && qrData) {
-            AsyncStorage.removeItem(STORAGE_KEY);
-            setQrData(null);
-        }
-    }, [remainingTime, qrData]);
 
     useEffect(() => {
         restoreQR();
@@ -128,12 +159,18 @@ export function ConnectThroughQRCode({ onBack }: ConnectThroughQRCodeProps) {
         const seconds = totalSeconds % 60;
         return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
     };
+
     if (showScanner) {
-        return <QRScanner onClose={() => setShowScanner(false)} />;
+        return (
+            <QRScanner
+                onClose={() => setShowScanner(false)}
+                intent={selectedIntent}
+            />
+        );
     }
 
-    return (
 
+    return (
         <View style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>Show QR to Connect</Text>
@@ -143,23 +180,35 @@ export function ConnectThroughQRCode({ onBack }: ConnectThroughQRCodeProps) {
             </View>
 
             <View style={[styles.content, { alignItems: "center" }]}>
-                {!qrData ? (
-                    <TouchableOpacity style={styles.generateButton} onPress={generateQR}>
-                        <Text style={styles.generateButtonText}>Generate QR</Text>
+                {!token ? (
+                    <TouchableOpacity
+                        style={[
+                            styles.generateButton,
+                            (remainingTime > 0 || isGenerating) && { opacity: 0.6 },
+                        ]}
+                        onPress={generateQR}
+                        disabled={remainingTime > 0 || isGenerating}
+                    >
+                        {isGenerating ? (
+                            <ActivityIndicator color="#fff" />
+                        ) : (
+                            <Text style={styles.generateButtonText}>
+                                {remainingTime > 0 ? "QR Active" : "Generate QR"}
+                            </Text>
+                        )}
                     </TouchableOpacity>
                 ) : (
                     <>
                         <View style={styles.qrContainer}>
                             <QRCode
-                                value={qrData}
-                                size={300} // 
+                                value={token || ""}
+                                size={300}
                                 backgroundColor="#ffffff"
                                 color="#000000"
-                                ecl="H" // 
-                                quietZone={20} // 
+                                ecl="H"
+                                quietZone={20}
                                 getRef={(c) => (qrRef.current = c)}
                             />
-
                         </View>
 
                         <Text style={styles.timerText}>
@@ -167,34 +216,83 @@ export function ConnectThroughQRCode({ onBack }: ConnectThroughQRCodeProps) {
                         </Text>
 
                         <View style={styles.qrActions}>
-                            <TouchableOpacity style={styles.iconButton} onPress={shareQR}>
+                            <TouchableOpacity
+                                style={styles.iconButton}
+                                onPress={async () => {
+                                    if (!qrRef.current) return;
+                                    qrRef.current.toDataURL(async (data: string) => {
+                                        const fileUri =
+                                            FileSystem.cacheDirectory + "share_qr.png";
+                                        await FileSystem.writeAsStringAsync(fileUri, data, {
+                                            encoding: FileSystem.EncodingType.Base64,
+                                        });
+                                        await Sharing.shareAsync(fileUri);
+                                    });
+                                }}
+                            >
                                 <Share2 size={18} color="#D946EF" />
                                 <Text style={styles.iconButtonText}>Share QR</Text>
                             </TouchableOpacity>
                         </View>
-
                     </>
                 )}
 
-                {/* Camera Button */}
                 <TouchableOpacity
                     style={styles.cameraButton}
-                    onPress={() => setShowScanner(true)}
+                    onPress={() => setShowConnectModal(true)}
+
                 >
                     <Camera size={26} color="#fff" />
                 </TouchableOpacity>
 
-
                 <View style={styles.actions}>
-                    <TouchableOpacity style={styles.backButton} onPress={onBack}>
+                    <TouchableOpacity
+                        style={styles.backButton}
+                        onPress={onBack}
+                    >
                         <Text style={styles.backButtonText}>Back to Menu</Text>
                     </TouchableOpacity>
                 </View>
-
             </View>
+            <ConnectPurposeModal
+  visible={showConnectModal}
+  onClose={() => setShowConnectModal(false)}
+
+  onScanNow={(selected) => {
+    console.log("Selected from modal:", selected);
+
+    const mapped = selected
+      .map((item) => intentMap[item as ConnectionType])
+      .filter(Boolean);
+
+    console.log("Mapped intents:", mapped);
+
+    if (!mapped.length) {
+      Toast.show({
+        type: "error",
+        text1: "Please select at least one connection purpose",
+      });
+      return;
+    }
+
+    setSelectedIntent(mapped);
+    setShowConnectModal(false);
+
+    setTimeout(() => {
+      setShowScanner(true);
+    }, 200);
+  }}
+/>
+
+
+
+
         </View>
     );
 }
+
+
+
 
 
 const styles = StyleSheet.create({
