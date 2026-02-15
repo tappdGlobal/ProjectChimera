@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -33,16 +33,36 @@ export function CreateStoryModal({
   const [caption, setCaption] = useState("");
   const { createStory, loading } = useStoryStore();
 
+  // Reset caption when modal opens
+  useEffect(() => {
+    if (visible) {
+      setCaption("");
+    }
+  }, [visible]);
+
   if (!imageUri) return null;
 
   const handlePublish = async () => {
     try {
       console.log("Publishing story with image:", imageUri);
       
+      if (!imageUri) {
+        throw new Error("No image selected");
+      }
+      
       // Extract filename from URI
       const filename = imageUri.split('/').pop() || 'story.jpg';
       const match = /\.([\w]+)$/.exec(filename);
       const type = match ? `image/${match[1]}` : 'image/jpeg';
+      
+      console.log("Story payload:", {
+        caption: caption || undefined,
+        media: {
+          uri: imageUri,
+          name: filename,
+          type: type,
+        },
+      });
 
       await createStory({
         caption: caption || undefined,
@@ -66,6 +86,11 @@ export function CreateStoryModal({
       onSuccess?.();
     } catch (error: any) {
       console.error("Failed to create story:", error);
+      console.error("Error details:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
       
       Toast.show({
         type: "error",

@@ -2,15 +2,15 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
-  
   TouchableOpacity,
   FlatList,
   TextInput,
   Share,
   Modal,
   SafeAreaView,
+  StyleSheet,
+  Alert,
 } from "react-native";
 import { Image } from "expo-image";
 
@@ -22,7 +22,6 @@ import {
   MessageCircle,
   MoreHorizontal,
   Music,
-  ChevronLeft,
   Upload,
 } from "lucide-react-native";
 import StoryViewer from "./StoryViewer";
@@ -35,13 +34,6 @@ import { useAuthStore } from "../../store/authStore";
 
 const DEFAULT_AVATAR =
   "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
-
-const STORIES = [
-  { id: "new", name: "Add Story", isUser: true, image: DEFAULT_AVATAR },
-  { id: "1", name: "Emma", image: "https://i.pravatar.cc/150?u=emma" },
-  { id: "2", name: "Michael", image: "https://i.pravatar.cc/150?u=michael" },
-  { id: "3", name: "Sarah", image: "https://i.pravatar.cc/150?u=sarah" },
-];
 
 const POSTS = [
   {
@@ -57,36 +49,39 @@ const POSTS = [
     ],
     music: "Smooth Operator - Sade",
   },
-  {
-    id: "2",
-    user: {
-      name: "Michael Smith",
-      avatar: "https://i.pravatar.cc/150?u=michael",
-    },
-    time: "4h ago",
-    media: "https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec",
-    likes: 89,
-    caption: "Great vibes at the rooftop party! 🍹🌇",
-    comments: [{ username: "Emma", text: "Looks fun!", time: "30m" }],
-    music: "Summer - Calvin Harris",
-  },
 ];
 
 /* ---------------- STORY ITEM ---------------- */
 
-const StoryItem = ({ item, onPress }) => (
+interface StoryItemProps {
+  item: any;
+  onPress: () => void;
+}
+
+const StoryItem = ({ item, onPress }: StoryItemProps) => (
   <View style={styles.storyItem}>
-    {item.isUser ? (
+    {item.id === "add-story" ? (
       <TouchableOpacity style={styles.addStoryContainer} onPress={onPress}>
         <Plus size={24} color={Theme.colors.foreground} />
       </TouchableOpacity>
     ) : (
       <TouchableOpacity onPress={onPress}>
         <LinearGradient
-          colors={["#c451c9", "#740182"]}
+          colors={
+            item.viewed
+              ? ["#9E9E9E", "#757575", "#616161"]
+              : ["#e91e63", "#9c27b0", "#673ab7"]
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={styles.storyGradient}
         >
-          <Image source={{ uri: item.image }} style={styles.storyImage} />
+          <View style={styles.storyImageContainer}>
+            <Image
+              source={{ uri: item.thumbnailImage || item.image }}
+              style={styles.storyImage}
+            />
+          </View>
         </LinearGradient>
       </TouchableOpacity>
     )}
@@ -96,23 +91,21 @@ const StoryItem = ({ item, onPress }) => (
 
 /* ---------------- FEED POST ---------------- */
 
-const FeedPost = ({ item }) => {
+const FeedPost = ({ item }: any) => {
   const [liked, setLiked] = useState(false);
   const [likes, setLikes] = useState(item.likes);
-
-  const toggleComments = () => {
-  setShowInlineComments((prev) => !prev);
-};
-
+  const [commentText, setCommentText] = useState("");
+  const [showInlineComments, setShowInlineComments] = useState(false);
 
   const [comments, setComments] = useState(
-    item.comments.map((c, i) => ({
+    item.comments.map((c: any, i: number) => ({
       ...c,
       id: i.toString(),
       liked: false,
       likeCount: 0,
-    })),
+    }))
   );
+
   const handleShare = async () => {
     try {
       await Share.share({
@@ -123,32 +116,14 @@ const FeedPost = ({ item }) => {
     }
   };
 
-  const [commentText, setCommentText] = useState("");
-  const [showCommentsModal, setShowCommentsModal] = useState(false);
-  const [showInlineComments, setShowInlineComments] = useState(false);
-
   const handleLike = () => {
     setLiked(!liked);
-    setLikes((p) => (liked ? p - 1 : p + 1));
-  };
-
-  const toggleCommentLike = (id) => {
-    setComments((prev) =>
-      prev.map((c) =>
-        c.id === id
-          ? {
-              ...c,
-              liked: !c.liked,
-              likeCount: c.liked ? c.likeCount - 1 : c.likeCount + 1,
-            }
-          : c,
-      ),
-    );
+    setLikes((p: number) => (liked ? p - 1 : p + 1));
   };
 
   const addComment = () => {
     if (!commentText.trim()) return;
-    setComments((p) => [
+    setComments((p: any[]) => [
       ...p,
       {
         id: Date.now().toString(),
@@ -164,7 +139,6 @@ const FeedPost = ({ item }) => {
 
   return (
     <View style={styles.postContainer}>
-      {/* Header */}
       <View style={styles.postHeader}>
         <Image source={{ uri: item.user.avatar }} style={styles.avatar} />
         <View style={{ flex: 1 }}>
@@ -174,7 +148,6 @@ const FeedPost = ({ item }) => {
         <MoreHorizontal size={20} color={Theme.colors.mutedForeground} />
       </View>
 
-      {/* Media */}
       <View style={styles.postMediaContainer}>
         <Image source={{ uri: item.media }} style={styles.postMedia} />
         <View style={styles.musicPill}>
@@ -183,7 +156,6 @@ const FeedPost = ({ item }) => {
         </View>
       </View>
 
-      {/* Actions */}
       <View style={styles.actionRow}>
         <TouchableOpacity onPress={handleLike} style={styles.actionButton}>
           <Heart
@@ -193,20 +165,18 @@ const FeedPost = ({ item }) => {
           />
         </TouchableOpacity>
 
-       <TouchableOpacity
-  onPress={toggleComments}
-  style={styles.actionButton}
->
-  <MessageCircle size={24} color={Theme.colors.foreground} />
-</TouchableOpacity>
-
+        <TouchableOpacity
+          onPress={() => setShowInlineComments((p) => !p)}
+          style={styles.actionButton}
+        >
+          <MessageCircle size={24} color={Theme.colors.foreground} />
+        </TouchableOpacity>
 
         <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
           <Upload size={24} color={Theme.colors.foreground} />
         </TouchableOpacity>
       </View>
 
-      {/* Footer */}
       <View style={styles.postFooter}>
         <Text style={styles.likesText}>{likes} likes</Text>
 
@@ -215,17 +185,6 @@ const FeedPost = ({ item }) => {
           {item.caption}
         </Text>
 
-       <TouchableOpacity onPress={toggleComments}>
-  <Text style={styles.viewAllComments}>
-    {showInlineComments
-      ? "Hide comments"
-      : `View all ${comments.length} comments`}
-  </Text>
-</TouchableOpacity>
-
-
-
-        {/* INLINE COMMENTS */}
         {showInlineComments && (
           <View style={{ marginTop: 12 }}>
             <View style={styles.commentBox}>
@@ -240,49 +199,9 @@ const FeedPost = ({ item }) => {
                 <Text style={styles.postButton}>Post</Text>
               </TouchableOpacity>
             </View>
-
-            {comments.map((c) => (
-              <View key={c.id} style={styles.commentRow}>
-                <Image
-  source={{ uri: DEFAULT_AVATAR }}
-  style={styles.commentAvatar}
-  onError={(e) => console.log("Image error:", e.nativeEvent)}
-/>
-
-                <View style={{ flex: 1 }}>
-                  <View style={styles.commentBubble}>
-                    <Text style={styles.commentText}>
-                      <Text style={styles.captionUser}>{c.username} </Text>
-                      {c.text}
-                    </Text>
-                  </View>
-
-                  <View style={styles.commentActions}>
-                    <Text style={styles.commentTime}>{c.time}</Text>
-
-                    <TouchableOpacity
-                      style={{ flexDirection: "row", gap: 4 }}
-                      onPress={() => toggleCommentLike(c.id)}
-                    >
-                      <Heart
-                        size={14}
-                        color={c.liked ? "red" : Theme.colors.mutedForeground}
-                        fill={c.liked ? "red" : "transparent"}
-                      />
-                      <Text style={styles.commentTime}>{c.likeCount}</Text>
-                    </TouchableOpacity>
-
-                    <Text style={styles.replyText}>Reply</Text>
-                  </View>
-                </View>
-              </View>
-            ))}
           </View>
         )}
       </View>
-
-      
-
     </View>
   );
 };
@@ -295,39 +214,82 @@ export function EventInteractionSection() {
   const [showUpload, setShowUpload] = useState(false);
   const [showCreateStory, setShowCreateStory] = useState(false);
   const [storyImage, setStoryImage] = useState<string | null>(null);
-  
-  const { stories, getAllStories, loading } = useStoryStore();
-  const { user } = useAuthStore();
+  const [viewedStories, setViewedStories] = useState<Set<string>>(new Set());
 
-  // Fetch stories on mount
+  const { stories, getAllStories, deleteStory, viewStory } = useStoryStore();
+  const { userId } = useAuthStore();
+
   useEffect(() => {
-    console.log("Fetching all stories...");
     getAllStories();
   }, []);
 
-  // Format stories for display
-  const displayStories = [
-    // Add "Add Story" button first
-    { 
-      id: "add-story", 
-      name: "Add Story", 
-      isUser: true, 
-      image: user?.profilePicUrl || DEFAULT_AVATAR 
-    },
-    // Then add actual stories
-    ...stories.map(story => ({
-      id: story.id,
-      name: story.user.name,
-      isUser: false,
-      image: story.media.url,
-      caption: story.caption,
-    }))
-  ];
+  const groupedStories = stories
+    .filter((story: any) => story && story.userId && story.mediaUrl)
+    .reduce((acc: any[], story: any) => {
+      const existingUser = acc.find((g: any) => g.userId === story.userId);
 
-  const handleStoryCreated = () => {
-    console.log("Story created, refreshing stories list...");
-    getAllStories();
-  };
+      if (existingUser) {
+        existingUser.stories.push({
+          id: story.id,
+          mediaUrl: `https://tappd-backend-main.onrender.com/${story.mediaUrl}`,
+          caption: story.caption,
+          createdAt: story.createdAt,
+        });
+      } else {
+        acc.push({
+          userId: story.userId,
+          name: story.user?.username || story.user?.name || "Unknown",
+          profileImage: story.user?.profilePicUrl || DEFAULT_AVATAR,
+          isUser: story.userId === userId,
+          stories: [
+            {
+              id: story.id,
+              mediaUrl: `https://tappd-backend-main.onrender.com/${story.mediaUrl}`,
+              caption: story.caption,
+              createdAt: story.createdAt,
+            },
+          ],
+        });
+      }
+      return acc;
+    }, []);
+
+  const displayStories = [
+    {
+      id: "add-story",
+      name: "Add Story",
+      isUser: true,
+      image: DEFAULT_AVATAR,
+      viewed: false,
+      storyCount: 0,
+    },
+
+    ...groupedStories.map((group: any) => ({
+      id: group.userId,
+      name: group.name,
+      isUser: group.isUser,
+      userId: group.userId,
+      thumbnailImage: group.stories[0].mediaUrl,
+      profileImage: group.profileImage,
+      viewed: group.stories.every((s: any) => viewedStories.has(s.id)),
+      storyCount: group.stories.length,
+      stories: group.stories,
+    })),
+
+    ...stories
+      .filter((story: any) => story && story.userId && story.mediaUrl)
+      .map((story: any) => ({
+        id: story.id,
+        name: story.user?.username || story.user?.name || "Unknown",
+        isUser: story.userId === userId,
+        userId: story.userId,
+        thumbnailImage: `https://tappd-backend-main.onrender.com/${story.mediaUrl}`,
+        mediaUrl: `https://tappd-backend-main.onrender.com/${story.mediaUrl}`,
+        profileImage: story.user?.profilePicUrl || DEFAULT_AVATAR,
+        caption: story.caption,
+        viewed: viewedStories.has(story.id),
+      })),
+  ];
 
   return (
     <View style={styles.container}>
@@ -342,14 +304,10 @@ export function EventInteractionSection() {
                 key={story.id}
                 item={story}
                 onPress={() => {
-                  if (story.isUser) {
+                  if (story.id === "add-story") {
                     setShowUpload(true);
                   } else {
-                    // Calculate index ignoring the "Add Story" button
-                    const filteredIndex = displayStories
-                      .filter((s) => !s.isUser)
-                      .findIndex((s) => s.id === story.id);
-                    setStoryIndex(filteredIndex >= 0 ? filteredIndex : 0);
+                    setStoryIndex(index);
                     setShowStoryModal(true);
                   }
                 }}
@@ -361,17 +319,10 @@ export function EventInteractionSection() {
 
       <StoryViewer
         visible={showStoryModal}
-        stories={displayStories
-          .filter((s) => !s.isUser)
-          .map((s) => ({
-            id: s.id,
-            username: s.name,
-            profileImage: s.image,
-            image: s.image,
-            time: "Just now",
-          }))}
+        stories={displayStories.filter((s) => s.id !== "add-story")}
         initialIndex={storyIndex}
         onClose={() => setShowStoryModal(false)}
+        currentUserId={userId || undefined}
       />
 
       <UploadContentSheet
@@ -383,7 +334,7 @@ export function EventInteractionSection() {
           setShowCreateStory(true);
         }}
       />
-      
+
       <CreateStoryModal
         visible={showCreateStory}
         imageUri={storyImage}
@@ -391,11 +342,12 @@ export function EventInteractionSection() {
           setShowCreateStory(false);
           setStoryImage(null);
         }}
-        onSuccess={handleStoryCreated}
+        onSuccess={getAllStories}
       />
     </View>
   );
 }
+
 
 /* ---------------- STYLES ---------------- */
 
@@ -412,9 +364,69 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Theme.colors.muted,
   },
-  storyGradient: { width: 68, height: 68, borderRadius: 34, padding: 2 },
-  storyImage: { width: 60, height: 60, borderRadius: 30 },
-  storyName: { color: Theme.colors.foreground, fontSize: 12 },
+  storyGradient: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    padding: 3,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  storyImageContainer: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    backgroundColor: "#1a1a2e",
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+  },
+  storyImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+  },
+  storyName: {
+    color: Theme.colors.foreground,
+    fontSize: 12,
+    marginTop: 6,
+    textAlign: "center",
+  },
+  playIcon: {
+    position: "absolute",
+    bottom: 20,
+    right: -2,
+  },
+  storyCountBadge: {
+    position: "absolute",
+    top: 2,
+    right: 2,
+    backgroundColor: "#e91e63",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 6,
+  },
+  storyCountText: {
+    color: "white",
+    fontSize: 11,
+    fontWeight: "bold",
+  },
+  playButton: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#e91e63",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  playText: {
+    color: "white",
+    fontSize: 8,
+    marginLeft: 1,
+  },
 
   postContainer: { marginBottom: 24 },
   postHeader: { flexDirection: "row", padding: 16 },
@@ -446,7 +458,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  commentRow: { flexDirection: "row", marginBottom: 16 , flex: 1},
+  commentRow: { flexDirection: "row", marginBottom: 16, flex: 1 },
   commentAvatar: { width: 32, height: 32, borderRadius: 16, marginRight: 10 },
   commentBubble: {
     backgroundColor: "rgba(255,255,255,0.08)",
@@ -473,32 +485,32 @@ const styles = StyleSheet.create({
   modalTitle: { color: Theme.colors.foreground, fontSize: 16 },
 
   modalOverlay: {
-  flex: 1,
-  backgroundColor: "rgba(0,0,0,0.5)",
-  justifyContent: "flex-end",
-},
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
 
-bottomSheet: {
-  height: "65%",
-  backgroundColor: Theme.colors.background,
-  borderTopLeftRadius: 20,
-  borderTopRightRadius: 20,
-  overflow: "hidden",
-},
+  bottomSheet: {
+    height: "65%",
+    backgroundColor: Theme.colors.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    overflow: "hidden",
+  },
 
-bottomSheetHeader: {
-  alignItems: "center",
-  paddingVertical: 12,
-  borderBottomWidth: 1,
-  borderBottomColor: Theme.colors.muted,
-},
+  bottomSheetHeader: {
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Theme.colors.muted,
+  },
 
-dragHandle: {
-  width: 40,
-  height: 4,
-  borderRadius: 2,
-  backgroundColor: Theme.colors.mutedForeground,
-  marginBottom: 6,
-},
+  dragHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Theme.colors.mutedForeground,
+    marginBottom: 6,
+  },
 
 });

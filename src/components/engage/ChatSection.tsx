@@ -9,6 +9,7 @@ import {
   TextInput,
   ScrollView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Theme } from "../../styles/Theme";
 import {
   Search,
@@ -89,7 +90,7 @@ export function ChatSection() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       {/* Chat Header (Emma Johnson) */}
       <View style={[styles.chatHeader, { zIndex: 10 }]}>
         <View style={styles.headerLeft}>
@@ -191,7 +192,7 @@ export function ChatSection() {
           </LinearGradient>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 

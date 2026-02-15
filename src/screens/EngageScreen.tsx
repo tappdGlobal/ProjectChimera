@@ -12,15 +12,13 @@ import { useAnalytics } from "../hooks/useAnalytics";
 
 import { useNavigation } from "@react-navigation/native";
 import { SCREEN_NAMES } from "../navigation/Routes";
-import { ChatListScreen } from "../components/engage/ChatListScreen";
-import ComingSoon from "../components/common/ComingSoon";
+import ChatListScreen from "../screens/ChatListScreen"; // Use the real screen, not the mock component
 
 type SectionType = "chat" | "match" | "interaction" | "connect";
 
 export function EngageScreen() {
   const [activeSection, setActiveSection] =
     useState<SectionType>("interaction");
-  const [showComingSoon, setShowComingSoon] = useState(false);
 
   const { trackEvent } = useAnalytics("EngageScreen", {
     active_section: activeSection,
@@ -37,8 +35,8 @@ export function EngageScreen() {
 
   const renderSection = () => {
     switch (activeSection) {
-        case "chat":
-      return <ChatListScreen />;
+      case "chat":
+        return <ChatListScreen embedded />; // Pass embedded prop to avoid nested SafeAreaView
       case "match":
         return <PreferableMatchSection />;
       case "interaction":
@@ -69,30 +67,23 @@ export function EngageScreen() {
             <View style={styles.menuButtonContainer}>
               {menuItems.map((item) => (
                 <Button
-  key={item.id}
-  variant={activeSection === item.id ? "default" : "ghost"}
-  size="sm"
-  onClick={() => {
-    if (item.id === "match") {
-      setShowComingSoon(true);
-    } else {
-      setActiveSection(item.id);
-    }
-  }}
-  style={
-    activeSection === item.id
-      ? [styles.menuButton, styles.menuButtonActive]
-      : styles.menuButton
-  }
-  textStyle={
-    activeSection === item.id
-      ? styles.menuButtonTextActive
-      : styles.menuButtonTextInactive
-  }
->
-  {item.label}
-</Button>
-
+                  key={item.id}
+                  variant={activeSection === item.id ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setActiveSection(item.id)}
+                  style={
+                    activeSection === item.id
+                      ? [styles.menuButton, styles.menuButtonActive]
+                      : styles.menuButton
+                  }
+                  textStyle={
+                    activeSection === item.id
+                      ? styles.menuButtonTextActive
+                      : styles.menuButtonTextInactive
+                  }
+                >
+                  {item.label}
+                </Button>
               ))}
             </View>
           </ScrollView>
@@ -101,7 +92,6 @@ export function EngageScreen() {
         {/* Active Section */}
         <View style={styles.contentContainer}>{renderSection()}</View>
       </View>
-      <ComingSoon visible={showComingSoon} onClose={() => setShowComingSoon(false)} />
     </SafeAreaView>
   );
 }

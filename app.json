@@ -2,7 +2,7 @@
   "expo": {
     "name": "TappdApp",
     "slug": "TappdApp",
-    "version": "1.0.2",
+    "version": "1.0.4",
     "scheme": "tappd",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
@@ -27,7 +27,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.tappd.app",
-      "versionCode": 3,
+      "versionCode": 5,
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",

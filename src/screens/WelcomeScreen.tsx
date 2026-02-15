@@ -8,7 +8,7 @@ export const WelcomeScreen = ({ navigation }: any) => {
   const { trackButtonClick } = useAnalytics("WelcomeScreen");
   return (
     <LinearGradient colors={["#0A0A1F", "#1A1A3F"]} style={styles.gradient}>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
         <View style={styles.content}>
           {/* Logo Section */}
           <View style={styles.logoSection}>
