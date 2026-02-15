@@ -685,7 +685,7 @@ export function ProfileScreen() {
 
   // --- MAIN RENDER ---
   return (
-    <SafeAreaView style={styles.flex1} edges={["left", "right"]}>
+    <SafeAreaView style={[styles.flex1, { backgroundColor: Theme.colors.background }]} edges={["top", "left", "right"]}>
       <StatusBar
         barStyle="light-content"
         backgroundColor={Theme.colors.background}
@@ -1534,9 +1534,9 @@ export function ProfileScreen() {
 const styles = StyleSheet.create({
   flex1: { flex: 1 },
   mainContainer: { flex: 1, backgroundColor: Theme.colors.background },
-  // Header
+  // Header (top inset handled by SafeAreaView edges={["top"]}; no extra padding to avoid whitespace)
   header: {
-    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+    paddingTop: 0,
     backgroundColor: Theme.colors.background,
     flexDirection: "row",
     alignItems: "center",
