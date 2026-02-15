@@ -39,27 +39,16 @@ api.interceptors.request.use(
 
 /* ================= RESPONSE INTERCEPTOR ================= */
 
+/* ================= RESPONSE INTERCEPTOR ================= */
+
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError) => {
-    if (error.response) {
-      const { status, data } = error.response;
-      const message =
-        (data as any)?.message || `HTTP ${status}: ${error.message}`;
-
-      console.error(`API Error [${status}]:`, message);
-      throw new Error(message);
-    }
-
-    if (error.request) {
-      throw new Error(
-        "Cannot connect to server. Please check your internet connection."
-      );
-    }
-
-    throw new Error(error.message);
+    return Promise.reject(error);
   }
 );
+
+
 
 /* ================= API CLIENT ================= */
 
