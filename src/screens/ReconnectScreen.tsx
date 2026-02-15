@@ -10,7 +10,7 @@ import {
   Image,
   ScrollView,
 } from "react-native";
-import { Heart, MapPin, Layers, LayoutGrid, X, Eye, MessageCircle, Clock, UserPlus, ArrowLeft } from "lucide-react-native";
+import { Heart, MapPin, Layers, LayoutGrid, X, Eye, MessageCircle, Clock, UserPlus, ArrowLeft, Briefcase, GraduationCap } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Theme, GRADIENT_COLORS } from "../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
@@ -23,36 +23,87 @@ const listData = [
     id: "1",
     name: "Claudia Alves",
     gender: "Female",
+    age: 24,
     location: "MATCHA CLUB",
     image: "https://images.unsplash.com/photo-1615338437154-3b752f3e1a6f?crop=face&fit=crop&w=400&h=400",
+    bio: "Coffee enthusiast and digital nomad. Love exploring new cafes and meeting interesting people.",
+    interests: ["Coffee", "Travel", "Photography", "Yoga"],
+    occupation: "UX Designer",
+    education: "BFA Graphic Design",
+    events: 42,
+    mutualFriends: 5,
+    photos: [
+      "https://images.unsplash.com/photo-1615338437154-3b752f3e1a6f?crop=face&fit=crop&w=400&h=400",
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=face&fit=crop&w=400&h=400",
+    ],
   },
   {
     id: "2",
     name: "Marcus Rodriguez",
     gender: "Male",
+    age: 28,
     location: "DOWNTOWN LOUNGE",
     image: "https://images.unsplash.com/photo-1633037543479-a70452ea1e12?crop=face&fit=crop&w=400&h=400",
+    bio: "Music producer and DJ. Always looking for new sounds and creative collaborations.",
+    interests: ["Music", "DJing", "Production", "Nightlife"],
+    occupation: "Music Producer",
+    education: "BA Music Technology",
+    events: 38,
+    mutualFriends: 3,
+    photos: [
+      "https://images.unsplash.com/photo-1633037543479-a70452ea1e12?crop=face&fit=crop&w=400&h=400",
+    ],
   },
   {
     id: "3",
     name: "Sofia Chen",
     gender: "Female",
+    age: 26,
     location: "ROOFTOP BAR",
     image: "https://images.unsplash.com/photo-1687610265701-1255ece05d75?crop=face&fit=crop&w=400&h=400",
+    bio: "Marketing professional by day, cocktail enthusiast by night. Love rooftop vibes.",
+    interests: ["Cocktails", "Marketing", "Networking", "Events"],
+    occupation: "Marketing Manager",
+    education: "MBA Marketing",
+    events: 56,
+    mutualFriends: 8,
+    photos: [
+      "https://images.unsplash.com/photo-1687610265701-1255ece05d75?crop=face&fit=crop&w=400&h=400",
+    ],
   },
   {
     id: "4",
     name: "David Park",
     gender: "Male",
+    age: 25,
     location: "JAZZ CAFE",
     image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?crop=face&fit=crop&w=400&h=400",
+    bio: "Jazz musician and music teacher. Love performing at intimate venues and jamming with new artists.",
+    interests: ["Jazz", "Piano", "Live Performance", "Teaching", "Vinyl Records"],
+    occupation: "Music Teacher",
+    education: "BA Music Performance",
+    events: 53,
+    mutualFriends: 3,
+    photos: [
+      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?crop=face&fit=crop&w=400&h=400",
+    ],
   },
   {
     id: "5",
     name: "Emma Wilson",
     gender: "Female",
+    age: 27,
     location: "WINE BAR",
     image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=face&fit=crop&w=400&h=400",
+    bio: "Wine sommelier and food blogger. Always on the hunt for the perfect pairing.",
+    interests: ["Wine", "Food", "Blogging", "Travel"],
+    occupation: "Sommelier",
+    education: "WSET Level 3",
+    events: 34,
+    mutualFriends: 6,
+    photos: [
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=face&fit=crop&w=400&h=400",
+    ],
   },
 ];
 
@@ -110,6 +161,7 @@ export function ReconnectScreen() {
   const [modalTab, setModalTab] = useState<"about" | "photos">("about");
   const [hoverButton, setHoverButton] = useState<null | "friendRequests" | "crossedPaths" | "swipe" | "list">(null);
   const [hoveredConnectButton, setHoveredConnectButton] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<typeof listData[0] | null>(null);
   const [showComingSoon, setShowComingSoon] = useState(false);
 
   const renderGradientToggle = (
@@ -278,7 +330,22 @@ export function ReconnectScreen() {
                 </View>
 
                 <View style={styles.crossedPathActionButtons}>
-                  <TouchableOpacity style={styles.viewButton}>
+                  <TouchableOpacity 
+                    style={styles.viewButton}
+                    onPress={() => {
+                      const fullUser = listData.find(u => u.name === user.name) || {
+                        ...user,
+                        bio: "",
+                        occupation: "",
+                        education: "",
+                        events: 0,
+                        mutualFriends: 0,
+                        photos: [user.image],
+                      };
+                      setSelectedUser(fullUser);
+                      setShowProfileModal(true);
+                    }}
+                  >
                     <Eye size={16} color="#FFFFFF" />
                     <Text style={styles.viewButtonText}>View</Text>
                   </TouchableOpacity>
@@ -317,7 +384,15 @@ export function ReconnectScreen() {
         // List View - Simple profile cards
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.listScrollContent}>
           {listData.map((user) => (
-            <View key={user.id} style={styles.listCard}>
+            <TouchableOpacity 
+              key={user.id} 
+              style={styles.listCard}
+              onPress={() => {
+                setSelectedUser(user);
+                setShowProfileModal(true);
+              }}
+              activeOpacity={0.9}
+            >
               <Image source={{ uri: user.image }} style={styles.listCardImage} />
               <View style={styles.listCardInfo}>
                 <Text style={styles.listCardName}>{user.name}</Text>
@@ -340,7 +415,7 @@ export function ReconnectScreen() {
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
-            </View>
+            </TouchableOpacity>
           ))}
         </ScrollView>
       ) : (
@@ -348,7 +423,10 @@ export function ReconnectScreen() {
         <View style={styles.profileCardContainer}>
           <TouchableOpacity 
             style={styles.profileCard}
-            onPress={() => setShowProfileModal(true)}
+            onPress={() => {
+              setSelectedUser(listData[0]);
+              setShowProfileModal(true);
+            }}
             activeOpacity={0.9}
           >
             <Image
@@ -389,124 +467,149 @@ export function ReconnectScreen() {
       <Modal
         isVisible={showProfileModal}
         onBackdropPress={() => setShowProfileModal(false)}
-        style={styles.modal}
-        backdropOpacity={0.7}
+        backdropOpacity={0.8}
         animationIn="fadeIn"
         animationOut="fadeOut"
+        animationInTiming={200}
+        animationOutTiming={200}
         hasBackdrop={true}
         coverScreen={true}
+        useNativeDriver={true}
+        style={{ margin: 0, padding: 0 }}
       >
-        <TouchableOpacity 
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setShowProfileModal(false)}
-        >
-          <TouchableOpacity 
-            activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
-            style={styles.modalCard}
-          >
-            <LinearGradient
-              colors={GRADIENT_COLORS.primary as [string, string, ...string[]]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.modalHeader}
-            >
-              <TouchableOpacity onPress={() => setShowProfileModal(false)} style={styles.modalHeaderButton}>
-                <ArrowLeft size={20} color="#FFFFFF" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setShowProfileModal(false)} style={styles.modalHeaderButton}>
-                <X size={20} color="#FFFFFF" />
-              </TouchableOpacity>
-            </LinearGradient>
-
-            <ScrollView 
-              style={styles.modalScrollView}
-              contentContainerStyle={styles.modalScrollContent}
-              showsVerticalScrollIndicator={false}
-            >
-              <View style={styles.modalImageContainer}>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.8)" }}>
+          <View style={{ width: "90%", maxWidth: 380, maxHeight: "80%", backgroundColor: "#0D0D1A", borderRadius: 20, overflow: "hidden" }}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Header with Gradient */}
+              <LinearGradient
+                colors={GRADIENT_COLORS.primary as [string, string, ...string[]]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ paddingTop: 16, paddingHorizontal: 16, paddingBottom: 50, alignItems: "center" }}
+              >
+                {/* Buttons Row */}
+                <View style={{ flexDirection: "row", justifyContent: "space-between", width: "100%", marginBottom: 10 }}>
+                  <TouchableOpacity onPress={() => setShowProfileModal(false)} style={{ padding: 8 }}>
+                    <ArrowLeft size={24} color="#FFFFFF" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setShowProfileModal(false)} style={{ padding: 8 }}>
+                    <X size={24} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              </LinearGradient>
+              
+              {/* Profile Photo - Overlapping */}
+              <View style={{ alignItems: "center", marginTop: -50, marginBottom: 16 }}>
                 <Image
-                  source={{
-                    uri: "https://images.unsplash.com/photo-1615338437154-3b752f3e1a6f?crop=face&fit=crop&w=400&h=400",
-                  }}
-                  style={styles.modalProfileImage}
+                  source={{ uri: selectedUser?.image || "https://images.unsplash.com/photo-1615338437154-3b752f3e1a6f?crop=face&fit=crop&w=400&h=400" }}
+                  style={{ width: 100, height: 100, borderRadius: 50, borderWidth: 4, borderColor: "#0D0D1A" }}
                   resizeMode="cover"
                 />
               </View>
 
-              <View style={styles.modalUserInfo}>
-                <Text style={styles.modalUserName}>Claudia Alves</Text>
-                <Text style={styles.modalUserDetails}>24 years old • Female</Text>
-
-                <View style={styles.modalLocationRow}>
-                  <MapPin size={14} color={Theme.colors.primary} />
-                  <Text style={styles.modalLocationText}>MATCHA CLUB</Text>
+              {/* Content */}
+              <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 24, alignItems: "center" }}>
+                {/* Name & Details */}
+                <Text style={{ fontSize: 26, fontWeight: "bold", color: "#FFFFFF", marginBottom: 4 }}>{selectedUser?.name || "Claudia Alves"}</Text>
+                <Text style={{ fontSize: 15, color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>{selectedUser?.age || 24} years old • {selectedUser?.gender || "Female"}</Text>
+                
+                {/* Location */}
+                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
+                  <MapPin size={14} color="#E91E8C" />
+                  <Text style={{ fontSize: 13, color: "#E91E8C", marginLeft: 4, fontWeight: "600", textTransform: "uppercase" }}>{selectedUser?.location || "MATCHA CLUB"}</Text>
                 </View>
 
-                <View style={styles.modalStats}>
-                  <View style={styles.statItem}>
-                    <Text style={styles.statNumber}>42</Text>
-                    <Text style={styles.statLabel}>Events</Text>
+                {/* Stats */}
+                <View style={{ flexDirection: "row", gap: 40, marginBottom: 20 }}>
+                  <View style={{ alignItems: "center" }}>
+                    <Text style={{ fontSize: 28, fontWeight: "bold", color: "#FFFFFF" }}>{selectedUser?.events || 42}</Text>
+                    <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>Events</Text>
                   </View>
-                  <View style={styles.statItem}>
-                    <Text style={styles.statNumber}>5</Text>
-                    <Text style={styles.statLabel}>Mutual Friends</Text>
+                  <View style={{ alignItems: "center" }}>
+                    <Text style={{ fontSize: 28, fontWeight: "bold", color: "#FFFFFF" }}>{selectedUser?.mutualFriends || 5}</Text>
+                    <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>Mutual Friends</Text>
                   </View>
                 </View>
 
-                <View style={styles.modalActionButtons}>
-                  <TouchableOpacity style={styles.modalDeclineButton}>
-                    <X size={20} color="#FFFFFF" />
-                    <Text style={styles.modalDeclineButtonText}>Decline</Text>
+                {/* Action Buttons */}
+                <View style={{ flexDirection: "row", gap: 12, width: "100%", marginBottom: 20 }}>
+                  <TouchableOpacity style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.3)", gap: 6 }}>
+                    <X size={18} color="#FFFFFF" />
+                    <Text style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "600" }}>Decline</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.modalAcceptButton}>
+                  <TouchableOpacity style={{ flex: 1, borderRadius: 10, overflow: "hidden" }}>
                     <LinearGradient
                       colors={GRADIENT_COLORS.primary as [string, string, ...string[]]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
-                      style={styles.modalAcceptButtonGradient}
+                      style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 13, gap: 6 }}
                     >
-                      <Heart size={20} color="#FFFFFF" />
-                      <Text style={styles.modalAcceptButtonText}>Accept</Text>
+                      <Heart size={18} color="#FFFFFF" fill="#FFFFFF" />
+                      <Text style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "600" }}>Accept</Text>
                     </LinearGradient>
                   </TouchableOpacity>
                 </View>
 
-                <View style={styles.modalTabs}>
-                  <TouchableOpacity
-                    style={[styles.modalTab, modalTab === "about" && styles.modalTabActive]}
-                    onPress={() => setModalTab("about")}
-                  >
-                    <Text
-                      style={[
-                        styles.modalTabText,
-                        modalTab === "about" && styles.modalTabTextActive,
-                      ]}
-                    >
-                      About
-                    </Text>
-                    {modalTab === "about" && <View style={styles.modalTabUnderline} />}
+                {/* Tabs */}
+                <View style={{ flexDirection: "row", width: "100%", borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.1)" }}>
+                  <TouchableOpacity style={{ flex: 1, alignItems: "center", paddingVertical: 12 }} onPress={() => setModalTab("about")}>
+                    <Text style={{ fontSize: 15, fontWeight: modalTab === "about" ? "600" : "500", color: modalTab === "about" ? "#FFFFFF" : "rgba(255,255,255,0.6)" }}>About</Text>
+                    {modalTab === "about" && <View style={{ position: "absolute", bottom: 0, left: "25%", right: "25%", height: 3, backgroundColor: "#E91E8C", borderRadius: 2 }} />}
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.modalTab, modalTab === "photos" && styles.modalTabActive]}
-                    onPress={() => setModalTab("photos")}
-                  >
-                    <Text
-                      style={[
-                        styles.modalTabText,
-                        modalTab === "photos" && styles.modalTabTextActive,
-                      ]}
-                    >
-                      Photos
-                    </Text>
-                    {modalTab === "photos" && <View style={styles.modalTabUnderline} />}
+                  <TouchableOpacity style={{ flex: 1, alignItems: "center", paddingVertical: 12 }} onPress={() => setModalTab("photos")}>
+                    <Text style={{ fontSize: 15, fontWeight: modalTab === "photos" ? "600" : "500", color: modalTab === "photos" ? "#FFFFFF" : "rgba(255,255,255,0.6)" }}>Photos</Text>
+                    {modalTab === "photos" && <View style={{ position: "absolute", bottom: 0, left: "25%", right: "25%", height: 3, backgroundColor: "#E91E8C", borderRadius: 2 }} />}
                   </TouchableOpacity>
+                </View>
+
+                {/* Tab Content */}
+                <View style={{ width: "100%", marginTop: 16 }}>
+                  {modalTab === "about" ? (
+                    <View>
+                      <Text style={{ fontSize: 16, fontWeight: "600", color: "#FFFFFF", marginBottom: 8 }}>About</Text>
+                      <Text style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", lineHeight: 22, marginBottom: 16 }}>{selectedUser?.bio || "Coffee enthusiast and digital nomad. Love exploring new cafes and meeting interesting people."}</Text>
+                      
+                      <Text style={{ fontSize: 16, fontWeight: "600", color: "#FFFFFF", marginBottom: 10 }}>Interests</Text>
+                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+                        {(selectedUser?.interests || ["Coffee", "Travel", "Photography", "Yoga"]).map((interest, index) => (
+                          <View key={index} style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" }}>
+                            <Text style={{ color: "#FFFFFF", fontSize: 13 }}>{interest}</Text>
+                          </View>
+                        ))}
+                      </View>
+
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(233,30,140,0.15)", alignItems: "center", justifyContent: "center" }}>
+                          <Briefcase size={18} color="#FFFFFF" />
+                        </View>
+                        <View>
+                          <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Occupation</Text>
+                          <Text style={{ fontSize: 15, color: "#FFFFFF", fontWeight: "500" }}>{selectedUser?.occupation || "UX Designer"}</Text>
+                        </View>
+                      </View>
+
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(233,30,140,0.15)", alignItems: "center", justifyContent: "center" }}>
+                          <GraduationCap size={18} color="#FFFFFF" />
+                        </View>
+                        <View>
+                          <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Education</Text>
+                          <Text style={{ fontSize: 15, color: "#FFFFFF", fontWeight: "500" }}>{selectedUser?.education || "BFA Graphic Design"}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                      {(selectedUser?.photos || [selectedUser?.image]).map((photo, index) => (
+                        <Image key={index} source={{ uri: photo }} style={{ width: "48%", aspectRatio: 1, borderRadius: 8 }} resizeMode="cover" />
+                      ))}
+                    </View>
+                  )}
                 </View>
               </View>
             </ScrollView>
-          </TouchableOpacity>
-        </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
       <ComingSoon visible={showComingSoon} onClose={() => setShowComingSoon(false)} />
     </SafeAreaView>
@@ -861,180 +964,265 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  // Modal Styles
+  // Modal Styles - New Design (Centered like Figma)
   modal: {
-    justifyContent: "center",
-    alignItems: "center",
     margin: 0,
     padding: 0,
-  },
-  modalBackdrop: {
-    flex: 1,
-    width: "100%",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    borderWidth: 0,
   },
-  modalCard: {
-    width: "90%",
-    maxWidth: 400,
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 16,
+  },
+  modalCardNew: {
+    width: "100%",
+    maxWidth: 380,
     maxHeight: "85%",
-    backgroundColor: Theme.colors.background,
+    backgroundColor: "#0D0D1A",
     borderRadius: 24,
     overflow: "hidden",
-    borderWidth: 0,
   },
-  modalScrollView: {
-    flex: 1,
+  modalHeaderNew: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 60,
+    alignItems: "center",
   },
-  modalScrollContent: {
-    paddingBottom: 20,
-    flexGrow: 1,
-  },
-  modalHeader: {
+  modalHeaderButtonsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    paddingTop: 50,
+    width: "100%",
+    marginBottom: 10,
   },
-  modalHeaderButton: {
+  modalHeaderButtonNew: {
     padding: 8,
-  },
-  modalImageContainer: {
+    width: 40,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: -50,
+  },
+  modalScrollViewNew: {
+    flex: 1,
+  },
+  modalScrollContentNew: {
+    paddingBottom: 24,
+  },
+  profileImageWrapper: {
+    alignItems: "center",
+    marginTop: -60,
     marginBottom: 16,
     zIndex: 10,
-    height: 120,
   },
-  modalProfileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+  modalProfileImageNew: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     borderWidth: 4,
-    borderColor: Theme.colors.background,
-    backgroundColor: Theme.colors.background,
+    borderColor: "#0D0D1A",
+    backgroundColor: "#0D0D1A",
   },
-  modalUserInfo: {
-    paddingHorizontal: 24,
+  modalUserInfoNew: {
+    paddingHorizontal: 20,
     alignItems: "center",
   },
-  modalUserName: {
+  modalUserNameNew: {
     fontSize: 28,
     fontWeight: "bold",
     color: "#FFFFFF",
-    marginBottom: 4,
+    marginBottom: 6,
   },
-  modalUserDetails: {
+  modalUserDetailsNew: {
     fontSize: 16,
-    color: "rgba(255, 255, 255, 0.8)",
-    marginBottom: 12,
+    color: "rgba(255, 255, 255, 0.7)",
+    marginBottom: 8,
   },
-  modalLocationRow: {
+  modalLocationRowNew: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 20,
     gap: 6,
   },
-  modalLocationText: {
+  modalLocationTextNew: {
     fontSize: 14,
-    color: Theme.colors.primary,
+    color: "#E91E8C",
+    fontWeight: "500",
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
-  modalStats: {
+  modalStatsNew: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 32,
+    gap: 48,
     marginBottom: 24,
   },
-  statItem: {
+  statItemNew: {
     alignItems: "center",
   },
-  statNumber: {
-    fontSize: 28,
+  statNumberNew: {
+    fontSize: 32,
     fontWeight: "bold",
     color: "#FFFFFF",
     marginBottom: 4,
   },
-  statLabel: {
-    fontSize: 14,
-    color: "rgba(255, 255, 255, 0.7)",
+  statLabelNew: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.6)",
   },
-  modalActionButtons: {
+  modalActionButtonsNew: {
     flexDirection: "row",
-    gap: 12,
+    gap: 16,
     marginBottom: 24,
-    paddingHorizontal: 24,
+    width: "100%",
+    paddingHorizontal: 8,
   },
-  modalDeclineButton: {
+  modalDeclineButtonNew: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 14,
-    paddingHorizontal: 20,
     borderRadius: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
     gap: 8,
   },
-  modalDeclineButtonText: {
+  modalDeclineButtonTextNew: {
     fontSize: 16,
     fontWeight: "600",
     color: "#FFFFFF",
   },
-  modalAcceptButton: {
+  modalAcceptButtonNew: {
     flex: 1,
     borderRadius: 12,
     overflow: "hidden",
   },
-  modalAcceptButtonGradient: {
+  modalAcceptButtonGradientNew: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 20,
+    paddingVertical: 15,
     gap: 8,
   },
-  modalAcceptButtonText: {
+  modalAcceptButtonTextNew: {
     fontSize: 16,
     fontWeight: "600",
     color: "#FFFFFF",
   },
-  modalTabs: {
+  modalTabsNew: {
     flexDirection: "row",
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
-    paddingTop: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
     width: "100%",
-    marginTop: "auto",
+    marginBottom: 20,
   },
-  modalTab: {
+  modalTabNew: {
     flex: 1,
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 14,
     position: "relative",
   },
-  modalTabActive: {
+  modalTabActiveNew: {
     // Active state handled by underline
   },
-  modalTabText: {
+  modalTabTextNew: {
     fontSize: 16,
-    color: "rgba(255, 255, 255, 0.7)",
+    color: "rgba(255, 255, 255, 0.6)",
     fontWeight: "500",
   },
-  modalTabTextActive: {
+  modalTabTextActiveNew: {
     color: "#FFFFFF",
+    fontWeight: "600",
   },
-  modalTabUnderline: {
+  modalTabUnderlineNew: {
     position: "absolute",
     bottom: 0,
-    left: 0,
-    right: 0,
+    left: "25%",
+    right: "25%",
     height: 3,
-    backgroundColor: Theme.colors.primary,
+    backgroundColor: "#E91E8C",
     borderRadius: 2,
   },
+  tabContentNew: {
+    width: "100%",
+  },
+  aboutContentNew: {
+    width: "100%",
+  },
+  aboutSectionNew: {
+    marginBottom: 24,
+  },
+  aboutTitleNew: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    marginBottom: 12,
+  },
+  aboutTextNew: {
+    fontSize: 15,
+    color: "rgba(255, 255, 255, 0.8)",
+    lineHeight: 24,
+  },
+  interestsGridNew: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  interestChipNew: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
+  },
+  interestChipTextNew: {
+    fontSize: 14,
+    color: "#FFFFFF",
+    fontWeight: "500",
+  },
+  detailRowNew: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  detailIconContainerNew: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(233, 30, 140, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  detailTextContainerNew: {
+    flex: 1,
+  },
+  detailLabelNew: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.5)",
+    marginBottom: 3,
+  },
+  detailValueNew: {
+    fontSize: 16,
+    color: "#FFFFFF",
+    fontWeight: "500",
+  },
+  photosContentNew: {
+    width: "100%",
+  },
+  photosGridNew: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  photoItemNew: {
+    width: "48%",
+    aspectRatio: 1,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+  },
+});
 });
