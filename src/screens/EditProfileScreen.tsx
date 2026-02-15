@@ -18,6 +18,30 @@ import { X } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAnalytics } from "../hooks/useAnalytics";
 
+
+const INTEREST_OPTIONS = [
+  "Music",
+  "Sports",
+  "Food & Drink",
+  "Art & Culture",
+  "Nightlife",
+  "Business",
+  "Tech",
+  "Health & Fitness",
+  "Education",
+  "Travel",
+  "Fashion",
+  "Gaming",
+  "Photography",
+  "Dance",
+  "Comedy",
+  "Literature",
+  "Film",
+  "Outdoor",
+  "Charity",
+  "Social",
+];
+
 export const EditProfileScreen = ({ navigation }: any) => {
   const { profile, updateUser } = useUserStore();
   useAnalytics("EditProfileScreen", { user_id: profile?.id });
@@ -30,15 +54,15 @@ export const EditProfileScreen = ({ navigation }: any) => {
   const [gender, setGender] = useState("");
   const [location, setLocation] = useState("");
   const [interests, setInterests] = useState<string[]>([]);
-  const [newInterest, setNewInterest] = useState("");
   const [smoking, setSmoking] = useState("No");
   const [drinking, setDrinking] = useState("Socially");
   const [lookingForList, setLookingForList] = useState<string[]>([]);
-  const [newLookingFor, setNewLookingFor] = useState("");
+  const [openLookingFor, setOpenLookingFor] = useState(false);
 
   const [openGender, setOpenGender] = useState(false);
   const [openSmoking, setOpenSmoking] = useState(false);
   const [openDrinking, setOpenDrinking] = useState(false);
+  const [openInterests, setOpenInterests] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -73,7 +97,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
         bio,
         occupation,
         education,
-        lookingFor: lookingForList.join(", "),
+        lookingFor: lookingForList.map(item => item.toUpperCase()),
         age: age ? parseInt(age) : undefined,
         height: height ? parseInt(height) : undefined,
         gender,
@@ -82,6 +106,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
         smoking,
         drinking,
       };
+
 
 
       await updateUser(profile!.id, updatedUser);
@@ -93,18 +118,8 @@ export const EditProfileScreen = ({ navigation }: any) => {
     }
   };
 
-  const addInterest = () => {
-    if (newInterest.trim() && !interests.includes(newInterest.trim())) {
-      setInterests([...interests, newInterest.trim()]);
-      setNewInterest("");
-    }
-  };
-  const addLookingFor = () => {
-    if (newLookingFor.trim() && !lookingForList.includes(newLookingFor.trim())) {
-      setLookingForList([...lookingForList, newLookingFor.trim()]);
-      setNewLookingFor("");
-    }
-  };
+
+
 
   const removeLookingFor = (item: string) => {
     setLookingForList(lookingForList.filter(i => i !== item));
@@ -182,28 +197,22 @@ export const EditProfileScreen = ({ navigation }: any) => {
           <TextInput style={styles.input} value={education} onChangeText={setEducation} />
         </View>
         {/* Looking For */}
+        {/* Looking For */}
         <View style={styles.section}>
           <Text style={styles.label}>Looking For</Text>
 
-          <View style={styles.row}>
-            <TextInput
-              style={[styles.input, { flex: 1 }]}
-              value={newLookingFor}
-              onChangeText={setNewLookingFor}
-              placeholder="Add motive..."
-              placeholderTextColor={Theme.colors.mutedForeground}
-            />
-
-            <TouchableOpacity onPress={addLookingFor} style={styles.gradientBtn}>
-              <LinearGradient
-                colors={GRADIENT_COLORS.primary
-                }
-                style={styles.gradientInner}
-              >
-                <Text style={styles.gradientText}>Add</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
+          {renderDropdown(
+            "",
+            "Select option",
+            openLookingFor,
+            setOpenLookingFor,
+            ["FRIENDSHIP", "RELATIONSHIP", "NETWORKING"],
+            (value: string) => {
+              if (!lookingForList.includes(value)) {
+                setLookingForList([...lookingForList, value]);
+              }
+            }
+          )}
 
           {lookingForList.length > 0 && (
             <View style={styles.tagsWrap}>
@@ -218,6 +227,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
             </View>
           )}
         </View>
+
 
         {/* Age & Height */}
         <View style={styles.twoColumn}>
@@ -246,25 +256,94 @@ export const EditProfileScreen = ({ navigation }: any) => {
         {/* Interests */}
         <View style={styles.section}>
           <Text style={styles.label}>Interests</Text>
-          <View style={styles.row}>
-            <TextInput
-              style={[styles.input, { flex: 1 }]}
-              value={newInterest}
-              onChangeText={setNewInterest}
-            />
-            <TouchableOpacity onPress={addInterest} style={styles.addBtn}>
-              <LinearGradient
-                colors={GRADIENT_COLORS.primary}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.addGradient}
-              >
-                <Text style={styles.addText}>Add</Text>
-              </LinearGradient>
-            </TouchableOpacity>
 
-          </View>
+          <TouchableOpacity
+            style={styles.dropdownInput}
+            onPress={() => setOpenInterests(true)}
+          >
+            <Text style={styles.dropdownText}>
+              {interests.length > 0 ? "Selected interests" : "Select interests"}
+            </Text>
+            <Text style={styles.arrow}>▼</Text>
+          </TouchableOpacity>
+
+          <Modal transparent visible={openInterests} animationType="fade">
+            <View style={styles.overlay}>
+
+              <View style={styles.modalBox}>
+
+                {/* Header with close button */}
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Select Interests</Text>
+
+                  <TouchableOpacity onPress={() => setOpenInterests(false)}>
+                    <X size={22} color={Theme.colors.foreground} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Options list */}
+                <ScrollView style={{ maxHeight: 400 }}>
+                  {INTEREST_OPTIONS.map((opt) => {
+                    const selected = interests.includes(opt);
+
+                    return (
+                      <Pressable
+                        key={opt}
+                        style={[
+                          styles.interestOption,
+                          selected && styles.interestOptionSelected,
+                        ]}
+                        onPress={() => {
+                          if (selected) {
+                            setInterests(interests.filter(i => i !== opt));
+                          } else {
+                            setInterests([...interests, opt]);
+                          }
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.interestOptionText,
+                            selected && styles.interestOptionTextSelected,
+                          ]}
+                        >
+                          {opt}
+                        </Text>
+
+                        {selected && (
+                          <Text style={styles.checkIcon}>✓</Text>
+                        )}
+                      </Pressable>
+
+                    );
+                  })}
+                </ScrollView>
+
+              </View>
+            </View>
+          </Modal>
+
+
+          {/* Selected tags */}
+          {interests.length > 0 && (
+            <View style={styles.tagsWrap}>
+              {interests.map(item => (
+                <View key={item} style={styles.tag}>
+                  <Text style={styles.tagText}>{item}</Text>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setInterests(interests.filter(i => i !== item))
+                    }
+                  >
+                    <X size={14} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
+
+
 
         {/* Smoking */}
         <View style={styles.section}>
@@ -440,4 +519,86 @@ const styles = StyleSheet.create({
   saveBtn: { flex: 1, borderRadius: 8, overflow: "hidden" },
 
   saveGradient: { paddingVertical: 14, alignItems: "center" },
+  interestGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginTop: 10,
+  },
+
+  interestCard: {
+    width: "48%",
+    paddingVertical: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+    backgroundColor: "#140F2D",
+    alignItems: "center",
+  },
+
+  interestCardSelected: {
+    borderColor: Theme.colors.primary,
+    backgroundColor: "#1E1745",
+  },
+
+  interestText: {
+    color: Theme.colors.foreground,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+
+  interestTextSelected: {
+    color: "#fff",
+    fontWeight: "700",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 14,
+    borderBottomWidth: 1,
+    borderColor: Theme.colors.border,
+  },
+
+  modalTitle: {
+    color: Theme.colors.foreground,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+interestOption: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+  paddingVertical: 14,
+  paddingHorizontal: 16,
+  borderBottomWidth: 1,
+  borderColor: "rgba(255,255,255,0.06)",
+  backgroundColor: "transparent",
+},
+
+interestOptionSelected: {
+  backgroundColor: "rgba(219, 39, 119, 0.12)",
+  borderRadius: 10,
+  marginHorizontal: 8,
+  marginVertical: 4,
+},
+
+interestOptionText: {
+  color: Theme.colors.foreground,
+  fontSize: 15,
+  fontWeight: "500",
+},
+
+interestOptionTextSelected: {
+  color: "#fff",
+  fontWeight: "700",
+},
+
+checkIcon: {
+  color: "#DB2777",
+  fontSize: 18,
+  fontWeight: "bold",
+},
+
+
 });

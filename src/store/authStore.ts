@@ -126,6 +126,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return get().signin(data);
   },
 
+  /**
+   * Forgot Password Action
+   * Calls forgotPasswordApi to send OTP to user's email
+   *
+   * @param email - User's registered email address
+   * @throws Error if API call fails
+   *
+   * Usage:
+   *   const { forgotPassword } = useAuthStore();
+   *   await forgotPassword("user@example.com");
+   *
+   * See:
+   *   - authApi.ts for API implementation
+   *   - LoginScreen.tsx for UI usage
+   */
   forgotPassword: async (email) => {
     try {
       set({ loading: true, error: null });
@@ -133,6 +148,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ loading: false });
     } catch (err: any) {
       set({ loading: false, error: err.message });
+      throw err;
     }
   },
 
@@ -143,6 +159,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ loading: false });
     } catch (err: any) {
       set({ loading: false, error: err.message });
+      throw err;
     }
   },
 

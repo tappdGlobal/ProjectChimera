@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useCameraPermissions } from "expo-camera";
+import { EventControlPopup } from "../components/host/EventControlPopup";
 import {
   ArrowLeft,
   Plus,
@@ -286,7 +287,7 @@ export function HostScreen({ route }: any) {
     return new Date(`${yyyy}-${mm}-${dd}T${time}:00Z`).toISOString();
   };
 
-  const mapAgeLimit = (age: string) => {
+  const mapAgeLimit = (age: string): "SIXTEEN_PLUS" | "EIGHTEEN_PLUS" | "TWENTY_ONE_PLUS" | "TWENTY_FIVE_PLUS" => {
     switch (age) {
       case "16+":
         return "SIXTEEN_PLUS";
@@ -301,7 +302,7 @@ export function HostScreen({ route }: any) {
     }
   };
 
-  const mapAllowance = (gender: string) => {
+  const mapAllowance = (gender: string): "PUBLIC" | "PRIVATE" => {
     // backend expects PUBLIC / PRIVATE
     return gender === "Only Male" || gender === "Only Female"
       ? "PRIVATE"
@@ -616,7 +617,7 @@ export function HostScreen({ route }: any) {
         genre: localFormData.genre,
         category: localFormData.category,
 
-        eventType: activeTab === "public" ? "public" : "private",
+        eventType: (activeTab === "public" ? "public" : "private") as "public" | "private",
 
         eventDate: toISODateTime(
           localFormData.date,
@@ -1388,273 +1389,6 @@ export function HostScreen({ route }: any) {
     setPopupActiveTab("guests");
   };
 
-  const EventControlPopup = () => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={showEventControlPopup}
-      onRequestClose={() => setShowEventControlPopup(false)}
-    >
-      <View style={styles.popupOverlay}>
-        <View style={styles.popupContainer}>
-          {/* Header */}
-          <View style={styles.popupHeaderRow}>
-            <Text style={styles.popupTitle}>Summer Jazz Festival</Text>
-
-            <TouchableOpacity
-              onPress={() => setShowEventControlPopup(false)}
-              style={styles.closeButton}
-            >
-              <X size={24} color={Theme.colors.foreground} />
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.popupSubtitle}>
-            Manage your event, scan tickets, and view real-time analytics
-          </Text>
-
-          {/* Tabs */}
-          <View style={styles.popupTabs}>
-            {/* (keep your existing tab buttons here) */}
-            {/* Analytics */}
-            <TouchableOpacity
-              onPress={handleAnalytics}
-              style={[
-                styles.popupTab,
-                popupActiveTab === "analytics" && styles.popupTabActive,
-              ]}
-            >
-              <View style={styles.popupTabInner}>
-                <BarChart3
-                  size={18}
-                  color={
-                    popupActiveTab === "analytics"
-                      ? Theme.colors.primaryForeground
-                      : Theme.colors.mutedForeground
-                  }
-                />
-                <Text
-                  style={
-                    popupActiveTab === "analytics"
-                      ? styles.popupTabActiveText
-                      : styles.popupTabText
-                  }
-                >
-                  Analytics
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* Scan */}
-            <TouchableOpacity
-              onPress={handleScan}
-              style={[
-                styles.popupTab,
-                popupActiveTab === "scan" && styles.popupTabActive,
-              ]}
-            >
-              <View style={styles.popupTabInner}>
-                <QrCode
-                  size={18}
-                  color={
-                    popupActiveTab === "scan"
-                      ? Theme.colors.primaryForeground
-                      : Theme.colors.mutedForeground
-                  }
-                />
-                <Text
-                  style={
-                    popupActiveTab === "scan"
-                      ? styles.popupTabActiveText
-                      : styles.popupTabText
-                  }
-                >
-                  Scan
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* Guests */}
-            <TouchableOpacity
-              onPress={handleGuests}
-              style={[
-                styles.popupTab,
-                popupActiveTab === "guests" && styles.popupTabActive,
-              ]}
-            >
-              <View style={styles.popupTabInner}>
-                <Users
-                  size={18}
-                  color={
-                    popupActiveTab === "guests"
-                      ? Theme.colors.primaryForeground
-                      : Theme.colors.mutedForeground
-                  }
-                />
-                <Text
-                  style={
-                    popupActiveTab === "guests"
-                      ? styles.popupTabActiveText
-                      : styles.popupTabText
-                  }
-                >
-                  Guests
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-
-          {/* Body: KEEP header/tabs outside, body fills remaining popup area */}
-          <View style={{ flex: 1, marginTop: 8 }}>
-            {popupActiveTab === "guests" && GuestsContent()}
-            {popupActiveTab === "scan" && ScanContent()}
-            {popupActiveTab === "analytics" && (
-              <ScrollView
-                style={{ flex: 1 }}
-                contentContainerStyle={{ padding: 4, paddingBottom: 24 }}
-                showsVerticalScrollIndicator={false}
-              >
-                {/* Attendance Rate */}
-                <View style={styles.analyticsCard}>
-                  <View style={styles.analyticsHeader}>
-                    <TrendingUp
-                      size={18}
-                      color={Theme.colors.foreground}
-                      style={{ marginRight: 8 }}
-                    />
-                    <Text style={styles.analyticsTitle}>Attendance Rate</Text>
-                  </View>
-                  <View style={styles.flexRowSpaceBetweenMb2}>
-                    <Text style={styles.analyticsLabelSmall}>
-                      Current Check-ins
-                    </Text>
-                    <Text style={styles.analyticsValueSmall}>47%</Text>
-                  </View>
-                  <View style={styles.progressBarContainer}>
-                    <LinearGradient
-                      colors={["#C026D3", "#DB2777"]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={{ width: "47%", height: "100%" }}
-                    />
-                  </View>
-                </View>
-
-                {/* Ticket Type Breakdown */}
-                <View style={styles.analyticsCard}>
-                  <Text style={[styles.analyticsTitle, { marginBottom: 16 }]}>
-                    Ticket Type Breakdown
-                  </Text>
-
-                  {/* VIP */}
-                  <View style={styles.mb4}>
-                    <View style={styles.flexRowSpaceBetweenMb2}>
-                      <Text style={styles.analyticsLabel}>VIP</Text>
-                      <Text style={styles.analyticsValue}>3/5</Text>
-                    </View>
-                    <View style={styles.progressBarContainer}>
-                      <LinearGradient
-                        colors={["#C026D3", "#DB2777"]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={{ width: "60%", height: "100%" }}
-                      />
-                    </View>
-                  </View>
-
-                  {/* Premium */}
-                  <View style={styles.mb4}>
-                    <View style={styles.flexRowSpaceBetweenMb2}>
-                      <Text style={styles.analyticsLabel}>Premium</Text>
-                      <Text style={styles.analyticsValue}>3/5</Text>
-                    </View>
-                    <View style={styles.progressBarContainer}>
-                      <LinearGradient
-                        colors={["#C026D3", "#DB2777"]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={{ width: "60%", height: "100%" }}
-                      />
-                    </View>
-                  </View>
-
-                  {/* Standard */}
-                  <View style={styles.mb4}>
-                    <View style={styles.flexRowSpaceBetweenMb2}>
-                      <Text style={styles.analyticsLabel}>Standard</Text>
-                      <Text style={styles.analyticsValue}>1/5</Text>
-                    </View>
-                    <View style={styles.progressBarContainer}>
-                      <LinearGradient
-                        colors={["#C026D3", "#DB2777"]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={{ width: "20%", height: "100%" }}
-                      />
-                    </View>
-                  </View>
-                </View>
-
-                {/* Recent Check-ins */}
-                <View style={styles.analyticsCard}>
-                  <View style={styles.analyticsHeader}>
-                    <Eye
-                      size={18}
-                      color={Theme.colors.foreground}
-                      style={{ marginRight: 8 }}
-                    />
-                    <Text style={styles.analyticsTitle}>Recent Check-ins</Text>
-                  </View>
-
-                  {[
-                    { name: "Ava Garcia", type: "Premium", time: "9:00 PM" },
-                    { name: "Daniel Brown", type: "Premium", time: "8:45 PM" },
-                    { name: "Sophia Lee", type: "Premium", time: "8:30 PM" },
-                    { name: "Priya Sharma", type: "VIP", time: "8:15 PM" },
-                    { name: "Lisa Anderson", type: "VIP", time: "8:00 PM" },
-                  ].map((checkin, idx) => (
-                    <View key={idx} style={styles.recentCheckInRow}>
-                      <View>
-                        <Text style={styles.checkInName}>{checkin.name}</Text>
-                        <Text style={styles.checkInType}>{checkin.type}</Text>
-                      </View>
-                      <Text style={styles.checkInTime}>{checkin.time}</Text>
-                    </View>
-                  ))}
-                </View>
-
-                {/* Ride Booking */}
-                <View style={styles.rideCard}>
-                  <View style={styles.flexRowCenterGap3}>
-                    <View style={styles.carIconCircle}>
-                      <Car size={20} color={Theme.colors.foreground} />
-                    </View>
-                    <View>
-                      <Text style={styles.rideTitle}>
-                        Need to get to the venue?
-                      </Text>
-                      <Text style={styles.rideSubtitle}>
-                        Book a ride to manage your event
-                      </Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity style={styles.bookRideButton}>
-                    <CheckCircle2
-                      size={16}
-                      color={Theme.colors.foreground}
-                      style={{ marginRight: 6 }}
-                    />
-                    <Text style={styles.bookRideText}>Book Ride</Text>
-                  </TouchableOpacity>
-                </View>
-              </ScrollView>
-            )}
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-
   const GuestsContent = () => {
     const guestList = [
       {
@@ -2011,6 +1745,154 @@ export function HostScreen({ route }: any) {
     );
   };
 
+  const AnalyticsContent = () => (
+  <ScrollView
+    style={{ flex: 1 }}
+    contentContainerStyle={{ padding: 4, paddingBottom: 24 }}
+    showsVerticalScrollIndicator={false}
+  >
+    {/* ===== STATS CARDS ===== */}
+    <View style={styles.statsCardsRow}>
+      <View style={styles.statsCard}>
+        <Users size={24} color="#C026D3" style={{ marginBottom: 8 }} />
+        <Text style={styles.statsCardNumber}>15</Text>
+        <Text style={styles.statsCardLabel}>Booked</Text>
+      </View>
+
+      <View style={styles.statsCard}>
+        <CheckCircle2 size={24} color="#22c55e" style={{ marginBottom: 8 }} />
+        <Text style={styles.statsCardNumber}>7</Text>
+        <Text style={styles.statsCardLabel}>Showed Up</Text>
+      </View>
+
+      <View style={styles.statsCard}>
+        <Clock size={24} color="#facc15" style={{ marginBottom: 8 }} />
+        <Text style={styles.statsCardNumber}>8</Text>
+        <Text style={styles.statsCardLabel}>Remaining</Text>
+      </View>
+    </View>
+
+    {/* ===== ATTENDANCE RATE ===== */}
+    <View style={styles.analyticsCard}>
+      <View style={styles.analyticsHeader}>
+        <TrendingUp
+          size={18}
+          color={Theme.colors.foreground}
+          style={{ marginRight: 8 }}
+        />
+        <Text style={styles.analyticsTitle}>Attendance Rate</Text>
+      </View>
+
+      <View style={styles.flexRowSpaceBetweenMb2}>
+        <Text style={styles.analyticsLabelSmall}>Current Check-ins</Text>
+        <Text style={styles.analyticsValueSmall}>47%</Text>
+      </View>
+
+      <View style={styles.progressBarContainer}>
+        <LinearGradient
+          colors={["#C026D3", "#DB2777"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{ width: "47%", height: "100%" }}
+        />
+      </View>
+    </View>
+
+    {/* ===== TICKET TYPE BREAKDOWN ===== */}
+    <View style={styles.analyticsCard}>
+      <Text style={[styles.analyticsTitle, { marginBottom: 16 }]}>
+        Ticket Type Breakdown
+      </Text>
+
+      {/* VIP */}
+      <View style={styles.mb4}>
+        <View style={styles.flexRowSpaceBetweenMb2}>
+          <Text style={styles.analyticsLabel}>VIP</Text>
+          <Text style={styles.analyticsValue}>3 / 5</Text>
+        </View>
+        <View style={styles.progressBarContainer}>
+          <LinearGradient
+            colors={["#C026D3", "#DB2777"]}
+            style={{ width: "60%", height: "100%" }}
+          />
+        </View>
+      </View>
+
+      {/* Premium */}
+      <View style={styles.mb4}>
+        <View style={styles.flexRowSpaceBetweenMb2}>
+          <Text style={styles.analyticsLabel}>Premium</Text>
+          <Text style={styles.analyticsValue}>3 / 5</Text>
+        </View>
+        <View style={styles.progressBarContainer}>
+          <LinearGradient
+            colors={["#C026D3", "#DB2777"]}
+            style={{ width: "60%", height: "100%" }}
+          />
+        </View>
+      </View>
+
+      {/* Standard */}
+      <View style={styles.mb4}>
+        <View style={styles.flexRowSpaceBetweenMb2}>
+          <Text style={styles.analyticsLabel}>Standard</Text>
+          <Text style={styles.analyticsValue}>1 / 5</Text>
+        </View>
+        <View style={styles.progressBarContainer}>
+          <LinearGradient
+            colors={["#C026D3", "#DB2777"]}
+            style={{ width: "20%", height: "100%" }}
+          />
+        </View>
+      </View>
+    </View>
+
+    {/* ===== RECENT CHECK-INS ===== */}
+    <View style={styles.analyticsCard}>
+      <View style={styles.analyticsHeader}>
+        <Eye size={18} color={Theme.colors.foreground} style={{ marginRight: 8 }} />
+        <Text style={styles.analyticsTitle}>Recent Check-ins</Text>
+      </View>
+
+      {[
+        { name: "Ava Garcia", type: "Premium", time: "9:00 PM" },
+        { name: "Daniel Brown", type: "Premium", time: "8:45 PM" },
+        { name: "Sophia Lee", type: "Premium", time: "8:30 PM" },
+        { name: "Priya Sharma", type: "VIP", time: "8:15 PM" },
+        { name: "Lisa Anderson", type: "VIP", time: "8:00 PM" },
+      ].map((item, index) => (
+        <View key={index} style={styles.recentCheckInRow}>
+          <View>
+            <Text style={styles.checkInName}>{item.name}</Text>
+            <Text style={styles.checkInType}>{item.type}</Text>
+          </View>
+          <Text style={styles.checkInTime}>{item.time}</Text>
+        </View>
+      ))}
+    </View>
+
+    {/* ===== RIDE BOOKING ===== */}
+    <View style={styles.rideCard}>
+      <View style={styles.rideHeader}>
+        <View style={styles.rideIconWrapper}>
+          <Car size={18} color="#000000" />
+        </View>
+
+        <View style={{ flex: 1 }}>
+          <Text style={styles.rideTitle}>Need to get to the venue?</Text>
+          <Text style={styles.rideSubtitle}>
+            Book a ride to manage your event
+          </Text>
+        </View>
+      </View>
+
+      <TouchableOpacity style={styles.rideButton}>
+        <Car size={16} color="#000000" />
+        <Text style={styles.rideButtonText}>Book Ride</Text>
+      </TouchableOpacity>
+    </View>
+  </ScrollView>
+);
 
 
   // --- MAIN RENDER ---
@@ -2049,7 +1931,17 @@ export function HostScreen({ route }: any) {
             <LayoutDashboard size={22} color={Theme.colors.foreground} />
           </TouchableOpacity>
         </View>
-        {showEventControlPopup && EventControlPopup()}
+        {/* EVENT CONTROL POPUP */}
+        <EventControlPopup
+          visible={showEventControlPopup}
+          onClose={() => setShowEventControlPopup(false)}
+          activeTab={popupActiveTab as "analytics" | "scan" | "guests"}
+          onTabChange={(tab) => setPopupActiveTab(tab)}
+          AnalyticsContent={AnalyticsContent()}
+          ScanContent={ScanContent()}
+          GuestsContent={GuestsContent()}
+        />
+
         {/* MENU TABS */}
         <View style={styles.tabMenu}>
           <TouchableOpacity
@@ -2871,6 +2763,35 @@ const styles = StyleSheet.create({
     height: 100, // Spacer at the bottom of the ScrollView
   },
 
+  // Stats Cards Styles
+  statsCardsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 16,
+  },
+  statsCard: {
+    flex: 1,
+    backgroundColor: Theme.colors.muted,
+    borderRadius: Theme.radius.lg,
+    padding: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+  },
+  statsCardNumber: {
+    color: Theme.colors.foreground,
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  statsCardLabel: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 12,
+    fontWeight: "500",
+  },
+
   // Analytics Styles
   analyticsCard: {
     backgroundColor: Theme.colors.muted,
@@ -2944,29 +2865,6 @@ const styles = StyleSheet.create({
     color: Theme.colors.mutedForeground,
     fontSize: 12,
   },
-  rideCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#18181B", // Darker card for contrast
-    padding: 16,
-    borderRadius: Theme.radius.lg,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-  },
-  flexRowCenterGap3: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  carIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Theme.colors.muted,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   rideTitle: {
     color: Theme.colors.foreground,
     fontSize: 14,
@@ -2977,19 +2875,59 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
-  bookRideButton: {
+  rideCard: {
+    backgroundColor: "#0B0B0F",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    marginTop: 16,
+  },
+
+  rideHeader: {
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: 14,
+  },
+
+  rideIconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
   },
-  bookRideText: {
-    color: "#000000",
+
+  rideTitle: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+
+  rideSubtitle: {
+    color: "#A1A1AA",
     fontSize: 14,
-    fontWeight: "bold",
+    marginTop: 2,
   },
+
+  rideButton: {
+    height: 44,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+
+  rideButtonText: {
+    color: "#000000",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+
 
   dropdownOverlay: {
     flex: 1,

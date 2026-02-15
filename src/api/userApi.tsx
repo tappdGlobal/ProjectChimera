@@ -30,7 +30,7 @@ export type UpdateUserPayload = Partial<{
   bio: string;
   occupation: string;
   education: string;
-  lookingFor: string;
+  lookingFor: string[];
   age: number;
   height: number;
   gender: string;
