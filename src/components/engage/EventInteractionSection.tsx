@@ -8,6 +8,8 @@ import {
   FlatList,
   TextInput,
   Share,
+  Modal,
+  SafeAreaView,
   Alert,
 } from "react-native";
 import { Image } from "expo-image";
@@ -412,6 +414,28 @@ export function EventInteractionSection() {
       storyCount: group.stories.length,
       stories: group.stories,
     })),
+    },
+    // Then add actual stories
+    ...stories
+      .filter((story: any) => story && story.userId && story.mediaUrl)
+      .map((story: any) => {
+        const formattedStory = {
+          id: story.id,
+          name: story.user?.username || story.user?.name || 'Unknown',
+          isUser: story.userId === userId,
+          userId: story.userId,
+          thumbnailImage: story.mediaUrl 
+            ? `https://tappd-backend-main.onrender.com/${story.mediaUrl}`
+            : DEFAULT_AVATAR,
+          mediaUrl: story.mediaUrl 
+            ? `https://tappd-backend-main.onrender.com/${story.mediaUrl}` 
+            : DEFAULT_AVATAR,
+          profileImage: story.user?.profilePicUrl || DEFAULT_AVATAR,
+          caption: story.caption,
+          viewed: viewedStories.has(story.id),
+        };
+        return formattedStory;
+      }),
   ];
 
   const handleStoryCreated = () => {
@@ -491,6 +515,15 @@ export function EventInteractionSection() {
               userId: userGroup.userId,
             }))
           )}
+          .map((s: any) => ({
+            id: s.id,
+            username: s.name,
+            profileImage: s.profileImage,
+            image: s.mediaUrl,
+            caption: s.caption,
+            time: "Just now",
+            userId: s.userId,
+          }))}
         initialIndex={storyIndex}
         onClose={() => setShowStoryModal(false)}
         currentUserId={userId || undefined}
