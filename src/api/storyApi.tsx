@@ -22,16 +22,20 @@ export const createStoryApi = (
     formData.append("caption", payload.caption);
   }
 
-  // @ts-ignore - FormData in React Native supports file objects
-  formData.append("media", {
+  // React Native FormData file object format
+  const fileObject = {
     uri: payload.media.uri,
     name: payload.media.name,
     type: payload.media.type,
-  });
+  };
+  
+  // @ts-ignore - FormData in React Native supports file objects
+  formData.append("media", fileObject);
 
   return apiClient.post("/stories", formData, {
     headers: {
       "Content-Type": "multipart/form-data",
+      Accept: "application/json",
     },
   });
 };

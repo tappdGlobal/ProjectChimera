@@ -9,7 +9,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 /* ================= CONFIG ================= */
 
 const USE_PRODUCTION = true; 
-const PRODUCTION_URL = "https://tappd-backend-1.onrender.com/api/v1";
+const PRODUCTION_URL = "https://tappd-backend-main.onrender.com/api/v1";
 const LOCAL_URL = "http://192.168.29.144:3000/api/v1"; // Updated to port 3000
 
 /* ================= AXIOS INSTANCE ================= */
@@ -39,27 +39,16 @@ api.interceptors.request.use(
 
 /* ================= RESPONSE INTERCEPTOR ================= */
 
+/* ================= RESPONSE INTERCEPTOR ================= */
+
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError) => {
-    if (error.response) {
-      const { status, data } = error.response;
-      const message =
-        (data as any)?.message || `HTTP ${status}: ${error.message}`;
-
-      console.error(`API Error [${status}]:`, message);
-      throw new Error(message);
-    }
-
-    if (error.request) {
-      throw new Error(
-        "Cannot connect to server. Please check your internet connection."
-      );
-    }
-
-    throw new Error(error.message);
+    return Promise.reject(error);
   }
 );
+
+
 
 /* ================= API CLIENT ================= */
 

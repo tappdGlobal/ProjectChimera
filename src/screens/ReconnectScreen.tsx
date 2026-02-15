@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Theme, GRADIENT_COLORS } from "../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
 import Modal from "react-native-modal";
+import ComingSoon from "../components/common/ComingSoon";
 
 // Mock data for List View
 const listData = [
@@ -161,6 +162,7 @@ export function ReconnectScreen() {
   const [hoverButton, setHoverButton] = useState<null | "friendRequests" | "crossedPaths" | "swipe" | "list">(null);
   const [hoveredConnectButton, setHoveredConnectButton] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<typeof listData[0] | null>(null);
+  const [showComingSoon, setShowComingSoon] = useState(false);
 
   const renderGradientToggle = (
     id: "friendRequests" | "crossedPaths" | "swipe" | "list",
@@ -174,7 +176,13 @@ export function ReconnectScreen() {
       return (
         <TouchableOpacity
           style={shellStyle}
-          onPress={() => setActiveButton(id)}
+          onPress={() => {
+            if (id === "crossedPaths") {
+              setShowComingSoon(true);
+            } else {
+              setActiveButton(id);
+            }
+          }}
         >
           <View style={styles.toggleInner}>
             {icon}
@@ -186,7 +194,13 @@ export function ReconnectScreen() {
 
     return (
       <Pressable
-        onPress={() => setActiveButton(id)}
+        onPress={() => {
+          if (id === "crossedPaths") {
+            setShowComingSoon(true);
+          } else {
+            setActiveButton(id);
+          }
+        }}
         onHoverIn={() => setHoverButton(id)}
         onHoverOut={() => setHoverButton(null)}
         style={{ flex: 1 }}
@@ -597,6 +611,7 @@ export function ReconnectScreen() {
           </View>
         </View>
       </Modal>
+      <ComingSoon visible={showComingSoon} onClose={() => setShowComingSoon(false)} />
     </SafeAreaView>
   );
 }
@@ -1209,4 +1224,5 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
+});
 });
