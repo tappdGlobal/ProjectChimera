@@ -119,7 +119,7 @@ import {
   UpdateUserPayload,
 } from "../api/userApi";
 import {
-  getConnectionRequestsApi,
+  getPendingRequestsApi,
   getAcceptedConnectionsApi,
   respondConnectionApi,
 } from "../api/connectionApi";
@@ -177,6 +177,8 @@ export function ProfileScreen() {
 
   // Use user avatar or profilePicUrl, fallback to a default placeholder instead of mock photos
   const defaultAvatar = "https://via.placeholder.com/400x400?text=No+Photo";
+  console.log("DEBUG ProfileScreen: user?.profilePicUrl =", user?.profilePicUrl);
+  console.log("DEBUG ProfileScreen: user =", user);
   const [profileImage, setProfileImage] = useState(
     user?.profilePicUrl || defaultAvatar,
   );
@@ -235,13 +237,10 @@ export function ProfileScreen() {
       try {
         const [connectionsData, requestsData] = await Promise.all([
           getAcceptedConnectionsApi(),
-          getConnectionRequestsApi(),
+          getPendingRequestsApi()
         ]);
-        setConnections(connectionsData.data ?? []);
-        const pending = (requestsData.data ?? []).filter(
-          (r) => r.status === "PENDING",
-        );
-        setPendingRequests(pending);
+        setConnections(connectionsData ?? []);
+        setPendingRequests(requestsData ?? []);
       } catch (error) {
         console.error("Failed to fetch connections:", error);
         // Fallback to mock data if API fails
@@ -963,15 +962,11 @@ export function ProfileScreen() {
                                       text1: "Request Accepted",
                                     });
                                     const requests =
-                                      await getConnectionRequestsApi();
+                                      await getPendingRequestsApi();
                                     const newConns =
                                       await getAcceptedConnectionsApi();
-                                    setPendingRequests(
-                                      (requests.data ?? []).filter(
-                                        (r) => r.status === "PENDING",
-                                      ),
-                                    );
-                                    setConnections(newConns.data ?? []);
+                                    setPendingRequests(requests ?? []);
+                                    setConnections(newConns ?? []);
                                   } catch (e) {
                                     console.error(e);
                                   }

@@ -32,11 +32,13 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import Toast from "react-native-toast-message";
 import { useAuthStore } from "../store/authStore";
+import { useUserStore } from "../store/userStore";
 import { SCREEN_NAMES } from "../navigation/Routes";
 import { useAnalytics } from "../hooks/useAnalytics";
 import { TermsOfServiceModal } from "../components/Legal/TermsOfServiceModal";
 import { PrivacyPolicyModal } from "../components/Legal/PrivacyPolicyModal";
 import { ActivityIndicator } from "react-native";
+import { updateUserApi, uploadProfilePictureApi } from "../api/userApi";
 
 const TOTAL_STEPS = 6;
 
@@ -212,39 +214,86 @@ export const ProfileCreationScreen = () => {
   };
 
   const performSignup = async () => {
-    const formData = new FormData();
-    formData.append("name", `${firstName} ${lastName}`.trim());
-    formData.append("email", email);
-    formData.append("username", username);
-    formData.append("password", password);
-    formData.append("phoneNumber", phone);
-    formData.append("age", age);
-    formData.append("bio", bio);
-    formData.append("interests", JSON.stringify(selectedInterests));
+    // Step 1: Signup with basic auth info only
+    const signupPayload = {
+      name: `${firstName} ${lastName}`.trim(),
+      email,
+      username,
+      password,
+    };
 
-    if (location.country) formData.append("country", location.country);
-    if (location.city) formData.append("city", location.city);
+    await signup(signupPayload);
+  };
 
-    formData.append("eventNotifications", String(notifications.events));
-    formData.append("messageNotifications", String(notifications.messages));
-    formData.append("marketingNotifications", String(notifications.marketing));
-
-    if (profileImage) {
-      const filename = profileImage.split("/").pop() || "profile.jpg";
-      const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : `image/jpeg`;
-
-      const fileObj = {
-        uri: profileImage,
-        name: filename,
-        type,
+  const updateUserProfile = async (userId: string) => {
+    try {
+      // Step 2: Update user profile with additional data
+      const updatePayload = {
+        bio,
+        age: parseInt(age, 10) || undefined,
+        interests: selectedInterests,
+        location: location.city || location.country || undefined,
       };
-      console.log("Appending file to FormData:", JSON.stringify(fileObj));
 
-      formData.append("profileImage", fileObj as any);
+      const updateRes = await updateUserApi(userId, updatePayload);
+
+      // Step 3: Upload profile picture if selected
+      let profilePicUrl = updateRes.data?.profilePicUrl;
+      if (profileImage) {
+        // Fix file URI for Android - ensure it has file:// prefix
+        let fileUri = profileImage;
+        if (Platform.OS === "android" && !fileUri.startsWith("file://")) {
+          fileUri = `file://${fileUri}`;
+        }
+
+        const filename = profileImage.split("/").pop() || "profile.jpg";
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image/jpeg`;
+
+        // Create proper FormData file object for React Native
+        const fileObj = {
+          uri: fileUri,
+          name: filename,
+          type,
+        };
+
+        console.log("Uploading profile picture:", fileObj);
+        try {
+          const uploadRes = await uploadProfilePictureApi(userId, fileObj);
+          console.log("Upload response:", uploadRes.data);
+          profilePicUrl = uploadRes.data?.profilePicUrl;
+        } catch (uploadErr: any) {
+          console.error("Photo upload failed:", uploadErr);
+          // Don't fail the whole profile update if photo upload fails
+          // Just continue without the photo
+        }
+      }
+
+      // Step 4: Save user data to store
+      if (updateRes.data) {
+        // If photo upload failed but user selected a photo, use the local URI temporarily
+        const finalProfilePicUrl = profilePicUrl || updateRes.data.profilePicUrl || profileImage || undefined;
+        console.log("DEBUG: Saving profile to store:", {
+          profilePicUrl,
+          updateResProfilePicUrl: updateRes.data.profilePicUrl,
+          profileImage,
+          finalProfilePicUrl,
+        });
+        useUserStore.getState().setProfile({
+          ...updateRes.data,
+          profilePicUrl: finalProfilePicUrl,
+        });
+        console.log("DEBUG: Profile saved, current store:", useUserStore.getState().profile);
+      }
+    } catch (error: any) {
+      console.error("Profile update error:", error);
+      Toast.show({
+        type: "error",
+        text1: "Profile Update Failed",
+        text2: error?.response?.data?.message || error.message || "Failed to update profile",
+      });
+      throw error;
     }
-
-    await signup(formData);
   };
 
   const handleNext = async () => {
@@ -269,7 +318,23 @@ export const ProfileCreationScreen = () => {
     } else if (currentStep === 6) {
       if (validateStep6()) {
         try {
-          await verifyEmail({ email, otp: verificationCode });
+          const verifyRes = await verifyEmail({ email, otp: verificationCode });
+
+          // Save initial user data to store
+          if (verifyRes?.data?.user) {
+            useUserStore.getState().setProfile(verifyRes.data.user);
+          }
+
+          // Update user profile and upload photo after successful verification
+          const userId = verifyRes?.data?.user?.id;
+          if (userId) {
+            try {
+              await updateUserProfile(userId);
+            } catch (profileErr) {
+              console.error("Profile update error:", profileErr);
+              // Don't block navigation if profile update fails
+            }
+          }
 
           Toast.show({
             type: "success",
