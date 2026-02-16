@@ -25,6 +25,7 @@ import {
 } from "lucide-react-native";
 import { Theme } from "../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
+import ComingSoon from "../components/common/ComingSoon";
 
 const ActionItem = ({
   icon: Icon,
@@ -58,6 +59,7 @@ export function ChatSettingsScreen() {
   const [isThemeOpen, setIsThemeOpen] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState("Default Purple");
   const [showDateModal, setShowDateModal] = useState(false);
+  const [showComingSoon, setShowComingSoon] = useState(false);
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
 
@@ -158,14 +160,14 @@ export function ChatSettingsScreen() {
           </View>
         </View>
 
-        {/* Actions List */}
+        {/* Actions List — Friend for Date now opens ComingSoon (was: setShowDateModal(true)) */}
         <View style={[styles.actionsList, { zIndex: 1 }]}>
           <ActionItem
             icon={Heart}
             title="Friend for Date"
             subtitle="Ask if they're interested in dating"
             iconColor="#EF4444" // Red heart
-            onPress={() => setShowDateModal(true)}
+            onPress={() => setShowComingSoon(true)}
           />
           <ActionItem
             icon={Paperclip}
@@ -437,6 +439,8 @@ export function ChatSettingsScreen() {
           </View>
         </View>
       </Modal>
+
+      <ComingSoon visible={showComingSoon} onClose={() => setShowComingSoon(false)} />
     </SafeAreaView>
   );
 }
