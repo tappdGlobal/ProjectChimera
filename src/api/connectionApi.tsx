@@ -1,66 +1,61 @@
+// src/api/connectionApi.ts
+
 import { apiClient } from "../services/api";
-import { ApiResponse, User } from "../types/authTypes";
+import {
+  SendConnectionPayload,
+  RespondConnectionPayload,
+  PendingConnectionUser,
+  AcceptedConnectionUser,
+} from "../types/connectionTypes";
+import { AxiosResponse } from "axios";
+/* ================= SEND CONNECTION ================= */
 
-/* ================= TYPES ================= */
-
-export interface ConnectionRequest {
-  id: string;
-  fromUserId: string;
-  toUserId: string;
-  status: "PENDING" | "ACCEPTED" | "REJECTED";
-  fromUser: User;
-  toUser: User;
-  createdAt: string;
-  updatedAt: string;
-}
-
-/* ================= SEND REQUEST ================= */
-
-export interface SendConnectionPayload {
-  toUserId: string;
-}
-
-export const sendConnectionApi = (
+export const sendConnectionApi = async (
   payload: SendConnectionPayload
-): Promise<ApiResponse<null>> => {
-  return apiClient.post("/api/v1/connections/send", payload);
+): Promise<void> => {
+  await apiClient.post("/connections/send", payload);
 };
 
-/* ================= RESPOND REQUEST ================= */
+/* ================= RESPOND CONNECTION ================= */
 
-export type ConnectionAction = "ACCEPT" | "REJECT";
-
-export interface RespondConnectionPayload {
-  requestId: string;
-  action: ConnectionAction;
-}
-
-export const respondConnectionApi = (
+export const respondConnectionApi = async (
   payload: RespondConnectionPayload
-): Promise<ApiResponse<null>> => {
-  return apiClient.post("/api/v1/connections/respond", payload);
-};
-
-/* ================= GET ALL REQUESTS ================= */
-
-export const getConnectionRequestsApi = (): Promise<
-  ApiResponse<ConnectionRequest[]>
-> => {
-  return apiClient.get("/api/v1/connections");
-};
-
-/* ================= GET ACCEPTED ================= */
-
-export const getAcceptedConnectionsApi = (): Promise<
-  ApiResponse<User[]>
-> => {
-  return apiClient.get("/api/v1/connections/accepted");
+): Promise<void> => {
+  await apiClient.put("/connections/respond", payload);
 };
 
 /* ================= GET PENDING ================= */
 
-export const getPendingConnectionsApi = (): Promise<
-  ApiResponse<ConnectionRequest[]>
+export const getPendingRequestsApi = async (): Promise<
+  PendingConnectionUser[]
 > => {
-  return apiClient.get("/api/v1/connections/pending");
+  try {
+    const response: AxiosResponse<PendingConnectionUser[]> =
+      await apiClient.get("/connections/pending");
+
+    console.log("=== Pending Requests ARRAY ===");
+    console.log(response.data);
+
+    return response.data ?? [];
+
+  } catch (error: any) {
+    console.log("=== Pending Requests Error ===");
+    console.log(error?.response?.data || error.message);
+    throw error;
+  }
+};
+
+
+
+
+/* ================= GET ACCEPTED ================= */
+
+export const getAcceptedConnectionsApi = async (): Promise<
+  AcceptedConnectionUser[]
+> => {
+  const response = await apiClient.get<AcceptedConnectionUser[]>(
+    "/connections/my"
+  );
+
+  return response.data ?? [];
 };
