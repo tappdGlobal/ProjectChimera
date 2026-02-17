@@ -41,10 +41,19 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   fetchUser: async (userId) => {
     try {
-
       set({ loading: true, error: null });
       const res = await getUserByIdApi(userId);
-      set({ profile: res.data ?? null, loading: false });
+      
+      // Merge with existing profile to preserve profilePicUrl if backend doesn't return it
+      const currentProfile = get().profile;
+      const fetchedProfile = res.data;
+      
+      if (fetchedProfile && currentProfile?.profilePicUrl && !fetchedProfile.profilePicUrl) {
+        // Backend didn't return profilePicUrl, preserve the existing one
+        fetchedProfile.profilePicUrl = currentProfile.profilePicUrl;
+      }
+      
+      set({ profile: fetchedProfile ?? null, loading: false });
     } catch (err: any) {
       set({ loading: false, error: err.message });
     }
