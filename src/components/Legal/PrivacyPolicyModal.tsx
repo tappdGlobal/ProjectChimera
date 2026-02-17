@@ -40,7 +40,7 @@ export const PrivacyPolicyModal = ({
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={styles.content}>
+          <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
             {/* Intro */}
             <LinearGradient
               colors={["rgba(160,32,160,0.25)", "rgba(116,1,130,0.15)"]}
@@ -199,7 +199,11 @@ const styles = StyleSheet.create({
     color: Theme.colors.foreground,
   },
 
+  scrollView: {
+    flex: 1,
+  },
   content: {
+    flexGrow: 1,
     padding: 16,
     paddingBottom: 40,
   },
