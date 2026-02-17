@@ -9,6 +9,7 @@ import {
   Pressable,
   Image,
   ScrollView,
+  ActivityIndicator
 } from "react-native";
 import { Heart, MapPin, Layers, LayoutGrid, X, Eye, MessageCircle, Clock, UserPlus, ArrowLeft, Briefcase, GraduationCap } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,6 +20,7 @@ import { ProfileDetailModal } from "../components/reconnect/ProfileDetailModal";
 import { useConnectionStore } from "../store/connectionStore";
 import { useEffect } from "react";
 import { Animated, PanResponder, Dimensions } from "react-native";
+import Toast from "react-native-toast-message";
 
 // Mock data for List View
 // const listData = [
@@ -111,52 +113,53 @@ import { Animated, PanResponder, Dimensions } from "react-native";
 // ];
 
 // Mock data for Crossed Paths
-const crossedPathsData = [
-  {
-    id: "1",
-    name: "Isabella Martinez",
-    age: 25,
-    crossedCount: 3,
-    location: "Sky Lounge, Mumbai",
-    timeAgo: "2 hours ago",
-    distance: "5m away",
-    interests: ["Jazz", "Art", "Coffee"],
-    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=face&fit=crop&w=400&h=400",
-  },
-  {
-    id: "2",
-    name: "Alex Thompson",
-    age: 28,
-    crossedCount: 1,
-    location: "Central Cafe, Bandra",
-    timeAgo: "5 hours ago",
-    distance: "10m away",
-    interests: ["Tech", "Food"],
-    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=face&fit=crop&w=400&h=400",
-  },
-  {
-    id: "3",
-    name: "Priya Sharma",
-    age: 26,
-    crossedCount: 2,
-    location: "Innovation Hub, Powai",
-    timeAgo: "Yesterday",
-    distance: "15m away",
-    interests: ["Startup", "Networking", "Yoga"],
-    image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?crop=face&fit=crop&w=400&h=400",
-  },
-  {
-    id: "4",
-    name: "Rahul Verma",
-    age: 29,
-    crossedCount: 5,
-    location: "Downtown Club, Lower Parel",
-    timeAgo: "2 days ago",
-    distance: "20m away",
-    interests: ["Music", "Nightlife", "Sports"],
-    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?crop=face&fit=crop&w=400&h=400",
-  },
-];
+
+// const crossedPathsData = [
+//   {
+//     id: "1",
+//     name: "Isabella Martinez",
+//     age: 25,
+//     crossedCount: 3,
+//     location: "Sky Lounge, Mumbai",
+//     timeAgo: "2 hours ago",
+//     distance: "5m away",
+//     interests: ["Jazz", "Art", "Coffee"],
+//     image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=face&fit=crop&w=400&h=400",
+//   },
+//   {
+//     id: "2",
+//     name: "Alex Thompson",
+//     age: 28,
+//     crossedCount: 1,
+//     location: "Central Cafe, Bandra",
+//     timeAgo: "5 hours ago",
+//     distance: "10m away",
+//     interests: ["Tech", "Food"],
+//     image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=face&fit=crop&w=400&h=400",
+//   },
+//   {
+//     id: "3",
+//     name: "Priya Sharma",
+//     age: 26,
+//     crossedCount: 2,
+//     location: "Innovation Hub, Powai",
+//     timeAgo: "Yesterday",
+//     distance: "15m away",
+//     interests: ["Startup", "Networking", "Yoga"],
+//     image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?crop=face&fit=crop&w=400&h=400",
+//   },
+//   {
+//     id: "4",
+//     name: "Rahul Verma",
+//     age: 29,
+//     crossedCount: 5,
+//     location: "Downtown Club, Lower Parel",
+//     timeAgo: "2 days ago",
+//     distance: "20m away",
+//     interests: ["Music", "Nightlife", "Sports"],
+//     image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?crop=face&fit=crop&w=400&h=400",
+//   },
+// ];
 
 export function ReconnectScreen() {
   const [activeButton, setActiveButton] = useState<"friendRequests" | "crossedPaths" | "swipe" | "list">("swipe");
@@ -201,8 +204,10 @@ export function ReconnectScreen() {
             if (currentUser?.requestId) {
               await respondToRequest(
                 currentUser.requestId,
-                isAccept ? "ACCEPT" : "REJECT"
+                isAccept ? "ACCEPT" : "REJECT",
+                currentUser.intent
               );
+
             }
 
             position.setValue({ x: 0, y: 0 });
@@ -230,6 +235,45 @@ export function ReconnectScreen() {
   const currentUser =
     pendingRequests.length > 0 ? pendingRequests[0] : null;
 
+  const renderIntentPills = (intent?: string[]) => {
+    if (!intent || intent.length === 0) return null;
+
+    return (
+      <View
+        style={{
+          flexDirection: "row",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          gap: 8,
+          marginTop: 10,
+        }}
+      >
+        {intent.map((item, index) => (
+          <View
+            key={index}
+            style={{
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: Theme.colors.primary,
+              backgroundColor: "rgba(255,255,255,0.05)",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 11,
+                color: Theme.colors.primary,
+                fontWeight: "600",
+              }}
+            >
+              {item.charAt(0) + item.slice(1).toLowerCase()}
+            </Text>
+          </View>
+        ))}
+      </View>
+    );
+  };
 
   const renderGradientToggle = (
     id: "friendRequests" | "crossedPaths" | "swipe" | "list",
@@ -458,10 +502,14 @@ export function ReconnectScreen() {
           contentContainerStyle={styles.listScrollContent}
         >
           {loading && (
-            <Text style={{ color: "white", textAlign: "center" }}>
-              Loading...
-            </Text>
+            <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+              <ActivityIndicator
+                size="large"
+                color={Theme.colors.primary}
+              />
+            </View>
           )}
+
 
           {!loading && pendingRequests.length === 0 && (
             <Text style={{ color: "white", textAlign: "center" }}>
@@ -470,60 +518,195 @@ export function ReconnectScreen() {
           )}
 
           {pendingRequests.map((user) => (
-            <TouchableOpacity
+            <View
               key={user.requestId}
-              style={styles.listCard}
-              onPress={() => {
-                setSelectedUser(user);
-                setShowProfileModal(true);
+              style={{
+                backgroundColor: "rgba(169, 1, 109, 0.15)",
+                borderRadius: 16,
+                padding: 16,
+                marginBottom: 12,
+                width: "100%",
+                overflow: "hidden",
               }}
-              activeOpacity={0.9}
             >
-              <Image
-                source={{
-                  uri:
-                    user.profilePicUrl ||
-                    "https://via.placeholder.com/150",
-                }}
-                style={styles.listCardImage}
-              />
+              {/* 🔹 TOP ROW */}
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Image
+                  source={{
+                    uri:
+                      user.profilePicUrl ||
+                      "https://via.placeholder.com/150",
+                  }}
+                  style={{
+                    width: 70,
+                    height: 70,
+                    borderRadius: 35,
+                  }}
+                />
 
-              <View style={styles.listCardInfo}>
-                <Text style={styles.listCardName}>
-                  {user.name}
-                </Text>
-
-                <Text style={styles.listCardDetails}>
-                  {user.gender || "N/A"} • {user.location || "Unknown"}
-                </Text>
-              </View>
-
-              <View style={styles.listCardButtons}>
-                <TouchableOpacity style={styles.listDeclineButton}>
-                  <X size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.listAcceptButton}>
-                  <LinearGradient
-                    colors={GRADIENT_COLORS.primary as [string, string, ...string[]]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.listAcceptButtonGradient}
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text
+                    style={{
+                      fontSize: 18,
+                      fontWeight: "bold",
+                      color: "#FFFFFF",
+                    }}
                   >
-                    <Heart size={20} color="#FFFFFF" />
-                  </LinearGradient>
-                </TouchableOpacity>
+                    {user.name}
+                  </Text>
+
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      color: "rgba(255,255,255,0.7)",
+                      marginTop: 2,
+                    }}
+                  >
+                    {user.gender || "N/A"} • {user.location || "Unknown"}
+                  </Text>
+                </View>
+
+                {/* 🔹 ACTION BUTTONS */}
+                <View style={{ flexDirection: "row" }}>
+                  {/* ❌ REJECT */}
+                  <TouchableOpacity
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 21,
+                      backgroundColor: "rgba(255,255,255,0.1)",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: 8,
+                    }}
+                    onPress={async () => {
+                      console.log("🚫 Reject clicked:", user.requestId);
+
+                      const result = await respondToRequest(
+                        user.requestId,
+                        "REJECT",
+                        user.intent
+                      );
+
+                      console.log("📦 Reject API result:", result);
+
+                      if (result?.success) {
+                        Toast.show({
+                          type: "info",
+                          text1: "Request Rejected",
+                        });
+                      } else {
+                        Toast.show({
+                          type: "error",
+                          text1: "Reject Failed",
+                          text2: result?.message || "Something went wrong",
+                        });
+                      }
+                    }}
+                  >
+                    <X size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
+
+                  {/* ❤️ ACCEPT */}
+                  <TouchableOpacity
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 21,
+                      overflow: "hidden",
+                    }}
+                    onPress={async () => {
+                      console.log("❤️ Accept clicked:", user.requestId);
+
+                      const result = await respondToRequest(
+                        user.requestId,
+                        "ACCEPT",
+                        user.intent
+                      );
+
+                      console.log("📦 Accept API result:", result);
+
+                      if (result?.success) {
+                        Toast.show({
+                          type: "success",
+                          text1: "Connection Accepted",
+                        });
+                      } else {
+                        Toast.show({
+                          type: "error",
+                          text1: "Accept Failed",
+                          text2: result?.message || "Something went wrong",
+                        });
+                      }
+                    }}
+                  >
+                    <LinearGradient
+                      colors={GRADIENT_COLORS.primary as [string, string]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={{
+                        flex: 1,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Heart size={18} color="#FFFFFF" />
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </TouchableOpacity>
+
+              {/* 🔥 BOTTOM INTENT ROW */}
+              {user.intent?.length > 0 && (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    flexWrap: "wrap",
+                    marginTop: 14,
+                  }}
+                >
+                  {user.intent.map((item, index) => (
+                    <View
+                      key={index}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 16,
+                        backgroundColor: "rgba(255,255,255,0.08)",
+                        marginRight: 8,
+                        marginBottom: 8,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: Theme.colors.primary,
+                          fontWeight: "600",
+                        }}
+                      >
+                        {item.charAt(0) + item.slice(1).toLowerCase()}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
           ))}
+
         </ScrollView>
 
       ) : (
         // Default Profile Card (for Swipe, Friend Requests, List)
         <View style={styles.profileCardContainer}>
           {loading && (
-            <Text style={{ color: "white" }}>Loading...</Text>
+            <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+              <ActivityIndicator
+                size="large"
+                color={Theme.colors.primary}
+              />
+            </View>
           )}
+
 
           {!loading && pendingRequests.length === 0 && (
             <Text style={{ color: "white" }}>
@@ -533,89 +716,188 @@ export function ReconnectScreen() {
 
           {!loading &&
             pendingRequests.length > 0 && (
-             <View style={styles.swipeContainer}>
-  <Animated.View
-    style={[
-      styles.profileCard,
-      { transform: [{ translateX: position.x }] },
-    ]}
-    {...panResponder.panHandlers}
-  >
-    {/* 👇 Only this wrapper handles tap */}
-    <TouchableOpacity
-      activeOpacity={0.95}
-      style={{ width: "100%", alignItems: "center" }}
-      onPress={() => {
-        if (!currentUser) return;
-        setSelectedUser(currentUser);
-        setShowProfileModal(true);
-      }}
-    >
-      <Image
-        source={{
-          uri:
-            currentUser?.profilePicUrl ||
-            "https://via.placeholder.com/150",
-        }}
-        style={styles.profileImage}
-      />
+              <View style={styles.swipeContainer}>
+                <Animated.View
+                  style={[
+                    styles.profileCard,
+                    { transform: [{ translateX: position.x }] },
+                  ]}
+                  {...panResponder.panHandlers}
+                >
+                  {/* 👇 Only this wrapper handles tap */}
+                  <TouchableOpacity
+                    activeOpacity={0.95}
+                    style={{ width: "100%", alignItems: "center" }}
+                    onPress={() => {
+                      if (!currentUser) return;
+                      setSelectedUser(currentUser);
+                      setShowProfileModal(true);
+                    }}
+                  >
+                    <Image
+                      source={{
+                        uri:
+                          currentUser?.profilePicUrl ||
+                          "https://via.placeholder.com/150",
+                      }}
+                      style={styles.profileImage}
+                    />
 
-      <Text style={styles.profileName}>
-        {currentUser?.name}
-      </Text>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        width: "100%",
+                        marginBottom: 10,
+                      }}
+                    >
+                      {/* 🔹 NAME */}
+                      <Text
+                        style={{
+                          fontSize: 22,
+                          fontWeight: "600",
+                          color: "#FFFFFF",
+                          flex: 1,
+                        }}
+                        numberOfLines={1}
+                      >
+                        {currentUser?.name}
+                      </Text>
 
-      <View style={styles.infoRow}>
-        <View style={styles.infoDot} />
-        <Text style={styles.infoText}>
-          {currentUser?.gender || "N/A"}
-        </Text>
+                      {/* 🔹 INTENT PILLS */}
+                      {currentUser?.intent?.length > 0 && (
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            marginLeft: 10,
+                          }}
+                        >
+                          {currentUser.intent.map((item, index) => (
+                            <View
+                              key={index}
+                              style={{
+                                paddingHorizontal: 10,
+                                paddingVertical: 5,
+                                borderRadius: 14,
+                                borderWidth: 1,
+                                borderColor: Theme.colors.primary,
+                                marginLeft: 6,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 11,
+                                  color: Theme.colors.primary,
+                                  fontWeight: "600",
+                                }}
+                              >
+                                {item.charAt(0) + item.slice(1).toLowerCase()}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </View>
 
-        <View style={styles.infoDot} />
-        <Text style={styles.infoText}>
-          {currentUser?.location || "Unknown"}
-        </Text>
-      </View>
+                    <View style={styles.infoRow}>
+                      <View style={styles.infoDot} />
+                      <Text style={styles.infoText}>
+                        {currentUser?.gender || "N/A"}
+                      </Text>
 
-      <Text style={styles.tapInstruction}>
-        Tap to view full profile
-      </Text>
-    </TouchableOpacity>
+                      <View style={styles.infoDot} />
+                      <Text style={styles.infoText}>
+                        {currentUser?.location || "Unknown"}
+                      </Text>
+                    </View>
 
-    {/* 👇 Buttons OUTSIDE TouchableOpacity */}
-    <View style={styles.actionButtons}>
-      <TouchableOpacity
-        style={styles.declineButtonCircle}
-        onPress={async () => {
-          if (!currentUser?.requestId) return;
-          await respondToRequest(currentUser.requestId, "REJECT");
-        }}
-      >
-        <X size={20} color="#FFFFFF" />
-      </TouchableOpacity>
+                    <Text style={styles.tapInstruction}>
+                      Tap to view full profile
+                    </Text>
+                  </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.acceptButtonCircle}
-        onPress={async () => {
-          if (!currentUser?.requestId) return;
-          await respondToRequest(currentUser.requestId, "ACCEPT");
-        }}
-      >
-        <LinearGradient
-          colors={GRADIENT_COLORS.primary as [string, string]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.acceptButtonGradientCircle}
-        >
-          <Heart size={20} color="#FFFFFF" />
-        </LinearGradient>
-      </TouchableOpacity>
-    </View>
+                  {/* 👇 Buttons OUTSIDE TouchableOpacity */}
+                  <View style={styles.actionButtons}>
+                    <TouchableOpacity
+                      style={styles.declineButtonCircle}
+                      onPress={async () => {
+                        if (!currentUser?.requestId) return;
+                        const result = await respondToRequest(
+                          currentUser.requestId,
+                          "REJECT",
+                          currentUser.intent
+                        );
 
-    <Text style={styles.buttonInstruction}>
-      Use the buttons to accept or decline
-    </Text>
-  </Animated.View>
-</View>
+                        if (result?.success) {
+                          console.log("🚫 REJECT SUCCESS");
+
+                          Toast.show({
+                            type: "info",
+                            text1: "Request Rejected",
+                            text2: `${currentUser.name}'s request removed`,
+                          });
+                        } else {
+                          console.log("⚠️ REJECT FAILED");
+
+                          Toast.show({
+                            type: "error",
+                            text1: "Failed",
+                            text2: result?.message,
+                          });
+                        }
+
+                      }}
+                    >
+                      <X size={20} color="#FFFFFF" />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.acceptButtonCircle}
+                      onPress={async () => {
+                        if (!currentUser?.requestId) return;
+                        const result = await respondToRequest(
+                          currentUser.requestId,
+                          "ACCEPT",
+                          currentUser.intent
+                        );
+
+                        if (result?.success) {
+                          console.log("🎉 ACCEPT SUCCESS");
+
+                          Toast.show({
+                            type: "success",
+                            text1: "Connection Accepted",
+                            text2: `${currentUser.name} is now connected with you`,
+                          });
+                        } else {
+                          console.log("⚠️ ACCEPT FAILED");
+
+                          Toast.show({
+                            type: "error",
+                            text1: "Failed",
+                            text2: result?.message,
+                          });
+                        }
+
+                      }}
+                    >
+                      <LinearGradient
+                        colors={GRADIENT_COLORS.primary as [string, string]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.acceptButtonGradientCircle}
+                      >
+                        <Heart size={20} color="#FFFFFF" />
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </View>
+
+                  <Text style={styles.buttonInstruction}>
+                    Use the buttons to accept or decline
+                  </Text>
+                </Animated.View>
+              </View>
 
 
             )}

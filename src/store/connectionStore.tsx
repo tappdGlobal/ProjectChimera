@@ -4,19 +4,37 @@ import { create } from "zustand";
 import {
   getPendingRequestsApi,
   respondConnectionApi,
+  getAcceptedConnectionsApi,
 } from "../api/connectionApi";
-import { PendingConnectionUser } from "../types/connectionTypes";
+
+import {
+  PendingConnectionUser,
+  AcceptedConnectionUser,
+  ConnectionAction,
+  ConnectionIntent,
+} from "../types/connectionTypes";
+
+interface RespondResult {
+  success: boolean;
+  message: string;
+}
 
 interface ConnectionState {
   pendingRequests: PendingConnectionUser[];
+  acceptedConnections: AcceptedConnectionUser[];
   loading: boolean;
   error: string | null;
 
   fetchPendingRequests: () => Promise<void>;
+  fetchAcceptedConnections: () => Promise<void>;
+
   respondToRequest: (
     requestId: string,
-    action: "ACCEPT" | "REJECT"
-  ) => Promise<void>;
+    action: ConnectionAction,
+    intent: ConnectionIntent[]
+  ) => Promise<RespondResult>;
+
+  removeLocally: (requestId: string) => void;
 }
 
 export const useConnectionStore = create<ConnectionState>((set, get) => {
@@ -24,6 +42,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => {
 
   return {
     pendingRequests: [],
+    acceptedConnections: [],
     loading: false,
     error: null,
 
@@ -34,23 +53,20 @@ export const useConnectionStore = create<ConnectionState>((set, get) => {
       try {
         set({ loading: true, error: null });
 
-        const data = await getPendingRequestsApi();
+        const res = await getPendingRequestsApi();
 
-        console.log("📦 API Returned:", data);
-        console.log("📦 Is Array?", Array.isArray(data));
+        console.log("📦 Pending RAW API Response:", res);
+        console.log("📊 Pending Type:", typeof res);
+        console.log("📊 Pending IsArray:", Array.isArray(res));
 
         set({
-          pendingRequests: Array.isArray(data) ? data : [],
+          pendingRequests: Array.isArray(res) ? res : [],
           loading: false,
         });
 
-        console.log(
-          "✅ Store Updated. New Length:",
-          Array.isArray(data) ? data.length : 0
-        );
-
+        console.log("✅ Pending Store Updated. Length:", res?.length ?? 0);
       } catch (err: any) {
-        console.log("❌ fetchPendingRequests ERROR:", err);
+        console.log("❌ fetchPendingRequests ERROR:", err?.response?.data || err.message);
 
         set({
           loading: false,
@@ -62,31 +78,103 @@ export const useConnectionStore = create<ConnectionState>((set, get) => {
       }
     },
 
+    // ================= FETCH ACCEPTED =================
+    fetchAcceptedConnections: async () => {
+      console.log("📥 fetchAcceptedConnections CALLED");
+
+      try {
+        set({ loading: true });
+
+        const res = await getAcceptedConnectionsApi();
+
+        console.log("📦 Accepted RAW API Response:", res);
+        console.log("📊 Accepted Type:", typeof res);
+        console.log("📊 Accepted IsArray:", Array.isArray(res));
+        console.log("📊 Accepted Length:", res?.length);
+
+        set({
+          acceptedConnections: Array.isArray(res) ? res : [],
+          loading: false,
+        });
+
+        console.log(
+          "✅ Accepted Store Updated:",
+          get().acceptedConnections.length
+        );
+      } catch (error: any) {
+        console.log(
+          "❌ fetchAcceptedConnections ERROR:",
+          error?.response?.data || error.message
+        );
+
+        set({ loading: false });
+      }
+    },
+
     // ================= ACCEPT / REJECT =================
-    respondToRequest: async (requestId, action) => {
+    respondToRequest: async (requestId, action, intent) => {
       console.log("📨 respondToRequest CALLED");
       console.log("➡️ RequestId:", requestId);
       console.log("➡️ Action:", action);
+      console.log("➡️ Intent:", intent);
 
       try {
-        const res = await respondConnectionApi({ requestId, action });
+        const response = await respondConnectionApi({
+          requestId,
+          action,
+          intent,
+        });
 
-        console.log("✅ API Respond Success:", res);
+        console.log("✅ Respond API Response:", response);
 
-        const current = get().pendingRequests;
-        console.log("📦 Current Store Before Remove:", current);
-
-        const updated = current.filter(
+        // Remove from pending list
+        const updated = get().pendingRequests.filter(
           (user) => user.requestId !== requestId
         );
 
+        console.log("🧹 Removing from pending list. Before:", get().pendingRequests.length);
+        console.log("🧹 After removal:", updated.length);
+
         set({ pendingRequests: updated });
 
-        console.log("✅ Store Updated After Remove:", updated);
+        // 🔥 If accepted, refresh accepted list automatically
+        if (action === "ACCEPT") {
+          console.log("🔄 ACCEPT detected. Refreshing accepted connections...");
+          await get().fetchAcceptedConnections();
+        }
 
-      } catch (error) {
-        console.log("❌ respondToRequest ERROR:", error);
+        return {
+          success: true,
+          message: "Success",
+        };
+      } catch (error: any) {
+        console.log(
+          "❌ respondToRequest ERROR:",
+          error?.response?.data || error.message
+        );
+
+        return {
+          success: false,
+          message:
+            error?.response?.data?.message ||
+            error?.message ||
+            "Something went wrong",
+        };
       }
+    },
+
+    // ================= LOCAL REMOVE =================
+    removeLocally: (requestId) => {
+      console.log("🧹 removeLocally CALLED");
+
+      const updated = get().pendingRequests.filter(
+        (user) => user.requestId !== requestId
+      );
+
+      console.log("🧹 Local Remove. Before:", get().pendingRequests.length);
+      console.log("🧹 Local Remove. After:", updated.length);
+
+      set({ pendingRequests: updated });
     },
   };
 });
