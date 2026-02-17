@@ -58,6 +58,7 @@ import { PaymentDetailForm } from "../components/profile/PaymentDetailForm";
 import { ChangePasswordPopup } from "../components/profile/ChangePasswordPopup";
 import { ManagePaymentInformationPopup } from "../components/profile/ManagePaymentInformationPopup";
 import { AddPaymentAccountTypePopup } from "../components/profile/AddPaymentAccountTypePopup";
+import { DeleteAccountModal } from "../components/profile/DeleteAccountModal";
 import ComingSoon from "../components/common/ComingSoon";
 const { width } = Dimensions.get("window");
 
@@ -132,7 +133,7 @@ export function ProfileScreen() {
   // console.log("ProfileScreen token:", token);
 
 
-  const { logout, changeEmail, resetPassword, deleteAccount, loading: authLoading } = useAuthStore();
+  const { logout, changeEmail, resetPassword, loading: authLoading } = useAuthStore();
   const { profile, fetchUser, updateUser, uploadPhotos, uploadProfilePicture, deletePhoto, loading, setProfile } =
     useUserStore();
   const { user: authUser } = useAuthStore();
@@ -196,6 +197,7 @@ export function ProfileScreen() {
   const [paymentType, setPaymentType] = useState<
     "Individual" | "Business" | null
   >(null);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
 
   // Fetch user data on mount
   React.useEffect(() => {
@@ -460,39 +462,7 @@ export function ProfileScreen() {
 
             <TouchableOpacity
               style={styles.settingsRow}
-              onPress={() =>
-                Alert.alert(
-                  "Delete Account",
-                  "Are you sure you want to delete your account? This action cannot be undone.",
-                  [
-                    {
-                      text: "Cancel",
-                      style: "cancel",
-                    },
-                    {
-                      text: "Delete",
-                      style: "destructive",
-                      onPress: async () => {
-                        try {
-                          await deleteAccount();
-                          Toast.show({
-                            type: "success",
-                            text1: "Account Deleted",
-                            text2: "Your account has been permanently deleted",
-                          });
-                          // Navigation will happen automatically due to auth state change
-                        } catch (err: any) {
-                          Toast.show({
-                            type: "error",
-                            text1: "Failed to Delete Account",
-                            text2: err.message || "An error occurred",
-                          });
-                        }
-                      },
-                    },
-                  ]
-                )
-              }
+              onPress={() => setShowDeleteAccountModal(true)}
             >
               <Trash2
                 size={18}
@@ -1238,61 +1208,7 @@ export function ProfileScreen() {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.settingsRow}
-                      onPress={async () => {
-                        console.log("Delete Account button clicked");
-                        
-                        const handleDelete = async () => {
-                          console.log("Starting account deletion...");
-                          try {
-                            console.log("Calling deleteAccount API...");
-                            await deleteAccount();
-                            console.log("Account deleted successfully");
-                            Toast.show({
-                              type: "success",
-                              text1: "Account Deleted",
-                              text2: "Your account has been permanently deleted",
-                            });
-                          } catch (err: any) {
-                            console.error("Delete account error:", err);
-                            Toast.show({
-                              type: "error",
-                              text1: "Failed to Delete Account",
-                              text2: err.message || "An error occurred",
-                            });
-                          }
-                        };
-                        
-                        if (Platform.OS === 'web') {
-                          console.log("Using window.confirm for web");
-                          const confirmed = window.confirm(
-                            "Delete Account\n\nAre you sure you want to delete your account? This action cannot be undone."
-                          );
-                          console.log("User confirmation:", confirmed);
-                          
-                          if (confirmed) {
-                            await handleDelete();
-                          } else {
-                            console.log("User cancelled account deletion");
-                          }
-                        } else {
-                          Alert.alert(
-                            "Delete Account",
-                            "Are you sure you want to delete your account? This action cannot be undone.",
-                            [
-                              {
-                                text: "Cancel",
-                                style: "cancel",
-                                onPress: () => console.log("User cancelled"),
-                              },
-                              {
-                                text: "Delete",
-                                style: "destructive",
-                                onPress: handleDelete,
-                              },
-                            ]
-                          );
-                        }
-                      }}
+                      onPress={() => setShowDeleteAccountModal(true)}
                     >
                       <Trash2
                         size={18}
@@ -1587,6 +1503,32 @@ export function ProfileScreen() {
           }}
         />
       )}
+
+      <DeleteAccountModal
+        visible={showDeleteAccountModal}
+        onClose={() => setShowDeleteAccountModal(false)}
+        onAccountDeleted={async () => {
+          try {
+            setShowDeleteAccountModal(false);
+            // Clear auth state and logout
+            await logout();
+            // Navigate to Welcome screen after logout
+            setTimeout(() => {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: SCREEN_NAMES.WELCOME as any }],
+              });
+            }, 100);
+          } catch (error) {
+            console.error("Error during account deletion cleanup:", error);
+            // Force navigation even if logout fails
+            navigation.reset({
+              index: 0,
+              routes: [{ name: SCREEN_NAMES.WELCOME as any }],
+            });
+          }
+        }}
+      />
     </SafeAreaView>
   );
 }

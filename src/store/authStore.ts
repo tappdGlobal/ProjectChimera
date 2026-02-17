@@ -17,6 +17,9 @@ import {
   changePasswordApi,
   ChangePasswordPayload,
   deleteAccountApi,
+  requestDeleteAccountOtpApi,
+  verifyDeleteAccountOtpApi,
+  restoreAccountApi,
 } from "../api/authApi";
 import { ApiResponse, User } from "../types/authTypes";
 import { socketService } from "../services/socket";
@@ -28,6 +31,8 @@ interface AuthState {
   error: string | null;
   isAuthenticated: boolean;
   isHydrated: boolean;
+  accountStatus: "active" | "pending_deletion" | "deleted" | null;
+  restorationDeadline: string | null;
 
   signup: (data: SignupPayload) => Promise<void>;
   signin: (data: SigninPayload) => Promise<void>;
@@ -40,6 +45,9 @@ interface AuthState {
   changeEmail: (data: ChangeEmailPayload) => Promise<void>;
   changePassword: (data: ChangePasswordPayload) => Promise<void>;
   deleteAccount: () => Promise<void>;
+  requestDeleteAccountOtp: () => Promise<void>;
+  verifyDeleteAccountOtp: (otp: string) => Promise<{ deletionDate: string; restorationDeadline: string }>;
+  restoreAccount: () => Promise<void>;
   hydrateAuth: () => Promise<void>;
   clearError: () => void;
 }
@@ -51,6 +59,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   error: null,
   isAuthenticated: false,
   isHydrated: false,
+  accountStatus: null,
+  restorationDeadline: null,
 
   signup: async (data) => {
     try {
@@ -250,9 +260,72 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isAuthenticated: false,
         loading: false,
         error: null,
+        accountStatus: "deleted",
       });
     } catch (err: any) {
       set({ loading: false, error: err.message || "Failed to delete account" });
+      throw err;
+    }
+  },
+
+  requestDeleteAccountOtp: async () => {
+    try {
+      set({ loading: true, error: null });
+      await requestDeleteAccountOtpApi();
+      set({ loading: false });
+    } catch (err: any) {
+      set({ loading: false, error: err.message || "Failed to send verification code" });
+      throw err;
+    }
+  },
+
+  verifyDeleteAccountOtp: async (otp: string) => {
+    try {
+      set({ loading: true, error: null });
+      const res = await verifyDeleteAccountOtpApi({ otp });
+      
+      await AsyncStorage.removeItem("token");
+      await AsyncStorage.removeItem("userId");
+
+      set({
+        userId: null,
+        token: null,
+        isAuthenticated: false,
+        loading: false,
+        accountStatus: "pending_deletion",
+        restorationDeadline: res.data?.restorationDeadline || null,
+      });
+
+      return {
+        deletionDate: res.data?.deletionDate || new Date().toISOString(),
+        restorationDeadline: res.data?.restorationDeadline || new Date().toISOString(),
+      };
+    } catch (err: any) {
+      set({ loading: false, error: err.message || "Failed to verify code" });
+      throw err;
+    }
+  },
+
+  restoreAccount: async () => {
+    try {
+      set({ loading: true, error: null });
+      const res = await restoreAccountApi();
+
+      if (res.data?.token && res.data?.user?.id) {
+        await AsyncStorage.setItem("token", res.data.token);
+        await AsyncStorage.setItem("userId", res.data.user.id);
+      }
+
+      set({
+        userId: res.data?.user?.id ?? null,
+        token: res.data?.token ?? null,
+        isAuthenticated: !!res.data?.token,
+        loading: false,
+        accountStatus: "active",
+        restorationDeadline: null,
+      });
+    } catch (err: any) {
+      set({ loading: false, error: err.message || "Failed to restore account" });
       throw err;
     }
   },
