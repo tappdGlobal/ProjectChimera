@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Edit } from "lucide-react-native";
-
+import { Loader } from "../common/Loader";
 import { SCREEN_NAMES } from "../../navigation/Routes";
 import { useAppNavigation } from "../../hooks/useAppNavigation";
 import { useUserStore } from "../../store/userStore";

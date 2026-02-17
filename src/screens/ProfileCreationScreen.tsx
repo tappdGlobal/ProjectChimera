@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -126,6 +126,8 @@ export const ProfileCreationScreen = () => {
     marketing: false,
   });
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [step5AgreeError, setStep5AgreeError] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
   // Step 6 State
   const [verificationCode, setVerificationCode] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -210,12 +212,11 @@ export const ProfileCreationScreen = () => {
 
   const validateStep5 = () => {
     if (!agreedToTerms) {
-      Alert.alert(
-        "Error",
-        "You must agree to the Terms of Service and Privacy Policy",
-      );
+      setStep5AgreeError(true);
+      scrollViewRef.current?.scrollToEnd({ animated: true });
       return false;
     }
+    setStep5AgreeError(false);
     return true;
   };
 
@@ -845,10 +846,13 @@ export const ProfileCreationScreen = () => {
           never share your personal information without consent.
         </Text>
 
-        <View style={styles.checkboxRow}>
+        <View style={[styles.checkboxRow, step5AgreeError && styles.checkboxRowFocusOutline]}>
           <TouchableOpacity
-            style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}
-            onPress={() => setAgreedToTerms(!agreedToTerms)}
+            style={[styles.checkbox, agreedToTerms && styles.checkboxChecked, step5AgreeError && styles.checkboxFocusOutline]}
+            onPress={() => {
+              setAgreedToTerms(!agreedToTerms);
+              setStep5AgreeError(false);
+            }}
           >
             {agreedToTerms && (
               <Check color="#0A0A1F" size={14} strokeWidth={4} />
@@ -873,6 +877,13 @@ export const ProfileCreationScreen = () => {
           </Text>
 
         </View>
+        {step5AgreeError && (
+          <View style={styles.agreeErrorBanner}>
+            <Text style={styles.agreeErrorText}>
+              Please agree to the Terms of Service and Privacy Policy to continue
+            </Text>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -966,6 +977,7 @@ export const ProfileCreationScreen = () => {
           style={styles.keyboardAvoidingView}
         >
           <ScrollView
+            ref={scrollViewRef}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
@@ -1323,6 +1335,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
+  checkboxRowFocusOutline: {
+    padding: 12,
+    marginHorizontal: -12,
+    marginTop: -4,
+    marginBottom: -4,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#DB2777",
+    backgroundColor: "rgba(219, 39, 119, 0.06)",
+  },
+  checkboxFocusOutline: {
+    borderWidth: 2,
+    borderColor: "#DB2777",
+    backgroundColor: "rgba(219, 39, 119, 0.15)",
+  },
   checkbox: {
     width: 24,
     height: 24,
@@ -1346,6 +1373,20 @@ const styles = StyleSheet.create({
   linkText: {
     color: "#DB2777",
     fontWeight: "600",
+  },
+  agreeErrorBanner: {
+    marginTop: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: "rgba(219, 39, 119, 0.12)",
+    borderLeftWidth: 4,
+    borderLeftColor: "#DB2777",
+  },
+  agreeErrorText: {
+    color: "rgba(255,255,255,0.95)",
+    fontSize: 14,
+    lineHeight: 20,
   },
   resendText: {
     color: "rgba(255,255,255,0.6)",
