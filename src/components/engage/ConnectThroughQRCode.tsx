@@ -27,7 +27,7 @@ const STORAGE_KEY = "QR_DATA";
 
 const intentMap: Record<ConnectionType, ConnectionIntent> = {
     friend: "FRIENDSHIP",
-    date: "DATE",
+    date: "RELATIONSHIP",
     networking: "NETWORKING",
 };
 

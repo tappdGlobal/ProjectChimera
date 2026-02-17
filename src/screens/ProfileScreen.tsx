@@ -59,50 +59,11 @@ import { ChangePasswordPopup } from "../components/profile/ChangePasswordPopup";
 import { ManagePaymentInformationPopup } from "../components/profile/ManagePaymentInformationPopup";
 import { AddPaymentAccountTypePopup } from "../components/profile/AddPaymentAccountTypePopup";
 import ComingSoon from "../components/common/ComingSoon";
+import { Connections } from "../components/profile/Connections";
+
 const { width } = Dimensions.get("window");
 
-// --- MOCK DATA ---
-interface Connection {
-  id: string;
-  name: string;
-  age: number;
-  photo: string;
-  type: "friend" | "match" | "business";
-}
-const mockConnections: Connection[] = [
-  {
-    id: "1",
-    name: "Alex Chen",
-    age: 28,
-    photo:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=face&fit=crop&w=400&h=400",
-    type: "friend",
-  },
-  {
-    id: "2",
-    name: "Sarah Kim",
-    age: 25,
-    photo:
-      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?crop=face&fit=crop&w=400&h=400",
-    type: "match",
-  },
-  {
-    id: "3",
-    name: "Marcus Johnson",
-    age: 32,
-    photo:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?crop=face&fit=crop&w=400&h=400",
-    type: "business",
-  },
-  {
-    id: "4",
-    name: "Emily Davis",
-    age: 29,
-    photo:
-      "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?crop=face&fit=crop&w=400&h=400",
-    type: "friend",
-  },
-];
+
 
 const harshPhotos = [
   "https://images.unsplash.com/photo-1506794778202-dfa52e185842?crop=face&fit=crop&w=400&h=600",
@@ -118,12 +79,6 @@ import {
   uploadPhotosApi,
   UpdateUserPayload,
 } from "../api/userApi";
-import {
-  getConnectionRequestsApi,
-  getAcceptedConnectionsApi,
-  respondConnectionApi,
-} from "../api/connectionApi";
-
 export function ProfileScreen() {
   const navigation = useAppNavigation();
   const { userId, token } = useAuthStore();
@@ -165,9 +120,6 @@ export function ProfileScreen() {
 
   const [showSettings, setShowSettings] = useState(false);
   const [showOnlineStatus, setShowOnlineStatus] = useState(false);
-  const [connectionFilter, setConnectionFilter] = useState<
-    "all" | "friends" | "matches" | "business"
-  >("all");
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [tempProfileImage, setTempProfileImage] = useState<string | null>(null);
   const [showProfileImageConfirm, setShowProfileImageConfirm] = useState(false);
@@ -180,9 +132,6 @@ export function ProfileScreen() {
   const [profileImage, setProfileImage] = useState(
     user?.profilePicUrl || defaultAvatar,
   );
-  const [connections, setConnections] = useState<any[]>([]);
-  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
-  const [isLoadingConnections, setIsLoadingConnections] = useState(false);
   const [showTappdBandPopup, setShowTappdBandPopup] = useState(false);
   const [showComingSoon, setShowComingSoon] = useState(false);
   const [showManageBandPopup, setShowManageBandPopup] = useState(false);
@@ -227,33 +176,6 @@ export function ProfileScreen() {
     setProfileImage(newAvatar);
   }, [user?.profilePicUrl]);
 
-  // Fetch connections on mount
-  React.useEffect(() => {
-    const fetchConnections = async () => {
-      if (!user?.id) return;
-      setIsLoadingConnections(true);
-      try {
-        const [connectionsData, requestsData] = await Promise.all([
-          getAcceptedConnectionsApi(),
-          getConnectionRequestsApi(),
-        ]);
-        setConnections(connectionsData.data ?? []);
-        const pending = (requestsData.data ?? []).filter(
-          (r) => r.status === "PENDING",
-        );
-        setPendingRequests(pending);
-      } catch (error) {
-        console.error("Failed to fetch connections:", error);
-        // Fallback to mock data if API fails
-        setConnections(mockConnections);
-      } finally {
-        setIsLoadingConnections(false);
-      }
-    };
-
-    fetchConnections();
-  }, [user?.id]);
-
   // Permissions check for Image Picker (required for newer Expo SDKs)
   React.useEffect(() => {
     (async () => {
@@ -271,9 +193,6 @@ export function ProfileScreen() {
   const profilePicUrl = user?.profilePicUrl;
   const photos = user?.photos;
   // const uploadPhotos = useUserStore((state) => state.uploadPhotos); // Already destructured
-
-  console.log(profilePicUrl);
-  const filteredConnections = connections;
 
   const pickImage = async (isProfile: boolean = false) => {
     try {
@@ -812,7 +731,7 @@ export function ProfileScreen() {
               </Text>
 
               {/* Bio/Tagline */}
-              
+
               <Text style={styles.tagline} numberOfLines={2}>
                 {user?.bio?.trim()
                   ? `${user.bio} ✨`
@@ -822,30 +741,30 @@ export function ProfileScreen() {
 
               {/* Info Pills Row */}
               <View style={styles.metaRow}>
-              <View style={styles.metaItem}>
-                <View style={styles.metaDot} />
-                <Text style={styles.metaText}>
-                  {user?.gender
-                    ? user.gender.charAt(0).toUpperCase() +
+                <View style={styles.metaItem}>
+                  <View style={styles.metaDot} />
+                  <Text style={styles.metaText}>
+                    {user?.gender
+                      ? user.gender.charAt(0).toUpperCase() +
                       user.gender.slice(1).toLowerCase()
-                    : "gender"}
-                </Text>
-              </View>
+                      : "gender"}
+                  </Text>
+                </View>
 
-              <View style={styles.metaItem}>
-                <View style={styles.metaDot} />
-                <Text style={styles.metaText}>
-                  {user?.location || "location"}
-                </Text>
-              </View>
+                <View style={styles.metaItem}>
+                  <View style={styles.metaDot} />
+                  <Text style={styles.metaText}>
+                    {user?.location || "location"}
+                  </Text>
+                </View>
 
-              <View style={styles.metaItem}>
-                <View style={styles.metaDot} />
-                <Text style={styles.metaText}>
-                  {user?.occupation || "occupation"}
-                </Text>
+                <View style={styles.metaItem}>
+                  <View style={styles.metaDot} />
+                  <Text style={styles.metaText}>
+                    {user?.occupation || "occupation"}
+                  </Text>
+                </View>
               </View>
-            </View>
 
 
             </View>
@@ -879,207 +798,12 @@ export function ProfileScreen() {
 
 
               {activeTab === "connections" && (
-                <View style={styles.tabContent}>
-                  {/* Filter Buttons */}
-                  <View style={styles.filterBar}>
-                    {[
-                      { label: "All", value: "all" },
-                      { label: "Friends", value: "friends" },
-                      { label: "Matches", value: "matches" },
-                      { label: "Business", value: "business" },
-                    ].map((filter) => (
-                      <TouchableOpacity
-                        key={filter.value}
-                        onPress={() => setConnectionFilter(filter.value as any)}
-                        style={[
-                          styles.filterButton,
-                          connectionFilter === filter.value &&
-                          styles.filterButtonActive,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.filterButtonText,
-                            connectionFilter === filter.value &&
-                            styles.filterButtonTextActive,
-                          ]}
-                        >
-                          {filter.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-
-                  {/* Pending Requests Section */}
-                  {pendingRequests.length > 0 && (
-                    <View style={{ marginBottom: 24 }}>
-                      <Text
-                        style={[
-                          styles.sectionTitle,
-                          { fontSize: 16, marginBottom: 12 },
-                        ]}
-                      >
-                        Pending Requests ({pendingRequests.length})
-                      </Text>
-                      {pendingRequests.map((req) => (
-                        <View key={req.id} style={styles.connectionCard}>
-                          <View style={styles.connectionAvatarWrapper}>
-                            <Image
-                              source={{
-                                uri:
-                                  req.fromUser.profilePicUrl || defaultAvatar,
-                              }}
-                              style={styles.connectionAvatar}
-                            />
-                          </View>
-                          <View style={{ flex: 1, paddingLeft: 10 }}>
-                            <Text style={styles.connectionName}>
-                              {req.fromUser.name}
-                            </Text>
-                            <Text style={styles.connectionAge}>
-                              {req.fromUser.occupation}
-                            </Text>
-                            <View
-                              style={{
-                                flexDirection: "row",
-                                gap: 8,
-                                marginTop: 8,
-                              }}
-                            >
-                              <Button
-                                size="sm"
-                                style={{
-                                  backgroundColor: Theme.colors.primary,
-                                  flex: 1,
-                                }}
-                                onClick={async () => {
-                                  try {
-                                    await respondConnectionApi({
-                                      requestId: req.id,
-                                      action: "ACCEPT",
-                                    });
-                                    Toast.show({
-                                      type: "success",
-                                      text1: "Request Accepted",
-                                    });
-                                    const requests =
-                                      await getConnectionRequestsApi();
-                                    const newConns =
-                                      await getAcceptedConnectionsApi();
-                                    setPendingRequests(
-                                      (requests.data ?? []).filter(
-                                        (r) => r.status === "PENDING",
-                                      ),
-                                    );
-                                    setConnections(newConns.data ?? []);
-                                  } catch (e) {
-                                    console.error(e);
-                                  }
-                                }}
-                              >
-                                Accept
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                style={{ flex: 1 }}
-                                onClick={async () => {
-                                  try {
-                                    await respondConnectionApi({
-                                      requestId: req.id,
-                                      action: "REJECT",
-                                    });
-                                    Toast.show({
-                                      type: "info",
-                                      text1: "Request Rejected",
-                                    });
-                                    setPendingRequests((prev) =>
-                                      prev.filter((p) => p.id !== req.id),
-                                    );
-                                  } catch (e) {
-                                    console.error(e);
-                                  }
-                                }}
-                              >
-                                Decline
-                              </Button>
-                            </View>
-                          </View>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-
-                  {/* Connections Grid */}
-                  {isLoadingConnections ? (
-                    <View style={{ padding: 20 }}>
-                      <ActivityIndicator
-                        size="large"
-                        color={Theme.colors.primary}
-                      />
-                    </View>
-                  ) : (
-                    <View style={styles.connectionsGrid}>
-                      {connections
-                        .filter((c) => {
-                          if (connectionFilter === "all") return true;
-                          return c.type === connectionFilter;
-                        })
-                        .map((connection, index) => (
-                          <View
-                            key={connection.id || index}
-                            style={styles.connectionCardGrid}
-                          >
-                            <View style={styles.connectionAvatarWrapperGrid}>
-                              <Image
-                                source={{
-                                  uri:
-                                    connection.photo ||
-                                    connection.profilePicUrl ||
-                                    defaultAvatar,
-                                }}
-                                style={styles.connectionAvatar}
-                              />
-                            </View>
-                            <Text style={styles.connectionName}>
-                              {connection.name}
-                            </Text>
-                            <Text style={styles.connectionAge}>
-                              {connection.age
-                                ? `${connection.age} years old`
-                                : "Friend"}
-                            </Text>
-                            <View
-                              style={[
-                                styles.connectionTypeBadge,
-                                connection.type === "friend" &&
-                                styles.connectionTypeBadgeFriend,
-                                connection.type === "match" &&
-                                styles.connectionTypeBadgeMatch,
-                                connection.type === "business" &&
-                                styles.connectionTypeBadgeBusiness,
-                              ]}
-                            >
-                              <Text
-                                style={[
-                                  styles.connectionTypeBadgeText,
-                                  connection.type === "friend" &&
-                                  styles.connectionTypeBadgeTextFriend,
-                                  connection.type === "match" &&
-                                  styles.connectionTypeBadgeTextMatch,
-                                  connection.type === "business" &&
-                                  styles.connectionTypeBadgeTextBusiness,
-                                ]}
-                              >
-                                {connection.type || "friend"}
-                              </Text>
-                            </View>
-                          </View>
-                        ))}
-                    </View>
-                  )}
-                </View>
+                <Connections
+                  userId={user?.id}
+                  defaultAvatar={defaultAvatar}
+                />
               )}
+
 
               {activeTab === "photos" && (
                 <View style={styles.tabContent}>
@@ -1166,7 +890,7 @@ export function ProfileScreen() {
                         style={styles.settingsRowIcon}
                       />
                       <Text style={styles.settingsRowText}>
-                        Register TAPPD Band 
+                        Register TAPPD Band
                       </Text>
                       <ChevronRight
                         size={18}
@@ -1247,7 +971,7 @@ export function ProfileScreen() {
                       style={styles.settingsRow}
                       onPress={async () => {
                         console.log("Delete Account button clicked");
-                        
+
                         const handleDelete = async () => {
                           console.log("Starting account deletion...");
                           try {
@@ -1268,14 +992,14 @@ export function ProfileScreen() {
                             });
                           }
                         };
-                        
+
                         if (Platform.OS === 'web') {
                           console.log("Using window.confirm for web");
                           const confirmed = window.confirm(
                             "Delete Account\n\nAre you sure you want to delete your account? This action cannot be undone."
                           );
                           console.log("User confirmation:", confirmed);
-                          
+
                           if (confirmed) {
                             await handleDelete();
                           } else {
@@ -1405,29 +1129,29 @@ export function ProfileScreen() {
 
                   <View style={styles.settingsLogoutWrapper}>
                     <Button
-                  style={styles.logoutButton}
-                  onClick={async () => {
-                    try {
-                      await logout();
-                      Toast.show({
-                        type: "success",
-                        text1: "Logged Out",
-                        text2: "You have been successfully logged out",
-                      });
-                    } catch (err: any) {
-                      Toast.show({
-                        type: "error",
-                        text1: "Logout Failed",
-                        text2: err.message || "An error occurred",
-                      });
-                    }
-                  }}
-                >
-                  <View style={styles.logoutInner}>
-                    <LogOut size={16} color={Theme.colors.foreground} />
-                    <Text style={styles.logoutText}>Logout</Text>
-                  </View>
-                </Button>
+                      style={styles.logoutButton}
+                      onClick={async () => {
+                        try {
+                          await logout();
+                          Toast.show({
+                            type: "success",
+                            text1: "Logged Out",
+                            text2: "You have been successfully logged out",
+                          });
+                        } catch (err: any) {
+                          Toast.show({
+                            type: "error",
+                            text1: "Logout Failed",
+                            text2: err.message || "An error occurred",
+                          });
+                        }
+                      }}
+                    >
+                      <View style={styles.logoutInner}>
+                        <LogOut size={16} color={Theme.colors.foreground} />
+                        <Text style={styles.logoutText}>Logout</Text>
+                      </View>
+                    </Button>
 
                   </View>
                 </View>
@@ -1602,7 +1326,7 @@ export function ProfileScreen() {
 const styles = StyleSheet.create({
   flex1: { flex: 1 },
   mainContainer: { flex: 1, backgroundColor: Theme.colors.background },
-  // Header (top inset handled by SafeAreaView edges={["top"]}; no extra padding to avoid whitespace)
+
   header: {
     paddingTop: 0,
     backgroundColor: Theme.colors.background,
@@ -1616,23 +1340,26 @@ const styles = StyleSheet.create({
   },
 
   backButton: { padding: 4 },
+
   headerTitle: {
     color: Theme.colors.foreground,
     fontSize: 18,
     fontWeight: "bold",
   },
+
   settingsButtonHeader: { padding: 4 },
-  // Profile Header
+
   profileHeader: {
-  paddingTop: 28,
-  paddingBottom: 18, 
-  paddingHorizontal: 16,
-  alignItems: "center",
-  borderBottomWidth: 1,
-  borderColor: Theme.colors.border,
-},
+    paddingTop: 28,
+    paddingBottom: 18,
+    paddingHorizontal: 16,
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderColor: Theme.colors.border,
+  },
 
   photoWrapper: { position: "relative", marginBottom: 20 },
+
   avatarBorder: {
     width: 140,
     height: 140,
@@ -1642,8 +1369,11 @@ const styles = StyleSheet.create({
     borderColor: Theme.colors.primary,
     marginHorizontal: "auto",
   },
+
   avatarStyle: { width: "100%", height: "100%", borderRadius: 9999 },
-  profileImage: { width: "100%", height: "100%" }, // Used by AvatarImage internally
+
+  profileImage: { width: "100%", height: "100%" },
+
   cameraButton: {
     position: "absolute",
     bottom: 4,
@@ -1654,6 +1384,7 @@ const styles = StyleSheet.create({
     padding: 0,
     backgroundColor: Theme.colors.primary,
   },
+
   userName: {
     color: Theme.colors.foreground,
     fontSize: 24,
@@ -1661,6 +1392,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: "center",
   },
+
   tagline: {
     color: Theme.colors.mutedForeground,
     fontSize: 16,
@@ -1668,45 +1400,49 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 24,
   },
+
   infoRow: { flexDirection: "row", justifyContent: "center", gap: 16 },
+
   infoPill: { flexDirection: "row", alignItems: "center", gap: 4 },
+
   infoDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: Theme.colors.primary,
   },
+
   infoText: { color: Theme.colors.mutedForeground, fontSize: 14 },
-  // Tabs
+
   tabsContainer: {
     position: "relative",
     borderBottomWidth: 1,
     borderColor: Theme.colors.border,
   },
+
   tabsList: {
     flexDirection: "row",
     height: 48,
     borderBottomWidth: 1,
     borderColor: Theme.colors.border,
   },
+
   tabTrigger: { flex: 1, alignItems: "center", justifyContent: "center" },
+
   tabTriggerActive: {
     borderBottomWidth: 2,
     borderBottomColor: Theme.colors.primary,
   },
+
   tabTriggerText: {
     color: Theme.colors.mutedForeground,
     fontSize: 14,
     fontWeight: "500",
   },
+
   tabTriggerTextActive: { color: Theme.colors.foreground },
+
   tabContent: { padding: 24 },
-  // Edit Button
-
-
-
-
-
 
   sectionTitle: {
     color: Theme.colors.foreground,
@@ -1715,52 +1451,54 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     marginTop: 0,
   },
+
   bioText: {
     color: Theme.colors.mutedForeground,
     lineHeight: 24,
     marginBottom: 24,
     fontSize: 15,
   },
+
   detailsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
+
   twoColumnGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 16,
     marginBottom: 24,
   },
-  // Looking For Section
-  lookingForSection: {
-    marginBottom: 24,
-  },
+
+  lookingForSection: { marginBottom: 24 },
+
   lookingForButtons: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
   },
+
   lookingForButton: {
     backgroundColor: Theme.colors.primary,
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 20,
   },
+
   lookingForButtonText: {
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "600",
   },
-  // Personal Details Section
-  personalDetailsSection: {
-    marginBottom: 24,
-  },
-  // Interests Section
-  interestsSection: {
-    marginBottom: 24,
-  },
+
+  personalDetailsSection: { marginBottom: 24 },
+
+  interestsSection: { marginBottom: 24 },
+
   interestsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12,
   },
+
   interestTag: {
     borderWidth: 1,
     borderColor: Theme.colors.primary,
@@ -1769,22 +1507,22 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: "transparent",
   },
+
   interestTagText: {
     color: Theme.colors.foreground,
     fontSize: 14,
     fontWeight: "500",
   },
-  // Habits Section
-  habitsSection: {
-    marginBottom: 24,
-  },
-  // Photos Tab
+
+  habitsSection: { marginBottom: 24 },
+
   photoGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 20,
     justifyContent: "flex-start",
   },
+
   addPhotoButton: {
     width: (width - 68) / 2,
     height: ((width - 68) / 2) * 1.5,
@@ -1796,21 +1534,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  addPhotoButtonDisabled: {
-    opacity: 0.5,
-  },
+
+  addPhotoButtonDisabled: { opacity: 0.5 },
+
   photoItemWrapper: {
     width: (width - 68) / 2,
     height: ((width - 68) / 2) * 1.5,
     position: "relative",
   },
+
   photoItem: {
     width: "100%",
     height: "100%",
     borderRadius: Theme.radius.lg,
     overflow: "hidden",
   },
+
   photoGridImage: { width: "100%", height: "100%" },
+
   photoOverlay: {
     position: "absolute",
     top: 0,
@@ -1822,6 +1563,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: Theme.radius.lg,
   },
+
   deletePhotoButton: {
     position: "absolute",
     top: 8,
@@ -1834,83 +1576,32 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     zIndex: 10,
   },
+
   emptyPhotosContainer: {
     marginTop: 32,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 24,
   },
+
   emptyPhotosText: {
     color: Theme.colors.mutedForeground,
     fontSize: 16,
     textAlign: "center",
   },
-  // Connections Tab
-  filterBar: { flexDirection: "row", gap: 12, marginBottom: 24 },
-  connectionsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 20,
-    justifyContent: "flex-start",
-  },
-  connectionCard: {
-    width: (width - 68) / 2,
-    padding: 16,
-    alignItems: "center",
-    backgroundColor: "rgba(20, 15, 50, 0.4)",
-    borderColor: Theme.colors.border,
-    borderWidth: 1,
-    borderRadius: Theme.radius.lg,
-  },
-  connectionAvatarWrapper: {
-    width: 64,
-    height: 64,
-    borderRadius: 9999,
-    marginBottom: 8,
-    overflow: "hidden",
-  }, // Wrapper for Avatar in grid
-  connectionAvatar: { width: "100%", height: "100%" }, // Used by AvatarImage internally
-  connectionName: {
-    color: Theme.colors.foreground,
-    fontSize: 16,
-    fontWeight: "bold",
-    marginTop: 8,
-    textAlign: "center",
-  },
-  connectionAge: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 13,
-    marginTop: 4,
-    textAlign: "center",
-  },
-  // Settings Tab
-  logoutButton: {
-  backgroundColor: "#bc1313",
-  height: 48,
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "center",
-},
 
-  // Dialogs
+  logoutButton: {
+    backgroundColor: "#bc1313",
+    height: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   settingsModal: { width: "90%", maxHeight: "80%" },
   settingsModalScroll: { maxHeight: 520 },
   settingsModalScrollContent: { paddingBottom: 12 },
-  settingsCard: {
-    backgroundColor: "transparent",
-    borderWidth: 0,
-    shadowOpacity: 0,
-  },
-  settingsButton: {
-    justifyContent: "flex-start",
-    paddingHorizontal: 0,
-    paddingVertical: 12,
-  },
-  settingsButtonText: {
-    color: Theme.colors.foreground,
-    fontSize: 16,
-    fontWeight: "normal",
-  },
+
   settingsSectionTitle: {
     color: Theme.colors.foreground,
     fontSize: 18,
@@ -1918,172 +1609,53 @@ const styles = StyleSheet.create({
     marginTop: 18,
     marginBottom: 10,
   },
-  settingsList: {
-    backgroundColor: "transparent",
-  },
+
+  settingsList: { backgroundColor: "transparent" },
+
   settingsRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 14,
   },
-  settingsRowIcon: {
-    marginRight: 12,
-  },
+
+  settingsRowIcon: { marginRight: 12 },
+
   settingsRowText: {
     flex: 1,
     color: Theme.colors.foreground,
     fontSize: 16,
     fontWeight: "600",
   },
+
   settingsToggleRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: 14,
   },
+
   settingsToggleLeft: {
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
     paddingRight: 12,
   },
+
   settingsLogoutWrapper: {
     marginTop: 24,
     paddingBottom: 8,
   },
-  photoModal: { padding: 0, backgroundColor: "black", width: "95%" },
-  fullSizePhoto: { width: "100%", height: "100%", borderRadius: 8 },
-  photoModalContainer: {
-    flex: 1,
-    backgroundColor: "black",
-    width: "100%",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  closeButton: {
-    position: "absolute",
-    top: 50,
-    right: 20,
-    zIndex: 10,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  photoImageContainer: {
-    flex: 1,
-    width: "100%",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 10,
-  },
-  // Details
-  detailItem: {
-    flex: 1,
-    minWidth: (width - 64) / 2,
-    backgroundColor: Theme.colors.muted,
-    padding: 12,
-    borderRadius: Theme.radius.md,
-  },
-  detailLabel: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 13,
-    fontWeight: "500",
-    marginBottom: 6,
-    textTransform: "capitalize",
-  },
-  detailValue: {
-    color: Theme.colors.foreground,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  // Utilities
+
   safeBottom: { paddingBottom: 100 },
-  mr3: { marginRight: 12 },
+
   mr2: { marginRight: 8 },
-  flexRowCenter: { flexDirection: "row", alignItems: "center" },
-  // Filter Buttons
-  filterButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 25,
-    borderWidth: 1,
-    borderColor: "transparent",
-    backgroundColor: "transparent",
-  },
-  filterButtonActive: {
-    backgroundColor: Theme.colors.primary,
-    borderColor: Theme.colors.primary,
-  },
-  filterButtonText: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  filterButtonTextActive: {
-    color: Theme.colors.foreground,
-  },
-  // Two Column Layout
-  twoColumnRow: {
-    flexDirection: "row",
-    gap: 16,
-    marginBottom: 16,
-  },
-  columnHalf: {
-    flex: 1,
-  },
-  // Connection Cards Grid
-  connectionCardGrid: {
-    width: (width - 68) / 2,
-    padding: 20,
-    alignItems: "center",
-    backgroundColor: "rgba(20, 15, 50, 0.4)",
-    borderRadius: Theme.radius.lg,
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-  },
-  connectionAvatarWrapperGrid: {
-    width: 96,
-    height: 96,
-    borderRadius: 9999,
-    marginBottom: 12,
-    overflow: "hidden",
-  },
-  connectionTypeBadge: {
-    marginTop: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 15,
-  },
-  connectionTypeBadgeFriend: {
-    backgroundColor: "rgba(59, 130, 246, 0.2)",
-  },
-  connectionTypeBadgeMatch: {
-    backgroundColor: "rgba(219, 39, 119, 0.2)",
-  },
-  connectionTypeBadgeBusiness: {
-    backgroundColor: "rgba(251, 191, 36, 0.2)",
-  },
-  connectionTypeBadgeText: {
-    fontSize: 13,
-    fontWeight: "500",
-  },
-  connectionTypeBadgeTextFriend: {
-    color: "#60A5FA",
-  },
-  connectionTypeBadgeTextMatch: {
-    color: "#F472B6",
-  },
-  connectionTypeBadgeTextBusiness: {
-    color: "#FCD34D",
-  },
+
   logoutInner: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
   },
+
   logoutText: {
     color: Theme.colors.foreground,
     fontSize: 16,
@@ -2091,6 +1663,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     lineHeight: 16,
   },
+
   metaRow: {
     flexDirection: "row",
     justifyContent: "center",
@@ -2098,20 +1671,24 @@ const styles = StyleSheet.create({
     gap: 14,
     marginTop: 6,
   },
+
   metaItem: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
+
   metaDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: Theme.colors.primary,
   },
+
   metaText: {
     color: Theme.colors.mutedForeground,
     fontSize: 14,
     fontWeight: "500",
   },
 });
+
