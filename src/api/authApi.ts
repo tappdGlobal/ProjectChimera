@@ -89,6 +89,14 @@ export const verifyEmailApi = (
   return apiClient.post("/auth/verify-email", payload);
 };
 
+/* ================= RESEND VERIFICATION CODE ================= */
+
+export const resendVerificationCodeApi = (
+  email: string
+): Promise<ApiResponse<null>> => {
+  return apiClient.post("/auth/resend-verification", { email });
+};
+
 /* ================= GOOGLE SIGN IN ================= */
 
 export interface GoogleSigninPayload {
@@ -132,4 +140,28 @@ export const changePasswordApi = (
 
 export const deleteAccountApi = (): Promise<ApiResponse<null>> => {
   return apiClient.delete("/auth/account");
+};
+
+/* ================= REQUEST DELETE ACCOUNT OTP ================= */
+
+export const requestDeleteAccountOtpApi = (): Promise<ApiResponse<null>> => {
+  return apiClient.post("/account/delete/request-otp");
+};
+
+/* ================= VERIFY DELETE ACCOUNT OTP ================= */
+
+export interface VerifyDeleteAccountOtpPayload {
+  otp: string;
+}
+
+export const verifyDeleteAccountOtpApi = (
+  payload: VerifyDeleteAccountOtpPayload
+): Promise<ApiResponse<{ deletionDate: string; restorationDeadline: string }>> => {
+  return apiClient.post("/account/delete/verify-otp", payload);
+};
+
+/* ================= RESTORE DELETED ACCOUNT ================= */
+
+export const restoreAccountApi = (): Promise<ApiResponse<{ user: User; token: string }>> => {
+  return apiClient.post("/auth/account/restore");
 };

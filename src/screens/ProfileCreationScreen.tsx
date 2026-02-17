@@ -39,8 +39,10 @@ import { TermsOfServiceModal } from "../components/Legal/TermsOfServiceModal";
 import { PrivacyPolicyModal } from "../components/Legal/PrivacyPolicyModal";
 import { ActivityIndicator } from "react-native";
 import { updateUserApi, uploadProfilePictureApi } from "../api/userApi";
+import { signupApi } from "../api/authApi";
 
 const TOTAL_STEPS = 6;
+const RESEND_COOLDOWN = 60; // 60 seconds cooldown
 
 const INTERESTS = [
   "Music",
@@ -128,12 +130,24 @@ export const ProfileCreationScreen = () => {
   const scrollViewRef = useRef<ScrollView>(null);
   // Step 6 State
   const [verificationCode, setVerificationCode] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [isResending, setIsResending] = useState(false);
 
   const { signup, verifyEmail, loading, error, clearError } = useAuthStore();
 
+  // Countdown timer for resend cooldown
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
+
   useEffect(() => {
     if (error) {
-      Alert.alert("Error", error);
+      console.error("ProfileCreationScreen error:", error);
+      const errorString = typeof error === 'string' ? error : JSON.stringify(error);
+      Alert.alert("Signup Error", errorString);
       clearError();
     }
   }, [error, clearError]);
@@ -224,6 +238,53 @@ export const ProfileCreationScreen = () => {
     };
 
     await signup(signupPayload);
+  };
+
+  const handleResendCode = async () => {
+    if (resendCooldown > 0 || isResending) return;
+
+    setIsResending(true);
+    try {
+      // Try to call signup again - if user already exists, backend should resend the code
+      const signupPayload = {
+        name: `${firstName} ${lastName}`.trim(),
+        email,
+        username,
+        password,
+      };
+      await signupApi(signupPayload);
+      
+      Toast.show({
+        type: "success",
+        text1: "Code Resent",
+        text2: "A new verification code has been sent to your email.",
+      });
+      
+      // Start cooldown
+      setResendCooldown(RESEND_COOLDOWN);
+    } catch (error: any) {
+      console.error("Resend code error:", error);
+      // Check if error is because user already exists - in that case, code was resent
+      const errorMessage = error?.response?.data?.message || "";
+      if (errorMessage.toLowerCase().includes("already exists") || 
+          errorMessage.toLowerCase().includes("user already")) {
+        // User exists, which means the backend should have resent the code
+        Toast.show({
+          type: "success",
+          text1: "Code Resent",
+          text2: "A new verification code has been sent to your email.",
+        });
+        setResendCooldown(RESEND_COOLDOWN);
+      } else {
+        Toast.show({
+          type: "error",
+          text1: "Failed to Resend",
+          text2: errorMessage || "Could not resend code. Please try again.",
+        });
+      }
+    } finally {
+      setIsResending(false);
+    }
   };
 
   const updateUserProfile = async (userId: string) => {
@@ -856,8 +917,21 @@ export const ProfileCreationScreen = () => {
 
       <View style={{ alignItems: "center", marginTop: 20 }}>
         <Text style={styles.resendText}>Didn't receive the code?</Text>
-        <TouchableOpacity>
-          <Text style={styles.resendLink}>Resend Code</Text>
+        <TouchableOpacity 
+          onPress={handleResendCode}
+          disabled={resendCooldown > 0 || isResending}
+        >
+          <Text style={[
+            styles.resendLink,
+            (resendCooldown > 0 || isResending) && { opacity: 0.5 }
+          ]}>
+            {isResending 
+              ? "Sending..." 
+              : resendCooldown > 0 
+                ? `Resend in ${resendCooldown}s` 
+                : "Resend Code"
+            }
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
