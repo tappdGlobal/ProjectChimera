@@ -37,13 +37,17 @@ export const usePostStore = create<PostState>((set) => ({
   createPost: async (data) => {
     try {
       set({ loading: true, error: null });
+      console.log("Creating post with data:", data);
       const res = await createPostApi(data);
+      console.log("Create post response:", res);
 
       set((state) => ({
         feed: [res.data as Post, ...state.feed],
         loading: false,
       }));
     } catch (err: any) {
+      console.error("Create post error:", err);
+      console.error("Error response:", err.response?.data);
       set({ loading: false, error: err.message });
     }
   },
@@ -52,8 +56,17 @@ export const usePostStore = create<PostState>((set) => ({
     try {
       set({ loading: true, error: null });
       const res = await getFeedPostsApi();
-      set({ feed: res.data ?? [], loading: false });
+      console.log("Fetch feed response:", res);
+      // Handle different response structures
+      const postsData = (res as any).data || res || [];
+      console.log("Extracted posts:", postsData);
+      set({ feed: Array.isArray(postsData) ? postsData : [], loading: false });
     } catch (err: any) {
+      console.error("Fetch feed error:", err);
+      // Handle 500 error gracefully - keep existing feed
+      if (err.response?.status === 500) {
+        console.log("Server error (500) - keeping existing feed");
+      }
       set({ loading: false, error: err.message });
     }
   },

@@ -17,6 +17,7 @@ import { ReconnectScreen } from "../screens/ReconnectScreen";
 import { BottomNavigation } from "./BottomNavigation";
 import { EditProfileScreen } from "../screens/EditProfileScreen";
 import { EventDetailsScreen } from "../screens/EventDetailsScreen";
+import CreatePostScreen from "../screens/CreatePostScreen";
 import ExploreStack from "./ExploreStack";
 import EngageStack from "./EngageStack";
 
@@ -83,6 +84,11 @@ const AppNavigator = () => {
       <Stack.Screen
         name={SCREEN_NAMES.EVENT_DETAILS_SCREEN}
         component={EventDetailsScreen}
+      />
+
+      <Stack.Screen
+        name={SCREEN_NAMES.CREATE_POST}
+        component={CreatePostScreen}
       />
     </Stack.Navigator>
   );

@@ -40,10 +40,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
   createOrGetConversation: async (otherUserId: string) => {
     try {
       set({ loading: true, error: null });
+      console.log("Creating conversation with userId:", otherUserId);
+      
       const res = await createConversationApi(otherUserId);
+      console.log("Create conversation response:", res);
+      
       const conversationData = (res as any).data || res;
       const conversationId = conversationData.id || conversationData;
       
+      console.log("Conversation ID:", conversationId);
       set({ currentConversationId: conversationId, loading: false });
       
       // Join conversation room after creating/getting it (non-blocking)
@@ -56,6 +61,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return conversationId;
     } catch (err: any) {
       console.error("Create conversation error:", err);
+      console.error("Error response:", err.response?.data);
+      console.error("Error status:", err.response?.status);
       set({ loading: false, error: err.message || "Failed to create conversation" });
       return null;
     }
@@ -72,7 +79,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
       });
     } catch (err: any) {
       console.error("Get conversations error:", err);
-      set({ loading: false, error: err.message || "Failed to fetch conversations" });
+      // Handle 404 as empty conversations (no conversations yet)
+      if (err.response?.status === 404) {
+        set({ conversations: [], loading: false });
+      } else {
+        set({ loading: false, error: err.message || "Failed to fetch conversations" });
+      }
     }
   },
 

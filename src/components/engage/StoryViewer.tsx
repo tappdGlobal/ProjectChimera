@@ -3,7 +3,6 @@ import {
   Modal,
   SafeAreaView,
   View,
-  Image,
   Text,
   TouchableOpacity,
   StyleSheet,
@@ -14,7 +13,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ActivityIndicator,
 } from "react-native";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { X, MoreHorizontal, Pause, Play, Heart, Send, Smile, Trash2 } from "lucide-react-native";
 import { Theme } from "../../styles/Theme";
@@ -56,6 +57,8 @@ export default function StoryViewer({
   const [replyText, setReplyText] = useState("");
   const [liked, setLiked] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
 
   const progress = useRef<Animated.Value[]>([]);
   const animation = useRef<Animated.CompositeAnimation | null>(null);
@@ -77,6 +80,8 @@ export default function StoryViewer({
     setIndex(initialIndex);
     setPaused(false);
     setShowMenu(false);
+    setImageLoading(true);
+    setImageError(false);
     
     // Mark story as viewed when opened
     if (stories[initialIndex] && onView) {
@@ -87,12 +92,15 @@ export default function StoryViewer({
   /* START animation on index change */
   useEffect(() => {
     if (!visible || paused) return;
+    if (!progress.current[index]) return;
     start();
     return () => animation.current?.stop();
   }, [index, paused, visible]);
 
   const start = () => {
     animation.current?.stop();
+
+    if (!progress.current[index]) return;
 
     animation.current = Animated.timing(progress.current[index], {
       toValue: 1,
@@ -107,9 +115,11 @@ export default function StoryViewer({
 
   const pause = () => {
     animation.current?.stop();
-    progress.current[index].stopAnimation(v => {
-      remainingTime.current = STORY_DURATION * (1 - v);
-    });
+    if (progress.current[index]) {
+      progress.current[index].stopAnimation(v => {
+        remainingTime.current = STORY_DURATION * (1 - v);
+      });
+    }
     setPaused(true);
   };
 
@@ -119,6 +129,8 @@ export default function StoryViewer({
 
   const goNext = () => {
     remainingTime.current = STORY_DURATION;
+    setImageLoading(true);
+    setImageError(false);
 
     if (index < stories.length - 1) {
       const nextIndex = index + 1;
@@ -136,7 +148,11 @@ export default function StoryViewer({
     if (index === 0) return;
 
     remainingTime.current = STORY_DURATION;
-    progress.current[index].setValue(0);
+    setImageLoading(true);
+    setImageError(false);
+    if (progress.current[index]) {
+      progress.current[index].setValue(0);
+    }
     setIndex(prev => prev - 1);
   };
 
@@ -249,7 +265,29 @@ export default function StoryViewer({
           <Pressable style={styles.leftTapArea} onPress={goPrev} />
           
           {/* Story Image */}
-          <Image source={{ uri: story.image }} style={styles.image} />
+          <View style={styles.imageContainer}>
+            <Image
+              source={{ uri: story.image }}
+              style={styles.image}
+              contentFit="contain"
+              onLoadStart={() => setImageLoading(true)}
+              onLoadEnd={() => setImageLoading(false)}
+              onError={() => {
+                setImageLoading(false);
+                setImageError(true);
+              }}
+            />
+            {imageLoading && (
+              <View style={styles.loadingOverlay}>
+                <ActivityIndicator size="large" color="white" />
+              </View>
+            )}
+            {imageError && (
+              <View style={styles.errorOverlay}>
+                <Text style={styles.errorText}>Failed to load image</Text>
+              </View>
+            )}
+          </View>
           
           {/* Right tap area - next */}
           <Pressable style={styles.rightTapArea} onPress={goNext} />
@@ -372,10 +410,30 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
 
+  imageContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   image: {
     width: "100%",
     height: "100%",
-    resizeMode: "cover",
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  errorOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.7)",
+  },
+  errorText: {
+    color: "white",
+    fontSize: 16,
   },
 
   captionWrap: {

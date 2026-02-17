@@ -11,8 +11,11 @@ import {
   SafeAreaView,
   StyleSheet,
   Alert,
+  RefreshControl,
 } from "react-native";
 import { Image } from "expo-image";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 import { Theme } from "../../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
@@ -29,6 +32,11 @@ import { UploadContentSheet } from "./UploadContentSheet";
 import { CreateStoryModal } from "./CreateStoryModal";
 import { useStoryStore } from "../../store/storyStore";
 import { useAuthStore } from "../../store/authStore";
+import { usePostStore } from "../../store/postStore";
+import { AppStackParamList } from "../../navigation/Routes";
+import { SCREEN_NAMES } from "../../navigation/Routes";
+
+type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
 /* ---------------- MOCK DATA ---------------- */
 
@@ -209,6 +217,7 @@ const FeedPost = ({ item }: any) => {
 /* ---------------- MAIN SECTION ---------------- */
 
 export function EventInteractionSection() {
+  const navigation = useNavigation<NavigationProp>();
   const [showStoryModal, setShowStoryModal] = useState(false);
   const [storyIndex, setStoryIndex] = useState(0);
   const [showUpload, setShowUpload] = useState(false);
@@ -217,11 +226,26 @@ export function EventInteractionSection() {
   const [viewedStories, setViewedStories] = useState<Set<string>>(new Set());
 
   const { stories, getAllStories, deleteStory, viewStory } = useStoryStore();
+  const { feed, fetchFeed } = usePostStore();
   const { userId } = useAuthStore();
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     getAllStories();
+    fetchFeed();
   }, []);
+
+  // Debug: Log feed data
+  useEffect(() => {
+    console.log("Feed posts:", feed.length, feed);
+  }, [feed]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await getAllStories();
+    await fetchFeed();
+    setRefreshing(false);
+  };
 
   const groupedStories = stories
     .filter((story: any) => story && story.userId && story.mediaUrl)
@@ -275,28 +299,50 @@ export function EventInteractionSection() {
       storyCount: group.stories.length,
       stories: group.stories,
     })),
-
-    ...stories
-      .filter((story: any) => story && story.userId && story.mediaUrl)
-      .map((story: any) => ({
-        id: story.id,
-        name: story.user?.username || story.user?.name || "Unknown",
-        isUser: story.userId === userId,
-        userId: story.userId,
-        thumbnailImage: `https://tappd-backend-main.onrender.com/${story.mediaUrl}`,
-        mediaUrl: `https://tappd-backend-main.onrender.com/${story.mediaUrl}`,
-        profileImage: story.user?.profilePicUrl || DEFAULT_AVATAR,
-        caption: story.caption,
-        viewed: viewedStories.has(story.id),
-      })),
   ];
+
+  // Transform API posts to match FeedPost expected format
+  const displayPosts = feed.length > 0 
+    ? feed.map((post: any) => ({
+        id: post.id,
+        user: { 
+          name: post.user?.username || post.user?.name || "Unknown", 
+          avatar: post.user?.profilePicUrl || DEFAULT_AVATAR 
+        },
+        time: new Date(post.createdAt).toLocaleDateString(),
+        media: post.media?.[0]?.url 
+          ? `https://tappd-backend-main.onrender.com/${post.media[0].url}`
+          : "",
+        likes: post.likesCount || 0,
+        caption: post.caption || "",
+        comments: [],
+        music: "",
+      }))
+    : []; // Show empty feed if API fails, not mock data
 
   return (
     <View style={styles.container}>
       <FlatList
-        data={POSTS}
+        data={displayPosts}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <FeedPost item={item} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Theme.colors.primary}
+          />
+        }
+        ListEmptyComponent={
+          <View style={{ padding: 40, alignItems: "center" }}>
+            <Text style={{ color: Theme.colors.mutedForeground, fontSize: 16 }}>
+              No posts yet
+            </Text>
+            <Text style={{ color: Theme.colors.mutedForeground, fontSize: 14, marginTop: 8 }}>
+              Be the first to share something!
+            </Text>
+          </View>
+        }
         ListHeaderComponent={
           <ScrollView horizontal style={{ padding: 16 }}>
             {displayStories.map((story, index) => (
@@ -319,10 +365,30 @@ export function EventInteractionSection() {
 
       <StoryViewer
         visible={showStoryModal}
-        stories={displayStories.filter((s) => s.id !== "add-story")}
-        initialIndex={storyIndex}
+        stories={(() => {
+          const selectedUser: any = displayStories[storyIndex];
+          if (!selectedUser || selectedUser.id === "add-story" || !selectedUser.stories) return [];
+          return selectedUser.stories.map((s: any) => ({
+            id: s.id,
+            username: selectedUser.name || "Unknown",
+            profileImage: selectedUser.profileImage || DEFAULT_AVATAR,
+            image: s.mediaUrl,
+            caption: s.caption || "",
+            time: "",
+            userId: selectedUser.userId,
+          }));
+        })()}
+        initialIndex={0}
         onClose={() => setShowStoryModal(false)}
         currentUserId={userId || undefined}
+        onDelete={(storyId) => {
+          deleteStory(storyId);
+          getAllStories();
+        }}
+        onView={(storyId) => {
+          viewStory(storyId);
+          setViewedStories((prev) => new Set([...prev, storyId]));
+        }}
       />
 
       <UploadContentSheet
@@ -332,6 +398,10 @@ export function EventInteractionSection() {
           setStoryImage(uri);
           setShowUpload(false);
           setShowCreateStory(true);
+        }}
+        onCreatePost={(uri) => {
+          setShowUpload(false);
+          navigation.navigate(SCREEN_NAMES.CREATE_POST, { imageUri: uri });
         }}
       />
 

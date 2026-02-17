@@ -124,9 +124,19 @@ export const useStoryStore = create<StoryState>((set, get) => ({
         loading: false,
       }));
     } catch (err: any) {
-      set({ loading: false, error: err.message || "Failed to delete story" });
-      // Don't re-throw - let the component handle the error display
-      console.error("Delete story error:", err.message || err);
+      // Handle 404 - story already deleted or doesn't exist
+      if (err.response?.status === 404) {
+        console.log("Story already deleted or not found on server");
+        // Still remove from local state
+        set((state) => ({
+          stories: state.stories.filter((s) => s.id !== storyId),
+          userStories: state.userStories.filter((s) => s.id !== storyId),
+          loading: false,
+        }));
+      } else {
+        set({ loading: false, error: err.message || "Failed to delete story" });
+        console.error("Delete story error:", err.message || err);
+      }
     }
   },
 
