@@ -129,6 +129,8 @@ export function ProfileScreen() {
 
   // Use user avatar or profilePicUrl, fallback to a default placeholder instead of mock photos
   const defaultAvatar = "https://via.placeholder.com/400x400?text=No+Photo";
+  console.log("DEBUG ProfileScreen: user?.profilePicUrl =", user?.profilePicUrl);
+  console.log("DEBUG ProfileScreen: user =", user);
   const [profileImage, setProfileImage] = useState(
     user?.profilePicUrl || defaultAvatar,
   );
