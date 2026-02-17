@@ -49,6 +49,7 @@ export function TermsOfServiceModal({
                     </View>
 
                     <ScrollView
+                        style={styles.scrollView}
                         showsVerticalScrollIndicator
                         contentContainerStyle={styles.content}
                     >
@@ -231,7 +232,11 @@ const styles = StyleSheet.create({
         color: Theme.colors.foreground,
     },
 
+    scrollView: {
+        flex: 1,
+    },
     content: {
+        flexGrow: 1,
         padding: 16,
         paddingBottom: 40,
     },
