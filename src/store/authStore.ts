@@ -69,7 +69,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         loading: false,
       });
     } catch (err: any) {
-      set({ loading: false, error: err.message || "Signup failed" });
+      console.error("Signup error details:", err);
+      let errorMessage = "Signup failed";
+      if (err?.response?.data?.message) {
+        errorMessage = String(err.response.data.message);
+      } else if (err?.response?.data?.error) {
+        errorMessage = String(err.response.data.error);
+      } else if (err?.message) {
+        errorMessage = String(err.message);
+      }
+      set({ loading: false, error: errorMessage });
       throw err;
     }
   },

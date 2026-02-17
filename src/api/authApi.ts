@@ -89,6 +89,14 @@ export const verifyEmailApi = (
   return apiClient.post("/auth/verify-email", payload);
 };
 
+/* ================= RESEND VERIFICATION CODE ================= */
+
+export const resendVerificationCodeApi = (
+  email: string
+): Promise<ApiResponse<null>> => {
+  return apiClient.post("/auth/resend-verification", { email });
+};
+
 /* ================= GOOGLE SIGN IN ================= */
 
 export interface GoogleSigninPayload {
