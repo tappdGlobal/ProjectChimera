@@ -6,6 +6,8 @@ import { EngageScreen } from "../screens/EngageScreen";
 import ChatListScreen from "../screens/ChatListScreen";
 import ChatDetailScreen from "../screens/ChatDetailScreen";
 import { ChatSettingsScreen } from "../screens/ChatSettingsScreen";
+import FriendsListScreen from "../screens/FriendsListScreen";
+import FriendRequestsScreen from "../screens/FriendRequestsScreen";
 
 const Stack = createNativeStackNavigator<EngageStackParamList>();
 
@@ -34,6 +36,18 @@ export default function EngageStack() {
       <Stack.Screen
         name={SCREEN_NAMES.CHAT_SETTINGS}
         component={ChatSettingsScreen}
+      />
+
+      {/* Friends List */}
+      <Stack.Screen
+        name={SCREEN_NAMES.FRIENDS_LIST}
+        component={FriendsListScreen}
+      />
+
+      {/* Friend Requests */}
+      <Stack.Screen
+        name={SCREEN_NAMES.FRIEND_REQUESTS}
+        component={FriendRequestsScreen}
       />
     </Stack.Navigator>
   );

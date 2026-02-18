@@ -13,6 +13,8 @@ export const SCREEN_NAMES = {
   CHAT_LIST: "ChatList",          // ✅ ADDED
   CHAT_DETAIL: "ChatDetail",
   CHAT_SETTINGS: "ChatSettings",
+  FRIENDS_LIST: "FriendsList",
+  FRIEND_REQUESTS: "FriendRequests",
 
   // ================= TABS =================
   EXPLORE: "Explore",
@@ -37,6 +39,9 @@ export const SCREEN_NAMES = {
 
   // ================= STANDALONE =================
   EVENT_DETAILS_SCREEN: "EventDetailsScreen",
+
+  // ================= POST =================
+  CREATE_POST: "CreatePost",
 } as const;
 
 /* ================= AUTH STACK ================= */
@@ -72,6 +77,9 @@ export type AppStackParamList = {
   };
   [SCREEN_NAMES.CHAT_SETTINGS]: undefined;
   [SCREEN_NAMES.EVENT_DETAILS_SCREEN]: undefined;
+  [SCREEN_NAMES.CREATE_POST]: {
+    imageUri: string;
+  };
 };
 
 /* ================= EXPLORE STACK ================= */
@@ -102,6 +110,10 @@ export type EngageStackParamList = {
   };
 
   [SCREEN_NAMES.CHAT_SETTINGS]: undefined;
+
+  [SCREEN_NAMES.FRIENDS_LIST]: undefined;
+
+  [SCREEN_NAMES.FRIEND_REQUESTS]: undefined;
 };
 
 /* ================= HOST STACK ================= */

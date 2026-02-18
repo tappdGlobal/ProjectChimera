@@ -32,13 +32,17 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import Toast from "react-native-toast-message";
 import { useAuthStore } from "../store/authStore";
+import { useUserStore } from "../store/userStore";
 import { SCREEN_NAMES } from "../navigation/Routes";
 import { useAnalytics } from "../hooks/useAnalytics";
 import { TermsOfServiceModal } from "../components/Legal/TermsOfServiceModal";
 import { PrivacyPolicyModal } from "../components/Legal/PrivacyPolicyModal";
 import { ActivityIndicator } from "react-native";
+import { updateUserApi, uploadProfilePictureApi } from "../api/userApi";
+import { signupApi } from "../api/authApi";
 
 const TOTAL_STEPS = 6;
+const RESEND_COOLDOWN = 60; // 60 seconds cooldown
 
 const INTERESTS = [
   "Music",
@@ -126,12 +130,24 @@ export const ProfileCreationScreen = () => {
   const scrollViewRef = useRef<ScrollView>(null);
   // Step 6 State
   const [verificationCode, setVerificationCode] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [isResending, setIsResending] = useState(false);
 
   const { signup, verifyEmail, loading, error, clearError } = useAuthStore();
 
+  // Countdown timer for resend cooldown
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
+
   useEffect(() => {
     if (error) {
-      Alert.alert("Error", error);
+      console.error("ProfileCreationScreen error:", error);
+      const errorString = typeof error === 'string' ? error : JSON.stringify(error);
+      Alert.alert("Signup Error", errorString);
       clearError();
     }
   }, [error, clearError]);
@@ -219,39 +235,133 @@ export const ProfileCreationScreen = () => {
   };
 
   const performSignup = async () => {
-    const formData = new FormData();
-    formData.append("name", `${firstName} ${lastName}`.trim());
-    formData.append("email", email);
-    formData.append("username", username);
-    formData.append("password", password);
-    formData.append("phoneNumber", phone);
-    formData.append("age", age);
-    formData.append("bio", bio);
-    formData.append("interests", JSON.stringify(selectedInterests));
+    // Step 1: Signup with basic auth info only
+    const signupPayload = {
+      name: `${firstName} ${lastName}`.trim(),
+      email,
+      username,
+      password,
+    };
 
-    if (location.country) formData.append("country", location.country);
-    if (location.city) formData.append("city", location.city);
+    await signup(signupPayload);
+  };
 
-    formData.append("eventNotifications", String(notifications.events));
-    formData.append("messageNotifications", String(notifications.messages));
-    formData.append("marketingNotifications", String(notifications.marketing));
+  const handleResendCode = async () => {
+    if (resendCooldown > 0 || isResending) return;
 
-    if (profileImage) {
-      const filename = profileImage.split("/").pop() || "profile.jpg";
-      const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : `image/jpeg`;
-
-      const fileObj = {
-        uri: profileImage,
-        name: filename,
-        type,
+    setIsResending(true);
+    try {
+      // Try to call signup again - if user already exists, backend should resend the code
+      const signupPayload = {
+        name: `${firstName} ${lastName}`.trim(),
+        email,
+        username,
+        password,
       };
-      console.log("Appending file to FormData:", JSON.stringify(fileObj));
-
-      formData.append("profileImage", fileObj as any);
+      await signupApi(signupPayload);
+      
+      Toast.show({
+        type: "success",
+        text1: "Code Resent",
+        text2: "A new verification code has been sent to your email.",
+      });
+      
+      // Start cooldown
+      setResendCooldown(RESEND_COOLDOWN);
+    } catch (error: any) {
+      console.error("Resend code error:", error);
+      // Check if error is because user already exists - in that case, code was resent
+      const errorMessage = error?.response?.data?.message || "";
+      if (errorMessage.toLowerCase().includes("already exists") || 
+          errorMessage.toLowerCase().includes("user already")) {
+        // User exists, which means the backend should have resent the code
+        Toast.show({
+          type: "success",
+          text1: "Code Resent",
+          text2: "A new verification code has been sent to your email.",
+        });
+        setResendCooldown(RESEND_COOLDOWN);
+      } else {
+        Toast.show({
+          type: "error",
+          text1: "Failed to Resend",
+          text2: errorMessage || "Could not resend code. Please try again.",
+        });
+      }
+    } finally {
+      setIsResending(false);
     }
+  };
 
-    await signup(formData);
+  const updateUserProfile = async (userId: string) => {
+    try {
+      // Step 2: Update user profile with additional data
+      const updatePayload = {
+        bio,
+        age: parseInt(age, 10) || undefined,
+        interests: selectedInterests,
+        location: location.city || location.country || undefined,
+      };
+
+      const updateRes = await updateUserApi(userId, updatePayload);
+
+      // Step 3: Upload profile picture if selected
+      let profilePicUrl = updateRes.data?.profilePicUrl;
+      if (profileImage) {
+        // Fix file URI for Android - ensure it has file:// prefix
+        let fileUri = profileImage;
+        if (Platform.OS === "android" && !fileUri.startsWith("file://")) {
+          fileUri = `file://${fileUri}`;
+        }
+
+        const filename = profileImage.split("/").pop() || "profile.jpg";
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image/jpeg`;
+
+        // Create proper FormData file object for React Native
+        const fileObj = {
+          uri: fileUri,
+          name: filename,
+          type,
+        };
+
+        console.log("Uploading profile picture:", fileObj);
+        try {
+          const uploadRes = await uploadProfilePictureApi(userId, fileObj);
+          console.log("Upload response:", uploadRes.data);
+          profilePicUrl = uploadRes.data?.profilePicUrl;
+        } catch (uploadErr: any) {
+          console.error("Photo upload failed:", uploadErr);
+          // Don't fail the whole profile update if photo upload fails
+          // Just continue without the photo
+        }
+      }
+
+      // Step 4: Save user data to store
+      if (updateRes.data) {
+        // If photo upload failed but user selected a photo, use the local URI temporarily
+        const finalProfilePicUrl = profilePicUrl || updateRes.data.profilePicUrl || profileImage || undefined;
+        console.log("DEBUG: Saving profile to store:", {
+          profilePicUrl,
+          updateResProfilePicUrl: updateRes.data.profilePicUrl,
+          profileImage,
+          finalProfilePicUrl,
+        });
+        useUserStore.getState().setProfile({
+          ...updateRes.data,
+          profilePicUrl: finalProfilePicUrl,
+        });
+        console.log("DEBUG: Profile saved, current store:", useUserStore.getState().profile);
+      }
+    } catch (error: any) {
+      console.error("Profile update error:", error);
+      Toast.show({
+        type: "error",
+        text1: "Profile Update Failed",
+        text2: error?.response?.data?.message || error.message || "Failed to update profile",
+      });
+      throw error;
+    }
   };
 
   const handleNext = async () => {
@@ -276,7 +386,23 @@ export const ProfileCreationScreen = () => {
     } else if (currentStep === 6) {
       if (validateStep6()) {
         try {
-          await verifyEmail({ email, otp: verificationCode });
+          const verifyRes = await verifyEmail({ email, otp: verificationCode });
+
+          // Save initial user data to store
+          if (verifyRes?.data?.user) {
+            useUserStore.getState().setProfile(verifyRes.data.user);
+          }
+
+          // Update user profile and upload photo after successful verification
+          const userId = verifyRes?.data?.user?.id;
+          if (userId) {
+            try {
+              await updateUserProfile(userId);
+            } catch (profileErr) {
+              console.error("Profile update error:", profileErr);
+              // Don't block navigation if profile update fails
+            }
+          }
 
           Toast.show({
             type: "success",
@@ -790,8 +916,21 @@ export const ProfileCreationScreen = () => {
 
       <View style={{ alignItems: "center", marginTop: 20 }}>
         <Text style={styles.resendText}>Didn't receive the code?</Text>
-        <TouchableOpacity>
-          <Text style={styles.resendLink}>Resend Code</Text>
+        <TouchableOpacity 
+          onPress={handleResendCode}
+          disabled={resendCooldown > 0 || isResending}
+        >
+          <Text style={[
+            styles.resendLink,
+            (resendCooldown > 0 || isResending) && { opacity: 0.5 }
+          ]}>
+            {isResending 
+              ? "Sending..." 
+              : resendCooldown > 0 
+                ? `Resend in ${resendCooldown}s` 
+                : "Resend Code"
+            }
+          </Text>
         </TouchableOpacity>
       </View>
     </View>

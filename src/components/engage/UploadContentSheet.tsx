@@ -69,8 +69,8 @@ export function UploadContentSheet({
       console.log("Image picker result:", result);
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        // Directly call onCreateStory with the selected image
-        onCreateStory?.(result.assets[0].uri);
+        // Set selected image to show the "Choose Type" screen
+        setSelectedImage(result.assets[0].uri);
       }
     } catch (error) {
       console.error("Error opening gallery:", error);
@@ -118,8 +118,8 @@ export function UploadContentSheet({
       console.log("Camera result:", result);
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        // Directly call onCreateStory with the captured image
-        onCreateStory?.(result.assets[0].uri);
+        // Set selected image to show the "Choose Type" screen
+        setSelectedImage(result.assets[0].uri);
       }
     } catch (error) {
       console.error("Error opening camera:", error);
@@ -161,8 +161,8 @@ export function UploadContentSheet({
       // Convert to data URL
       const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
       setShowWebCamera(false);
-      // Directly call onCreateStory with the captured image
-      onCreateStory?.(dataUrl);
+      // Set selected image to show the "Choose Type" screen
+      setSelectedImage(dataUrl);
     } catch (error) {
       console.error('Error accessing webcam:', error);
       alert('Failed to access webcam. Please check your browser permissions or use Gallery instead.');

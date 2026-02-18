@@ -10,18 +10,14 @@ import {
   Alert,
 } from "react-native";
 import { Image } from "expo-image";
-import { useFriendStore } from "../store/friendStore";
 import { useChatStore } from "../store/chatStore";
-import { Friend } from "../types/friendTypes";
+import { useAuthStore } from "../store/authStore";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Theme } from "../styles/Theme";
 import { EngageStackParamList, SCREEN_NAMES } from "../navigation/Routes";
-
-type RootStackParamList = {
-  ChatDetail: { chatId: string; username: string; profileImage?: string };
-  // Add other routes as needed
-};
+import { getAcceptedConnectionsApi } from "../api/connectionApi";
+import { User } from "../types/authTypes";
 
 type NavigationProp = NativeStackNavigationProp<EngageStackParamList>;
 
@@ -29,8 +25,10 @@ const DEFAULT_AVATAR = "https://via.placeholder.com/50";
 
 export default function FriendsListScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { friends, loading, getFriends, removeFriend, blockUser } = useFriendStore();
   const { createOrGetConversation } = useChatStore();
+  const { userId } = useAuthStore();
+  const [friends, setFriends] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
@@ -39,7 +37,38 @@ export default function FriendsListScreen() {
   }, []);
 
   const loadFriends = async () => {
-    await getFriends();
+    try {
+      setLoading(true);
+      const res = await getAcceptedConnectionsApi();
+      console.log("Connections API raw response:", res);
+      
+      let friendsData = (res as any).data || res || [];
+      console.log("Extracted friends data:", friendsData);
+      console.log("Current userId:", userId);
+      
+      // The API might return connection objects with fromUser/toUser
+      // We need to extract the actual friend user from each connection
+      const processedFriends = friendsData.map((item: any) => {
+        // If it's a connection request object with fromUser/toUser
+        if (item.fromUser && item.toUser) {
+          // Return the user who is NOT the current user
+          return item.fromUser.id === userId ? item.toUser : item.fromUser;
+        }
+        // If it's already a user object, return as-is
+        return item;
+      }).filter((user: User) => user && user.id !== userId); // Filter out self
+      
+      console.log("Processed friends:", processedFriends);
+      setFriends(processedFriends);
+    } catch (err: any) {
+      console.error("Get friends error:", err);
+      // Handle 404 as empty friends list
+      if (err.response?.status === 404) {
+        setFriends([]);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const onRefresh = async () => {
@@ -48,61 +77,22 @@ export default function FriendsListScreen() {
     setRefreshing(false);
   };
 
-  const handleRemoveFriend = async (friendshipId: string) => {
-    Alert.alert(
-      "Remove Friend",
-      "Are you sure you want to remove this friend? This will also block them.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: async () => {
-            setProcessingId(friendshipId);
-            const success = await removeFriend(friendshipId);
-            setProcessingId(null);
-
-            if (!success) {
-              Alert.alert("Error", "Failed to remove friend. Please try again.");
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleBlockUser = async (userId: string) => {
-    Alert.alert(
-      "Block User",
-      "Are you sure you want to block this user? This will also remove them as a friend.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Block",
-          style: "destructive",
-          onPress: async () => {
-            setProcessingId(userId);
-            const success = await blockUser(userId);
-            setProcessingId(null);
-
-            if (!success) {
-              Alert.alert("Error", "Failed to block user. Please try again.");
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleOpenChat = async (friend: Friend) => {
+  const handleOpenChat = async (friend: User) => {
+    // Prevent chatting with yourself
+    if (friend.id === userId) {
+      Alert.alert("Error", "You cannot chat with yourself.");
+      return;
+    }
+    
     // Follow specification: Always call createOrGetConversation before opening chat
-    setProcessingId(friend.user.id);
+    setProcessingId(friend.id);
     
     try {
-      const conversationId = await createOrGetConversation(friend.user.id);
+      console.log("Creating conversation with:", friend.id);
+      const conversationId = await createOrGetConversation(friend.id);
       
       if (!conversationId) {
-        Alert.alert("Error", "Failed to start conversation. Please try again.");
+        Alert.alert("Error", "Failed to start conversation. You may not be friends with this user.");
         setProcessingId(null);
         return;
       }
@@ -111,9 +101,9 @@ export default function FriendsListScreen() {
       
       // Navigate to chat detail screen
       navigation.navigate(SCREEN_NAMES.CHAT_DETAIL, {
-        chatId: friend.user.id,
-        name: friend.user.name || friend.user.username,
-        avatar: friend.user.avatar || DEFAULT_AVATAR,
+        chatId: friend.id,
+        name: friend.name || friend.username,
+        avatar: friend.profilePicUrl || DEFAULT_AVATAR,
       });
     } catch (error) {
       console.error("Error opening chat:", error);
@@ -122,14 +112,14 @@ export default function FriendsListScreen() {
     }
   };
 
-  const renderFriend = ({ item }: { item: Friend }) => {
-    const isProcessing = processingId === item.friendshipId;
+  const renderFriend = ({ item }: { item: User }) => {
+    const isProcessing = processingId === item.id;
 
     return (
       <View style={styles.friendItem}>
         <TouchableOpacity onPress={() => handleOpenChat(item)}>
           <Image
-            source={{ uri: item.user.avatar || DEFAULT_AVATAR }}
+            source={{ uri: item.profilePicUrl || DEFAULT_AVATAR }}
             style={styles.avatar}
             contentFit="cover"
           />
@@ -137,8 +127,8 @@ export default function FriendsListScreen() {
         
         <View style={styles.friendInfo}>
           <TouchableOpacity onPress={() => handleOpenChat(item)}>
-            <Text style={styles.name}>{item.user.name || item.user.username}</Text>
-            <Text style={styles.username}>@{item.user.username}</Text>
+            <Text style={styles.name}>{item.name || item.username}</Text>
+            <Text style={styles.username}>@{item.username}</Text>
           </TouchableOpacity>
           
           <View style={styles.actions}>
@@ -146,19 +136,12 @@ export default function FriendsListScreen() {
               <ActivityIndicator size="small" color={Theme.colors.primary} />
             ) : (
               <TouchableOpacity
-                style={styles.removeButton}
-                onPress={() => handleRemoveFriend(item.friendshipId)}
+                style={styles.chatButton}
+                onPress={() => handleOpenChat(item)}
               >
-                <Text style={styles.removeButtonText}>Remove</Text>
+                <Text style={styles.chatButtonText}>Chat</Text>
               </TouchableOpacity>
             )}
-            
-            <TouchableOpacity
-              style={styles.blockButton}
-              onPress={() => handleBlockUser(item.user.id)}
-            >
-              <Text style={styles.blockButtonText}>Block</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -191,7 +174,7 @@ export default function FriendsListScreen() {
         <FlatList
           data={friends}
           renderItem={renderFriend}
-          keyExtractor={(item) => item.friendshipId}
+          keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl
@@ -270,30 +253,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
   },
-  removeButton: {
-    backgroundColor: "transparent",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  chatButton: {
+    backgroundColor: Theme.colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 6,
-    borderWidth: 1,
-    borderColor: Theme.colors.destructive,
   },
-  removeButtonText: {
-    color: Theme.colors.destructive,
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  blockButton: {
-    backgroundColor: "transparent",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-  },
-  blockButtonText: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 12,
+  chatButtonText: {
+    color: "white",
+    fontSize: 14,
     fontWeight: "600",
   },
   emptyContainer: {

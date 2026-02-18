@@ -45,7 +45,12 @@ export const useFriendStore = create<FriendState>((set, get) => ({
       });
     } catch (err: any) {
       console.error("Get friends error:", err);
-      set({ loading: false, error: err.message || "Failed to fetch friends" });
+      // Handle 404 as empty friends list (no friends yet)
+      if (err.response?.status === 404) {
+        set({ friends: [], loading: false });
+      } else {
+        set({ loading: false, error: err.message || "Failed to fetch friends" });
+      }
     }
   },
 

@@ -17,7 +17,11 @@ import {
   changePasswordApi,
   ChangePasswordPayload,
   deleteAccountApi,
+  requestDeleteAccountOtpApi,
+  verifyDeleteAccountOtpApi,
+  restoreAccountApi,
 } from "../api/authApi";
+import { ApiResponse, User } from "../types/authTypes";
 import { socketService } from "../services/socket";
 
 interface AuthState {
@@ -27,6 +31,8 @@ interface AuthState {
   error: string | null;
   isAuthenticated: boolean;
   isHydrated: boolean;
+  accountStatus: "active" | "pending_deletion" | "deleted" | null;
+  restorationDeadline: string | null;
 
   signup: (data: SignupPayload) => Promise<void>;
   signin: (data: SigninPayload) => Promise<void>;
@@ -34,11 +40,14 @@ interface AuthState {
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (data: ResetPasswordPayload) => Promise<void>;
   logout: () => Promise<void>;
-  verifyEmail: (data: VerifyEmailPayload) => Promise<void>;
+  verifyEmail: (data: VerifyEmailPayload) => Promise<ApiResponse<{ user: User; token: string }>>;
   googleSignin: (data: GoogleSigninPayload) => Promise<void>;
   changeEmail: (data: ChangeEmailPayload) => Promise<void>;
   changePassword: (data: ChangePasswordPayload) => Promise<void>;
   deleteAccount: () => Promise<void>;
+  requestDeleteAccountOtp: () => Promise<void>;
+  verifyDeleteAccountOtp: (otp: string) => Promise<{ deletionDate: string; restorationDeadline: string }>;
+  restoreAccount: () => Promise<void>;
   hydrateAuth: () => Promise<void>;
   clearError: () => void;
 }
@@ -50,6 +59,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   error: null,
   isAuthenticated: false,
   isHydrated: false,
+  accountStatus: null,
+  restorationDeadline: null,
 
   signup: async (data) => {
     try {
@@ -67,17 +78,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isAuthenticated: !!res.data?.token,
         loading: false,
       });
-
-      // Connect socket after successful signup (non-blocking)
-      if (res.data?.token) {
-        try {
-          socketService.connect(res.data.token);
-        } catch (socketErr) {
-          console.warn("Socket connection failed (non-critical):", socketErr);
-        }
-      }
     } catch (err: any) {
-      set({ loading: false, error: err.message || "Signup failed" });
+      console.error("Signup error details:", err);
+      let errorMessage = "Signup failed";
+      if (err?.response?.data?.message) {
+        errorMessage = String(err.response.data.message);
+      } else if (err?.response?.data?.error) {
+        errorMessage = String(err.response.data.error);
+      } else if (err?.message) {
+        errorMessage = String(err.message);
+      }
+      set({ loading: false, error: errorMessage });
       throw err;
     }
   },
@@ -99,14 +110,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         loading: false,
       });
 
-      // Connect socket after successful email verification (non-blocking)
-      if (res.data?.token) {
-        try {
-          socketService.connect(res.data.token);
-        } catch (socketErr) {
-          console.warn("Socket connection failed (non-critical):", socketErr);
-        }
-      }
+      return res;
     } catch (err: any) {
       set({ loading: false, error: err.message || "Verification failed" });
       throw err;
@@ -135,15 +139,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isAuthenticated: !!res.data?.token,
         loading: false,
       });
-
-      // Connect socket after successful signin (non-blocking)
-      if (res.data?.token) {
-        try {
-          socketService.connect(res.data.token);
-        } catch (socketErr) {
-          console.warn("Socket connection failed (non-critical):", socketErr);
-        }
-      }
     } catch (err: any) {
       set({ loading: false, error: err.message || "Login failed" });
       throw err;
@@ -192,13 +187,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    // Disconnect socket before logout (non-blocking)
-    try {
-      socketService.disconnect();
-    } catch (socketErr) {
-      console.warn("Socket disconnect failed (non-critical):", socketErr);
-    }
-
     await AsyncStorage.removeItem("token");
     await AsyncStorage.removeItem("userId");
 
@@ -227,15 +215,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isAuthenticated: !!res.data?.token,
         loading: false,
       });
-
-      // Connect socket after successful Google signin (non-blocking)
-      if (res.data?.token) {
-        try {
-          socketService.connect(res.data.token);
-        } catch (socketErr) {
-          console.warn("Socket connection failed (non-critical):", socketErr);
-        }
-      }
     } catch (err: any) {
       set({ loading: false, error: err.message || "Google sign-in failed" });
       throw err;
@@ -272,13 +251,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ loading: true, error: null });
       await deleteAccountApi();
 
-      // Disconnect socket before deleting account (non-blocking)
-      try {
-        socketService.disconnect();
-      } catch (socketErr) {
-        console.warn("Socket disconnect failed (non-critical):", socketErr);
-      }
-
       await AsyncStorage.removeItem("token");
       await AsyncStorage.removeItem("userId");
 
@@ -288,9 +260,72 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isAuthenticated: false,
         loading: false,
         error: null,
+        accountStatus: "deleted",
       });
     } catch (err: any) {
       set({ loading: false, error: err.message || "Failed to delete account" });
+      throw err;
+    }
+  },
+
+  requestDeleteAccountOtp: async () => {
+    try {
+      set({ loading: true, error: null });
+      await requestDeleteAccountOtpApi();
+      set({ loading: false });
+    } catch (err: any) {
+      set({ loading: false, error: err.message || "Failed to send verification code" });
+      throw err;
+    }
+  },
+
+  verifyDeleteAccountOtp: async (otp: string) => {
+    try {
+      set({ loading: true, error: null });
+      const res = await verifyDeleteAccountOtpApi({ otp });
+      
+      await AsyncStorage.removeItem("token");
+      await AsyncStorage.removeItem("userId");
+
+      set({
+        userId: null,
+        token: null,
+        isAuthenticated: false,
+        loading: false,
+        accountStatus: "pending_deletion",
+        restorationDeadline: res.data?.restorationDeadline || null,
+      });
+
+      return {
+        deletionDate: res.data?.deletionDate || new Date().toISOString(),
+        restorationDeadline: res.data?.restorationDeadline || new Date().toISOString(),
+      };
+    } catch (err: any) {
+      set({ loading: false, error: err.message || "Failed to verify code" });
+      throw err;
+    }
+  },
+
+  restoreAccount: async () => {
+    try {
+      set({ loading: true, error: null });
+      const res = await restoreAccountApi();
+
+      if (res.data?.token && res.data?.user?.id) {
+        await AsyncStorage.setItem("token", res.data.token);
+        await AsyncStorage.setItem("userId", res.data.user.id);
+      }
+
+      set({
+        userId: res.data?.user?.id ?? null,
+        token: res.data?.token ?? null,
+        isAuthenticated: !!res.data?.token,
+        loading: false,
+        accountStatus: "active",
+        restorationDeadline: null,
+      });
+    } catch (err: any) {
+      set({ loading: false, error: err.message || "Failed to restore account" });
       throw err;
     }
   },
@@ -309,26 +344,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isAuthenticated: true,
           isHydrated: true,
         });
-        
-        // Connect socket after hydration if user is authenticated (non-blocking)
-        try {
-          socketService.connect(token);
-        } catch (socketErr) {
-          console.warn("Socket connection failed during hydration (non-critical):", socketErr);
-        }
       } else if (token) {
         set({
           token,
           isAuthenticated: true,
           isHydrated: true,
         });
-        
-        // Connect socket after hydration if user is authenticated (non-blocking)
-        try {
-          socketService.connect(token);
-        } catch (socketErr) {
-          console.warn("Socket connection failed during hydration (non-critical):", socketErr);
-        }
       } else {
         set({ isHydrated: true });
       }

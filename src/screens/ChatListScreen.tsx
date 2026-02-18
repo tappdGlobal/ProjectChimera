@@ -13,7 +13,7 @@ import { Image } from "expo-image";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Search } from "lucide-react-native";
+import { Search, Users } from "lucide-react-native";
 import { Theme } from "../styles/Theme";
 import { useChatStore } from "../store/chatStore";
 import { Conversation } from "../types/chatTypes";
@@ -128,6 +128,12 @@ export default function ChatListScreen({ embedded = false }: { embedded?: boolea
       <Text style={styles.emptyStateSubtext}>
         Start chatting with people you've connected with
       </Text>
+      <TouchableOpacity
+        style={styles.startChatButton}
+        onPress={() => navigation.navigate(SCREEN_NAMES.FRIENDS_LIST)}
+      >
+        <Text style={styles.startChatButtonText}>View Friends</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -381,5 +387,18 @@ const styles = StyleSheet.create({
     color: Theme.colors.mutedForeground,
     textAlign: "center",
     lineHeight: 20,
+    marginBottom: 20,
+  },
+  startChatButton: {
+    backgroundColor: Theme.colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  startChatButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
