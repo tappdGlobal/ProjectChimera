@@ -1,25 +1,3 @@
-<<<<<<< fix/reconnect-ui
-import { create } from "zustand";
-import { apiClient } from "../services/api";
-import { ApiResponse, User } from "../types/authTypes";
-import { respondConnectionApi } from "../api/connectionApi";
-
-/* ================= TYPES ================= */
-
-export interface ConnectionRequest {
-  id: string;
-  fromUserId: string;
-  toUserId: string;
-  status: "PENDING" | "ACCEPTED" | "REJECTED";
-  fromUser: User;
-  toUser: User;
-  createdAt: string;
-  updatedAt: string;
-}
-=======
-// src/store/connectionStore.ts
->>>>>>> main
-
 import { create } from "zustand";
 import {
   getPendingRequestsApi,
@@ -46,54 +24,6 @@ interface ConnectionState {
   error: string | null;
 
   fetchPendingRequests: () => Promise<void>;
-<<<<<<< fix/reconnect-ui
-  respondToRequest: (
-    requestId: string,
-    action: "ACCEPT" | "REJECT",
-    _intent?: string[]
-  ) => Promise<{ success: boolean; message?: string }>;
-}
-
-export const useConnectionStore = create<ConnectionState>((set, get) => ({
-  pendingRequests: [],
-  loading: false,
-  error: null,
-
-  fetchPendingRequests: async () => {
-    try {
-      set({ loading: true, error: null });
-
-      const res = await getPendingRequestsApi();
-
-      set({
-        pendingRequests: res.data ?? [],
-        loading: false,
-      });
-    } catch (err: any) {
-      set({
-        loading: false,
-        error: err?.response?.data?.message || err.message,
-      });
-    }
-  },
-
-  respondToRequest: async (requestId, action, _intent) => {
-    try {
-      const res = await respondConnectionApi({ requestId, action });
-      if (res?.success) {
-        set((s) => ({
-          pendingRequests: s.pendingRequests.filter((r) => r.id !== requestId),
-        }));
-        return { success: true };
-      }
-      return { success: false, message: res?.message };
-    } catch (err: any) {
-      const message = err?.response?.data?.message || err.message;
-      return { success: false, message };
-    }
-  },
-}));
-=======
   fetchAcceptedConnections: () => Promise<void>;
 
   respondToRequest: (
@@ -205,7 +135,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => {
 
         set({ pendingRequests: updated });
 
-        // 🔥 If accepted, refresh accepted list automatically
+        // If accepted, refresh accepted list automatically
         if (action === "ACCEPT") {
           console.log("🔄 ACCEPT detected. Refreshing accepted connections...");
           await get().fetchAcceptedConnections();
@@ -246,4 +176,3 @@ export const useConnectionStore = create<ConnectionState>((set, get) => {
     },
   };
 });
->>>>>>> main
