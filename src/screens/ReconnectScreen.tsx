@@ -12,14 +12,17 @@ import {
   Animated,
   Dimensions,
   PanResponder,
+  ActivityIndicator,
 } from "react-native";
 import { Heart, MapPin, Layers, LayoutGrid, X, Eye, MessageCircle, Clock, UserPlus, ArrowLeft, Briefcase, GraduationCap } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Theme, GRADIENT_COLORS } from "../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
 import Modal from "react-native-modal";
+import Toast from "react-native-toast-message";
 import ComingSoon from "../components/common/ComingSoon";
 import { useAuthStore } from "../store/authStore";
+import { useConnectionStore, ConnectionRequest } from "../store/connectionStore";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = Math.min(SCREEN_WIDTH - 48, 400);
@@ -220,8 +223,35 @@ const crossedPathsData = [
 /** Shape expected for swipe/list cards. Map API responses to this for real-time data. */
 export type ListUser = (typeof listData)[0];
 
+/** Deck card may include requestId/intent for API when from pending requests. */
+type DeckCard = ListUser & { requestId?: string; intent?: string[] };
+
+const PLACEHOLDER_IMAGE = "https://via.placeholder.com/400x400";
+
+function mapPendingToDeckItem(r: ConnectionRequest): DeckCard {
+  const u = r.fromUser;
+  return {
+    id: r.id,
+    requestId: r.id,
+    name: u.name ?? "Unknown",
+    gender: u.gender ?? "N/A",
+    age: u.age ?? 0,
+    location: u.location ?? "Unknown",
+    image: u.profilePicUrl ?? PLACEHOLDER_IMAGE,
+    bio: u.bio ?? "",
+    interests: u.interests ?? [],
+    occupation: u.occupation ?? "",
+    education: u.education ?? "",
+    events: 0,
+    mutualFriends: 0,
+    photos: u.photos?.length ? u.photos : [u.profilePicUrl ?? PLACEHOLDER_IMAGE],
+    intent: [],
+  };
+}
+
 export function ReconnectScreen() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const { pendingRequests, fetchPendingRequests, loading, respondToRequest } = useConnectionStore();
   const [activeButton, setActiveButton] = useState<"friendRequests" | "crossedPaths" | "swipe" | "list">("swipe");
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [modalTab, setModalTab] = useState<"about" | "photos">("about");
@@ -229,26 +259,45 @@ export function ReconnectScreen() {
   const [hoveredConnectButton, setHoveredConnectButton] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<ListUser | null>(null);
   const [showComingSoon, setShowComingSoon] = useState(false);
-  const [swipeDeck, setSwipeDeck] = useState<ListUser[]>([]);
+  const [swipeDeck, setSwipeDeck] = useState<DeckCard[]>([]);
   const swipeOutAnim = useRef(new Animated.Value(0)).current;
   const cardPanX = useRef(new Animated.Value(0)).current;
   const goToNextCardRef = useRef<(dir: "left" | "right") => void>(() => {});
-  const topCardUserRef = useRef<ListUser | null>(null);
+  const topCardUserRef = useRef<DeckCard | null>(null);
   const openProfileModalRef = useRef<() => void>(() => {});
 
-  // Data source: replace with API when ready (e.g. profiles from GET /reconnect/profiles).
-  // Swipe logic only needs an array of ListUser; accept/reject can then call POST to persist.
-  const fullDeck: ListUser[] = isAuthenticated ? listData : (DUMMY_SWIPE_CARDS as ListUser[]);
+  const fullDeck: DeckCard[] = isAuthenticated
+    ? pendingRequests.map(mapPendingToDeckItem)
+    : (DUMMY_SWIPE_CARDS as DeckCard[]);
+
+  useEffect(() => {
+    fetchPendingRequests();
+  }, []);
 
   useEffect(() => {
     if (activeButton === "swipe") {
-      const source = isAuthenticated ? listData : (DUMMY_SWIPE_CARDS as ListUser[]);
+      const source = isAuthenticated ? fullDeck : (DUMMY_SWIPE_CARDS as DeckCard[]);
       setSwipeDeck((prev) => (prev.length === 0 ? [...source] : prev));
     }
-  }, [activeButton, isAuthenticated]);
+  }, [activeButton, isAuthenticated, pendingRequests.length]);
 
   const goToNextCard = (direction: "left" | "right") => {
     if (swipeDeck.length === 0) return;
+    const top = swipeDeck[0];
+    const action = direction === "right" ? "ACCEPT" : "REJECT";
+    if (top.requestId) {
+      respondToRequest(top.requestId, action, top.intent).then((result) => {
+        if (result?.success) {
+          if (action === "ACCEPT") {
+            Toast.show({ type: "success", text1: "Connection Accepted" });
+          } else {
+            Toast.show({ type: "info", text1: "Request Rejected" });
+          }
+        } else {
+          Toast.show({ type: "error", text1: action === "ACCEPT" ? "Accept Failed" : "Reject Failed", text2: result?.message });
+        }
+      });
+    }
     cardPanX.setValue(0);
     Animated.spring(swipeOutAnim, {
       toValue: direction === "left" ? -1 : 1,
@@ -468,13 +517,14 @@ export function ReconnectScreen() {
                     onPress={() => {
                       const fullUser = listData.find(u => u.name === user.name) || {
                         ...user,
+                        gender: "N/A",
                         bio: "",
                         occupation: "",
                         education: "",
                         events: 0,
                         mutualFriends: 0,
                         photos: [user.image],
-                      };
+                      } as ListUser;
                       setSelectedUser(fullUser);
                       setShowProfileModal(true);
                     }}
@@ -514,11 +564,69 @@ export function ReconnectScreen() {
           ))}
         </ScrollView>
       ) : activeButton === "list" ? (
-        // List View - Simple profile cards
+        // List View - Mock listData + pending requests (backend) when authenticated
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.listScrollContent}>
+          {loading && (
+            <View style={styles.loadingWrap}>
+              <ActivityIndicator size="large" color={Theme.colors.primary} />
+            </View>
+          )}
+          {!loading && isAuthenticated && pendingRequests.map((req) => {
+            const u = req.fromUser;
+            const profilePicUrl = u.profilePicUrl ?? PLACEHOLDER_IMAGE;
+            return (
+              <View key={req.id} style={styles.listCard}>
+                <TouchableOpacity
+                  style={styles.listCardTouchable}
+                  onPress={() => {
+                    setSelectedUser(mapPendingToDeckItem(req));
+                    setShowProfileModal(true);
+                  }}
+                  activeOpacity={0.9}
+                >
+                  <Image source={{ uri: profilePicUrl }} style={styles.listCardImage} />
+                  <View style={styles.listCardInfo}>
+                    <Text style={styles.listCardName}>{u.name}</Text>
+                    <Text style={styles.listCardDetails}>
+                      {u.gender ?? "N/A"} • {u.location ?? "Unknown"}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                <View style={styles.listCardButtons}>
+                  <TouchableOpacity
+                    style={styles.listDeclineButton}
+                    onPress={async () => {
+                      const result = await respondToRequest(req.id, "REJECT", []);
+                      if (result?.success) Toast.show({ type: "info", text1: "Request Rejected" });
+                      else Toast.show({ type: "error", text1: "Reject Failed", text2: result?.message });
+                    }}
+                  >
+                    <X size={20} color="#FFFFFF" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.listAcceptButton}
+                    onPress={async () => {
+                      const result = await respondToRequest(req.id, "ACCEPT", []);
+                      if (result?.success) Toast.show({ type: "success", text1: "Connection Accepted" });
+                      else Toast.show({ type: "error", text1: "Accept Failed", text2: result?.message });
+                    }}
+                  >
+                    <LinearGradient
+                      colors={GRADIENT_COLORS.primary as [string, string, ...string[]]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.listAcceptButtonGradient}
+                    >
+                      <Heart size={20} color="#FFFFFF" />
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })}
           {listData.map((user) => (
-            <TouchableOpacity 
-              key={user.id} 
+            <TouchableOpacity
+              key={user.id}
               style={styles.listCard}
               onPress={() => {
                 setSelectedUser(user);
@@ -559,10 +667,17 @@ export function ReconnectScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.profileCardContainer}>
+            {isAuthenticated && loading ? (
+              <View style={styles.loadingWrap}>
+                <ActivityIndicator size="large" color={Theme.colors.primary} />
+              </View>
+            ) : (
             <View style={[styles.swipeStack, { width: CARD_WIDTH }]}>
               {swipeDeck.length === 0 ? (
                 <View style={styles.emptyDeckPlaceholder}>
-                  <Text style={styles.emptyDeckText}>No profiles right now</Text>
+                  <Text style={styles.emptyDeckText}>
+                    {isAuthenticated ? "No pending requests" : "No profiles right now"}
+                  </Text>
                   <Text style={styles.emptyDeckSubtext}>Check back later</Text>
                 </View>
               ) : (
@@ -681,7 +796,8 @@ export function ReconnectScreen() {
               );
             })
               )}
-          </View>
+            </View>
+            )}
           <Text style={styles.buttonInstruction}>Use the buttons to accept or decline</Text>
         </View>
         </ScrollView>
@@ -1162,6 +1278,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  loadingWrap: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  emptyListText: {
+    color: "rgba(255,255,255,0.8)",
+    textAlign: "center",
+    fontSize: 16,
+    marginTop: 24,
+  },
   // List View Styles
   listScrollContent: {
     paddingHorizontal: 24,
@@ -1175,6 +1303,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
+  },
+  listCardTouchable: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
   },
   listCardImage: {
     width: 80,

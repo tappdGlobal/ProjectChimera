@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { apiClient } from "../services/api";
 import { ApiResponse, User } from "../types/authTypes";
+import { respondConnectionApi } from "../api/connectionApi";
 
 /* ================= TYPES ================= */
 
@@ -30,9 +31,14 @@ interface ConnectionState {
   loading: boolean;
   error: string | null;
   fetchPendingRequests: () => Promise<void>;
+  respondToRequest: (
+    requestId: string,
+    action: "ACCEPT" | "REJECT",
+    _intent?: string[]
+  ) => Promise<{ success: boolean; message?: string }>;
 }
 
-export const useConnectionStore = create<ConnectionState>((set) => ({
+export const useConnectionStore = create<ConnectionState>((set, get) => ({
   pendingRequests: [],
   loading: false,
   error: null,
@@ -52,6 +58,22 @@ export const useConnectionStore = create<ConnectionState>((set) => ({
         loading: false,
         error: err?.response?.data?.message || err.message,
       });
+    }
+  },
+
+  respondToRequest: async (requestId, action, _intent) => {
+    try {
+      const res = await respondConnectionApi({ requestId, action });
+      if (res?.success) {
+        set((s) => ({
+          pendingRequests: s.pendingRequests.filter((r) => r.id !== requestId),
+        }));
+        return { success: true };
+      }
+      return { success: false, message: res?.message };
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err.message;
+      return { success: false, message };
     }
   },
 }));
