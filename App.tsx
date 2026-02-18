@@ -8,8 +8,30 @@ import { databaseService } from "./src/services/databaseService";
 import { syncService } from "./src/services/syncService";
 import { ErrorBoundary } from "./src/components/common/ErrorBoundary";
 import { useAuthStore } from "./src/store/authStore";
-import Toast from "react-native-toast-message";
+import Toast, { ErrorToast } from "react-native-toast-message";
 import { PostHogProvider } from "posthog-react-native";
+
+const toastConfig = {
+  error: (props: any) => (
+    <ErrorToast
+      {...props}
+      style={[
+        props.style,
+        {
+          backgroundColor: "#1A1A3F",
+          borderLeftWidth: 4,
+          borderLeftColor: "#DB2777",
+        },
+      ]}
+      contentContainerStyle={[
+        { backgroundColor: "transparent" },
+        props.contentContainerStyle,
+      ]}
+      text1Style={[{ color: "#FFFFFF", fontSize: 14 }, props.text1Style]}
+      text2Style={[{ color: "rgba(255,255,255,0.9)" }, props.text2Style]}
+    />
+  ),
+};
 
 export default function App() {
   const [initError, setInitError] = useState<string | null>(null);
@@ -63,7 +85,7 @@ export default function App() {
         <ErrorBoundary>
           <RootNavigator />
           <StatusBar style="light" />
-          <Toast topOffset={60} />
+          <Toast topOffset={60} config={toastConfig} />
         </ErrorBoundary>
 
       </PostHogProvider>

@@ -198,6 +198,12 @@ export const ProfileCreationScreen = () => {
     if (!agreedToTerms) {
       setStep5AgreeError(true);
       scrollViewRef.current?.scrollToEnd({ animated: true });
+      Toast.show({
+        type: "error",
+        text1: "Please agree to the Privacy Policy",
+        style: { backgroundColor: "#1A1A3F", borderLeftWidth: 4, borderLeftColor: "#DB2777" },
+        text1Style: { color: "#FFFFFF", fontSize: 14 },
+      });
       return false;
     }
     setStep5AgreeError(false);
@@ -751,13 +757,6 @@ export const ProfileCreationScreen = () => {
           </Text>
 
         </View>
-        {step5AgreeError && (
-          <View style={styles.agreeErrorBanner}>
-            <Text style={styles.agreeErrorText}>
-              Please agree to the Terms of Service and Privacy Policy to continue
-            </Text>
-          </View>
-        )}
       </View>
     </View>
   );
@@ -1234,20 +1233,6 @@ const styles = StyleSheet.create({
   linkText: {
     color: "#DB2777",
     fontWeight: "600",
-  },
-  agreeErrorBanner: {
-    marginTop: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    backgroundColor: "rgba(219, 39, 119, 0.12)",
-    borderLeftWidth: 4,
-    borderLeftColor: "#DB2777",
-  },
-  agreeErrorText: {
-    color: "rgba(255,255,255,0.95)",
-    fontSize: 14,
-    lineHeight: 20,
   },
   resendText: {
     color: "rgba(255,255,255,0.6)",

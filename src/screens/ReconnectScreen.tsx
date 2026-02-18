@@ -1,6 +1,6 @@
 // src/screens/ReconnectScreen.tsx
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,9 @@ import {
   Pressable,
   Image,
   ScrollView,
+  Animated,
+  Dimensions,
+  PanResponder,
 } from "react-native";
 import { Heart, MapPin, Layers, LayoutGrid, X, Eye, MessageCircle, Clock, UserPlus, ArrowLeft, Briefcase, GraduationCap } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,6 +19,65 @@ import { Theme, GRADIENT_COLORS } from "../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
 import Modal from "react-native-modal";
 import ComingSoon from "../components/common/ComingSoon";
+import { useAuthStore } from "../store/authStore";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const CARD_WIDTH = Math.min(SCREEN_WIDTH - 48, 400);
+const STACK_SIZE = 3;
+const WHEEL_PEEK_Y = 18;
+const WHEEL_PEEK_X = 14;
+const WHEEL_SCALE_STEP = 0.06;
+const SWIPE_THRESHOLD = 80;
+const SWIPE_VELOCITY_THRESHOLD = 0.35;
+
+// Dummy cards for guest (nobody logged in) to test swipe
+const DUMMY_SWIPE_CARDS = [
+  {
+    id: "d1",
+    name: "Alex Morgan",
+    gender: "Female",
+    age: 26,
+    location: "SKY LOUNGE",
+    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=face&fit=crop&w=400&h=400",
+    bio: "Product designer and coffee lover. Always up for rooftop events.",
+    interests: ["Design", "Coffee", "Travel"],
+    occupation: "Product Designer",
+    education: "BDes",
+    events: 28,
+    mutualFriends: 2,
+    photos: ["https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=face&fit=crop&w=400&h=400"],
+  },
+  {
+    id: "d2",
+    name: "Jordan Lee",
+    gender: "Male",
+    age: 29,
+    location: "DOWNTOWN BAR",
+    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=face&fit=crop&w=400&h=400",
+    bio: "Music and tech. Love live gigs and meetups.",
+    interests: ["Music", "Tech", "Startups"],
+    occupation: "Software Engineer",
+    education: "BTech",
+    events: 35,
+    mutualFriends: 4,
+    photos: ["https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=face&fit=crop&w=400&h=400"],
+  },
+  {
+    id: "d3",
+    name: "Sam Taylor",
+    gender: "Non-binary",
+    age: 25,
+    location: "JAZZ CAFE",
+    image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?crop=face&fit=crop&w=400&h=400",
+    bio: "Jazz and poetry nights. Always exploring new spots.",
+    interests: ["Jazz", "Writing", "Art"],
+    occupation: "Writer",
+    education: "BA English",
+    events: 19,
+    mutualFriends: 3,
+    photos: ["https://images.unsplash.com/photo-1438761681033-6461ffad8d80?crop=face&fit=crop&w=400&h=400"],
+  },
+];
 
 // Mock data for List View
 const listData = [
@@ -155,14 +217,85 @@ const crossedPathsData = [
   },
 ];
 
+/** Shape expected for swipe/list cards. Map API responses to this for real-time data. */
+export type ListUser = (typeof listData)[0];
+
 export function ReconnectScreen() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [activeButton, setActiveButton] = useState<"friendRequests" | "crossedPaths" | "swipe" | "list">("swipe");
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [modalTab, setModalTab] = useState<"about" | "photos">("about");
   const [hoverButton, setHoverButton] = useState<null | "friendRequests" | "crossedPaths" | "swipe" | "list">(null);
   const [hoveredConnectButton, setHoveredConnectButton] = useState<string | null>(null);
-  const [selectedUser, setSelectedUser] = useState<typeof listData[0] | null>(null);
+  const [selectedUser, setSelectedUser] = useState<ListUser | null>(null);
   const [showComingSoon, setShowComingSoon] = useState(false);
+  const [swipeDeck, setSwipeDeck] = useState<ListUser[]>([]);
+  const swipeOutAnim = useRef(new Animated.Value(0)).current;
+  const cardPanX = useRef(new Animated.Value(0)).current;
+  const goToNextCardRef = useRef<(dir: "left" | "right") => void>(() => {});
+  const topCardUserRef = useRef<ListUser | null>(null);
+  const openProfileModalRef = useRef<() => void>(() => {});
+
+  // Data source: replace with API when ready (e.g. profiles from GET /reconnect/profiles).
+  // Swipe logic only needs an array of ListUser; accept/reject can then call POST to persist.
+  const fullDeck: ListUser[] = isAuthenticated ? listData : (DUMMY_SWIPE_CARDS as ListUser[]);
+
+  useEffect(() => {
+    if (activeButton === "swipe") {
+      const source = isAuthenticated ? listData : (DUMMY_SWIPE_CARDS as ListUser[]);
+      setSwipeDeck((prev) => (prev.length === 0 ? [...source] : prev));
+    }
+  }, [activeButton, isAuthenticated]);
+
+  const goToNextCard = (direction: "left" | "right") => {
+    if (swipeDeck.length === 0) return;
+    cardPanX.setValue(0);
+    Animated.spring(swipeOutAnim, {
+      toValue: direction === "left" ? -1 : 1,
+      useNativeDriver: true,
+      speed: 28,
+      bounciness: 0,
+    }).start(() => {
+      swipeOutAnim.setValue(0);
+      setSwipeDeck((prev) => {
+        const next = prev.slice(1);
+        if (next.length === 0) return [...fullDeck];
+        return next;
+      });
+    });
+  };
+  goToNextCardRef.current = goToNextCard;
+
+  const cardPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_, { dx }) => Math.abs(dx) > 8,
+        onPanResponderMove: (_, { dx }) => {
+          cardPanX.setValue(dx);
+        },
+        onPanResponderRelease: (_, { dx, vx, dy }) => {
+          const shouldSwipeLeft = dx < -SWIPE_THRESHOLD || vx < -SWIPE_VELOCITY_THRESHOLD;
+          const shouldSwipeRight = dx > SWIPE_THRESHOLD || vx > SWIPE_VELOCITY_THRESHOLD;
+          const isTap = Math.abs(dx) < 25 && Math.abs(dy) < 25;
+          if (shouldSwipeLeft) {
+            goToNextCardRef.current("left");
+          } else if (shouldSwipeRight) {
+            goToNextCardRef.current("right");
+          } else if (isTap) {
+            openProfileModalRef.current();
+          } else {
+            Animated.spring(cardPanX, {
+              toValue: 0,
+              useNativeDriver: true,
+              speed: 24,
+              bounciness: 8,
+            }).start();
+          }
+        },
+      }),
+    []
+  );
 
   const renderGradientToggle = (
     id: "friendRequests" | "crossedPaths" | "swipe" | "list",
@@ -419,190 +552,268 @@ export function ReconnectScreen() {
           ))}
         </ScrollView>
       ) : (
-        // Default Profile Card (for Swipe, Friend Requests, List)
-        <View style={styles.profileCardContainer}>
-          <TouchableOpacity 
-            style={styles.profileCard}
-            onPress={() => {
-              setSelectedUser(listData[0]);
-              setShowProfileModal(true);
-            }}
-            activeOpacity={0.9}
-          >
-            <Image
-              source={{
-                uri: "https://images.unsplash.com/photo-1615338437154-3b752f3e1a6f?crop=face&fit=crop&w=400&h=400",
-              }}
-              style={styles.profileImage}
-            />
-            <Text style={styles.profileName}>Claudia Alves</Text>
-            <View style={styles.infoRow}>
-              <View style={styles.infoDot} />
-              <Text style={styles.infoText}>Female</Text>
-              <View style={styles.infoDot} />
-              <Text style={styles.infoText}>MATCHA CLUB</Text>
-            </View>
-            <Text style={styles.tapInstruction}>Tap to view full profile</Text>
-            <View style={styles.actionButtons}>
-              <TouchableOpacity style={styles.declineButtonCircle}>
-                <X size={24} color="#FFFFFF" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.acceptButtonCircle}>
-                <LinearGradient
-                  colors={GRADIENT_COLORS.primary as [string, string, ...string[]]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.acceptButtonGradientCircle}
+        // Swipe / Friend Requests: stack of cards, remove on accept/reject, circular reset when empty
+        <ScrollView
+          style={styles.swipeScrollView}
+          contentContainerStyle={styles.swipeScrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.profileCardContainer}>
+            <View style={[styles.swipeStack, { width: CARD_WIDTH }]}>
+              {swipeDeck.length === 0 ? (
+                <View style={styles.emptyDeckPlaceholder}>
+                  <Text style={styles.emptyDeckText}>No profiles right now</Text>
+                  <Text style={styles.emptyDeckSubtext}>Check back later</Text>
+                </View>
+              ) : (
+              Array.from({ length: Math.min(STACK_SIZE, swipeDeck.length) }).map((_, stackPos) => {
+              const user = swipeDeck[stackPos];
+              const isTop = stackPos === 0;
+              const scale = 1 - stackPos * WHEEL_SCALE_STEP;
+              const translateY = stackPos * WHEEL_PEEK_Y;
+              const translateX = stackPos * WHEEL_PEEK_X;
+              const zIndex = STACK_SIZE - stackPos;
+
+              const cardBody = (
+                <>
+                  <Image source={{ uri: user.image }} style={styles.profileImage} />
+                  <Text style={styles.profileName}>{user.name}</Text>
+                  <View style={styles.infoRow}>
+                    <View style={styles.infoDot} />
+                    <Text style={styles.infoText}>{user.gender}</Text>
+                    <View style={styles.infoDot} />
+                    <Text style={styles.infoText}>{user.location}</Text>
+                  </View>
+                  <Text style={styles.tapInstruction}>Tap to view full profile</Text>
+                </>
+              );
+
+              const cardActions = isTop && (
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity
+                    style={styles.declineButtonCircle}
+                    onPress={() => goToNextCard("left")}
+                  >
+                    <X size={24} color="#1A1535" strokeWidth={2.5} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.acceptButtonCircle}
+                    onPress={() => goToNextCard("right")}
+                  >
+                    <LinearGradient
+                      colors={GRADIENT_COLORS.primary as [string, string, ...string[]]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.acceptButtonGradientCircle}
+                    >
+                      <Heart size={24} color="#FFFFFF" />
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              );
+
+              if (isTop) {
+                topCardUserRef.current = user;
+                openProfileModalRef.current = () => {
+                  setSelectedUser(user);
+                  setShowProfileModal(true);
+                };
+                const slideX = swipeOutAnim.interpolate({
+                  inputRange: [-1, 0, 1],
+                  outputRange: [-CARD_WIDTH, 0, CARD_WIDTH],
+                });
+                const opacity = swipeOutAnim.interpolate({
+                  inputRange: [-1, 0, 1],
+                  outputRange: [0, 1, 0],
+                });
+                const translateX = Animated.add(cardPanX, slideX);
+                const rotate = cardPanX.interpolate({
+                  inputRange: [-CARD_WIDTH / 2, 0, CARD_WIDTH / 2],
+                  outputRange: ["-8deg", "0deg", "8deg"],
+                });
+                return (
+                  <Animated.View
+                    key={`${user.id}-${stackPos}-top`}
+                    style={[
+                      styles.profileCard,
+                      styles.swipeCardLayer,
+                      styles.swipeCardShadow,
+                      {
+                        zIndex,
+                        transform: [
+                          { translateY: 0 },
+                          { translateX },
+                          { scale: 1 },
+                          { rotate },
+                        ],
+                        opacity,
+                      },
+                    ]}
+                  >
+                    <View style={styles.swipeCardTapArea} {...cardPanResponder.panHandlers}>
+                      {cardBody}
+                    </View>
+                    {cardActions}
+                  </Animated.View>
+                );
+              }
+
+              return (
+                <View
+                  key={`${user.id}-${stackPos}`}
+                  style={[
+                    styles.profileCard,
+                    styles.swipeCardLayer,
+                    styles.swipeCardShadow,
+                    {
+                      zIndex,
+                      transform: [
+                        { translateY },
+                        { translateX },
+                        { scale },
+                      ],
+                    },
+                  ]}
+                  pointerEvents="none"
                 >
-                  <Heart size={24} color="#FFFFFF" />
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
+                  {cardBody}
+                </View>
+              );
+            })
+              )}
+          </View>
           <Text style={styles.buttonInstruction}>Use the buttons to accept or decline</Text>
         </View>
+        </ScrollView>
       )}
 
       {/* Profile Modal Pop-up */}
       <Modal
         isVisible={showProfileModal}
         onBackdropPress={() => setShowProfileModal(false)}
-        backdropOpacity={0.8}
-        animationIn="fadeIn"
-        animationOut="fadeOut"
-        animationInTiming={200}
-        animationOutTiming={200}
+        backdropOpacity={0.75}
+        animationIn="slideInUp"
+        animationOut="slideOutDown"
+        animationInTiming={280}
+        animationOutTiming={220}
         hasBackdrop={true}
         coverScreen={true}
         useNativeDriver={true}
-        style={{ margin: 0, padding: 0 }}
+        style={styles.modal}
+        avoidKeyboard={true}
       >
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.8)" }}>
-          <View style={{ width: "90%", maxWidth: 380, maxHeight: "80%", backgroundColor: "#0D0D1A", borderRadius: 20, overflow: "hidden" }}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {/* Header with Gradient */}
+        <View style={styles.modalContainer} pointerEvents="box-none">
+          <View style={styles.modalCardNew} pointerEvents="auto">
+            <ScrollView style={styles.modalScrollViewNew} showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScrollContentNew}>
               <LinearGradient
                 colors={GRADIENT_COLORS.primary as [string, string, ...string[]]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={{ paddingTop: 16, paddingHorizontal: 16, paddingBottom: 50, alignItems: "center" }}
+                style={styles.modalHeaderNew}
               >
-                {/* Buttons Row */}
-                <View style={{ flexDirection: "row", justifyContent: "space-between", width: "100%", marginBottom: 10 }}>
-                  <TouchableOpacity onPress={() => setShowProfileModal(false)} style={{ padding: 8 }}>
+                <View style={styles.modalHeaderButtonsRow}>
+                  <TouchableOpacity onPress={() => setShowProfileModal(false)} style={styles.modalHeaderButtonNew}>
                     <ArrowLeft size={24} color="#FFFFFF" />
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setShowProfileModal(false)} style={{ padding: 8 }}>
+                  <TouchableOpacity onPress={() => setShowProfileModal(false)} style={styles.modalHeaderButtonNew}>
                     <X size={24} color="#FFFFFF" />
                   </TouchableOpacity>
                 </View>
               </LinearGradient>
-              
-              {/* Profile Photo - Overlapping */}
-              <View style={{ alignItems: "center", marginTop: -50, marginBottom: 16 }}>
+              <View style={styles.profileImageWrapper}>
                 <Image
                   source={{ uri: selectedUser?.image || "https://images.unsplash.com/photo-1615338437154-3b752f3e1a6f?crop=face&fit=crop&w=400&h=400" }}
-                  style={{ width: 100, height: 100, borderRadius: 50, borderWidth: 4, borderColor: "#0D0D1A" }}
+                  style={styles.modalProfileImageNew}
                   resizeMode="cover"
                 />
               </View>
-
-              {/* Content */}
-              <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 24, alignItems: "center" }}>
-                {/* Name & Details */}
-                <Text style={{ fontSize: 26, fontWeight: "bold", color: "#FFFFFF", marginBottom: 4 }}>{selectedUser?.name || "Claudia Alves"}</Text>
-                <Text style={{ fontSize: 15, color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>{selectedUser?.age || 24} years old • {selectedUser?.gender || "Female"}</Text>
-                
-                {/* Location */}
-                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
-                  <MapPin size={14} color="#E91E8C" />
-                  <Text style={{ fontSize: 13, color: "#E91E8C", marginLeft: 4, fontWeight: "600", textTransform: "uppercase" }}>{selectedUser?.location || "MATCHA CLUB"}</Text>
+              <View style={styles.modalUserInfoNew}>
+                <Text style={styles.modalUserNameNew}>{selectedUser?.name || "Claudia Alves"}</Text>
+                <Text style={styles.modalUserDetailsNew}>{selectedUser?.age || 24} years old • {selectedUser?.gender || "Female"}</Text>
+                <View style={styles.modalLocationRowNew}>
+                  <MapPin size={14} color={Theme.colors.primary} />
+                  <Text style={styles.modalLocationTextNew}>{selectedUser?.location || "MATCHA CLUB"}</Text>
                 </View>
-
-                {/* Stats */}
-                <View style={{ flexDirection: "row", gap: 40, marginBottom: 20 }}>
-                  <View style={{ alignItems: "center" }}>
-                    <Text style={{ fontSize: 28, fontWeight: "bold", color: "#FFFFFF" }}>{selectedUser?.events || 42}</Text>
-                    <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>Events</Text>
+                <View style={styles.modalStatsNew}>
+                  <View style={styles.statItemNew}>
+                    <Text style={styles.statNumberNew}>{selectedUser?.events ?? 42}</Text>
+                    <Text style={styles.statLabelNew}>Events</Text>
                   </View>
-                  <View style={{ alignItems: "center" }}>
-                    <Text style={{ fontSize: 28, fontWeight: "bold", color: "#FFFFFF" }}>{selectedUser?.mutualFriends || 5}</Text>
-                    <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>Mutual Friends</Text>
+                  <View style={styles.statItemNew}>
+                    <Text style={styles.statNumberNew}>{selectedUser?.mutualFriends ?? 5}</Text>
+                    <Text style={styles.statLabelNew}>Mutual Friends</Text>
                   </View>
                 </View>
-
-                {/* Action Buttons */}
-                <View style={{ flexDirection: "row", gap: 12, width: "100%", marginBottom: 20 }}>
-                  <TouchableOpacity style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.3)", gap: 6 }}>
+                <View style={styles.modalActionButtonsNew}>
+                  <TouchableOpacity style={styles.modalDeclineButtonNew}>
                     <X size={18} color="#FFFFFF" />
-                    <Text style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "600" }}>Decline</Text>
+                    <Text style={styles.modalDeclineButtonTextNew}>Decline</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={{ flex: 1, borderRadius: 10, overflow: "hidden" }}>
+                  <TouchableOpacity style={styles.modalAcceptButtonNew}>
                     <LinearGradient
                       colors={GRADIENT_COLORS.primary as [string, string, ...string[]]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
-                      style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 13, gap: 6 }}
+                      style={styles.modalAcceptButtonGradientNew}
                     >
                       <Heart size={18} color="#FFFFFF" fill="#FFFFFF" />
-                      <Text style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "600" }}>Accept</Text>
+                      <Text style={styles.modalAcceptButtonTextNew}>Accept</Text>
                     </LinearGradient>
                   </TouchableOpacity>
                 </View>
-
-                {/* Tabs */}
-                <View style={{ flexDirection: "row", width: "100%", borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.1)" }}>
-                  <TouchableOpacity style={{ flex: 1, alignItems: "center", paddingVertical: 12 }} onPress={() => setModalTab("about")}>
-                    <Text style={{ fontSize: 15, fontWeight: modalTab === "about" ? "600" : "500", color: modalTab === "about" ? "#FFFFFF" : "rgba(255,255,255,0.6)" }}>About</Text>
-                    {modalTab === "about" && <View style={{ position: "absolute", bottom: 0, left: "25%", right: "25%", height: 3, backgroundColor: "#E91E8C", borderRadius: 2 }} />}
+                <View style={styles.modalTabsNew}>
+                  <TouchableOpacity style={styles.modalTabNew} onPress={() => setModalTab("about")}>
+                    <Text style={[styles.modalTabTextNew, modalTab === "about" && styles.modalTabTextActiveNew]}>About</Text>
+                    {modalTab === "about" && <View style={styles.modalTabUnderlineNew} />}
                   </TouchableOpacity>
-                  <TouchableOpacity style={{ flex: 1, alignItems: "center", paddingVertical: 12 }} onPress={() => setModalTab("photos")}>
-                    <Text style={{ fontSize: 15, fontWeight: modalTab === "photos" ? "600" : "500", color: modalTab === "photos" ? "#FFFFFF" : "rgba(255,255,255,0.6)" }}>Photos</Text>
-                    {modalTab === "photos" && <View style={{ position: "absolute", bottom: 0, left: "25%", right: "25%", height: 3, backgroundColor: "#E91E8C", borderRadius: 2 }} />}
+                  <TouchableOpacity style={styles.modalTabNew} onPress={() => setModalTab("photos")}>
+                    <Text style={[styles.modalTabTextNew, modalTab === "photos" && styles.modalTabTextActiveNew]}>Photos</Text>
+                    {modalTab === "photos" && <View style={styles.modalTabUnderlineNew} />}
                   </TouchableOpacity>
                 </View>
-
-                {/* Tab Content */}
-                <View style={{ width: "100%", marginTop: 16 }}>
+                <View style={styles.tabContentNew}>
                   {modalTab === "about" ? (
-                    <View>
-                      <Text style={{ fontSize: 16, fontWeight: "600", color: "#FFFFFF", marginBottom: 8 }}>About</Text>
-                      <Text style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", lineHeight: 22, marginBottom: 16 }}>{selectedUser?.bio || "Coffee enthusiast and digital nomad. Love exploring new cafes and meeting interesting people."}</Text>
-                      
-                      <Text style={{ fontSize: 16, fontWeight: "600", color: "#FFFFFF", marginBottom: 10 }}>Interests</Text>
-                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-                        {(selectedUser?.interests || ["Coffee", "Travel", "Photography", "Yoga"]).map((interest, index) => (
-                          <View key={index} style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" }}>
-                            <Text style={{ color: "#FFFFFF", fontSize: 13 }}>{interest}</Text>
-                          </View>
-                        ))}
+                    <View style={styles.aboutContentNew}>
+                      <View style={styles.aboutSectionNew}>
+                        <Text style={styles.aboutTitleNew}>About</Text>
+                        <Text style={styles.aboutTextNew}>{selectedUser?.bio || "Coffee enthusiast and digital nomad. Love exploring new cafes and meeting interesting people."}</Text>
                       </View>
-
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(233,30,140,0.15)", alignItems: "center", justifyContent: "center" }}>
+                      <View style={styles.aboutSectionNew}>
+                        <Text style={styles.aboutTitleNew}>Interests</Text>
+                        <View style={styles.interestsGridNew}>
+                          {(selectedUser?.interests || ["Coffee", "Travel", "Photography", "Yoga"]).map((interest, index) => (
+                            <View key={index} style={styles.interestChipNew}>
+                              <Text style={styles.interestChipTextNew}>{interest}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                      <View style={styles.detailRowNew}>
+                        <View style={styles.detailIconContainerNew}>
                           <Briefcase size={18} color="#FFFFFF" />
                         </View>
-                        <View>
-                          <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Occupation</Text>
-                          <Text style={{ fontSize: 15, color: "#FFFFFF", fontWeight: "500" }}>{selectedUser?.occupation || "UX Designer"}</Text>
+                        <View style={styles.detailTextContainerNew}>
+                          <Text style={styles.detailLabelNew}>Occupation</Text>
+                          <Text style={styles.detailValueNew}>{selectedUser?.occupation || "UX Designer"}</Text>
                         </View>
                       </View>
-
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(233,30,140,0.15)", alignItems: "center", justifyContent: "center" }}>
+                      <View style={styles.detailRowNew}>
+                        <View style={styles.detailIconContainerNew}>
                           <GraduationCap size={18} color="#FFFFFF" />
                         </View>
-                        <View>
-                          <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Education</Text>
-                          <Text style={{ fontSize: 15, color: "#FFFFFF", fontWeight: "500" }}>{selectedUser?.education || "BFA Graphic Design"}</Text>
+                        <View style={styles.detailTextContainerNew}>
+                          <Text style={styles.detailLabelNew}>Education</Text>
+                          <Text style={styles.detailValueNew}>{selectedUser?.education || "BFA Graphic Design"}</Text>
                         </View>
                       </View>
                     </View>
                   ) : (
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                      {(selectedUser?.photos || [selectedUser?.image]).map((photo, index) => (
-                        <Image key={index} source={{ uri: photo }} style={{ width: "48%", aspectRatio: 1, borderRadius: 8 }} resizeMode="cover" />
-                      ))}
+                    <View style={styles.photosContentNew}>
+                      <View style={styles.photosGridNew}>
+                        {(selectedUser?.photos?.length ? selectedUser.photos : selectedUser?.image ? [selectedUser.image] : []).map((photo, index) => (
+                          <Image key={index} source={{ uri: photo }} style={styles.photoItemNew} resizeMode="cover" />
+                        ))}
+                      </View>
                     </View>
                   )}
                 </View>
@@ -688,17 +899,61 @@ const styles = StyleSheet.create({
   viewModeButtonActive: {
     // kept for compatibility; active uses gradient now
   },
+  swipeScrollView: {
+    flex: 1,
+  },
+  swipeScrollContent: {
+    flexGrow: 1,
+    paddingBottom: 24,
+  },
   profileCardContainer: {
     flex: 1,
+    minHeight: 440,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
     paddingTop: 40,
   },
+  emptyDeckPlaceholder: {
+    padding: 40,
+    alignItems: "center",
+  },
+  emptyDeckText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    marginBottom: 8,
+  },
+  emptyDeckSubtext: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.6)",
+  },
+  swipeStack: {
+    height: 460,
+    alignItems: "center",
+    justifyContent: "flex-start",
+  },
+  swipeCardLayer: {
+    position: "absolute",
+    top: 0,
+  },
+  swipeCardShadow: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  swipeCardTapArea: {
+    alignItems: "center",
+    alignSelf: "stretch",
+    flex: 1,
+    minHeight: 280,
+  },
   profileCard: {
     width: "100%",
     maxWidth: 400,
-    backgroundColor: "rgba(169, 1, 109, 0.15)",
+    backgroundColor: "rgba(30, 25, 55, 0.98)",
     borderRadius: 24,
     padding: 32,
     alignItems: "center",
@@ -731,7 +986,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 16,
-    color: "rgba(255, 255, 255, 0.8)",
+    color: "rgba(255, 255, 255, 0.85)",
   },
   tapInstruction: {
     fontSize: 14,
@@ -748,7 +1003,9 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderWidth: 1,
+    borderColor: "rgba(20, 18, 40, 0.9)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -973,6 +1230,7 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
+    width: "100%",
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 16,
@@ -980,15 +1238,24 @@ const styles = StyleSheet.create({
   modalCardNew: {
     width: "100%",
     maxWidth: 380,
+    minHeight: 420,
     maxHeight: "85%",
     backgroundColor: "#0D0D1A",
-    borderRadius: 24,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
     overflow: "hidden",
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   modalHeaderNew: {
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 60,
+    paddingBottom: 56,
     alignItems: "center",
   },
   modalHeaderButtonsRow: {
@@ -1012,7 +1279,7 @@ const styles = StyleSheet.create({
   },
   profileImageWrapper: {
     alignItems: "center",
-    marginTop: -60,
+    marginTop: -52,
     marginBottom: 16,
     zIndex: 10,
   },
@@ -1020,8 +1287,8 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    borderWidth: 4,
-    borderColor: "#0D0D1A",
+    borderWidth: 3,
+    borderColor: "rgba(255, 255, 255, 0.5)",
     backgroundColor: "#0D0D1A",
   },
   modalUserInfoNew: {
@@ -1047,8 +1314,8 @@ const styles = StyleSheet.create({
   },
   modalLocationTextNew: {
     fontSize: 14,
-    color: "#E91E8C",
-    fontWeight: "500",
+    color: "#FFFFFF",
+    fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 1,
   },
@@ -1087,7 +1354,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.3)",
+    borderColor: "rgba(160, 32, 160, 0.5)",
     gap: 8,
   },
   modalDeclineButtonTextNew: {
@@ -1140,10 +1407,10 @@ const styles = StyleSheet.create({
   modalTabUnderlineNew: {
     position: "absolute",
     bottom: 0,
-    left: "25%",
-    right: "25%",
+    left: "20%",
+    right: "20%",
     height: 3,
-    backgroundColor: "#E91E8C",
+    backgroundColor: Theme.colors.primary,
     borderRadius: 2,
   },
   tabContentNew: {
@@ -1175,9 +1442,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 24,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "rgba(26, 21, 53, 0.9)",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.15)",
+    borderColor: "rgba(160, 32, 160, 0.4)",
   },
   interestChipTextNew: {
     fontSize: 14,
@@ -1188,12 +1455,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
+    marginBottom: 16,
   },
   detailIconContainerNew: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "rgba(233, 30, 140, 0.15)",
+    backgroundColor: "rgba(160, 32, 160, 0.2)",
     alignItems: "center",
     justifyContent: "center",
   },
