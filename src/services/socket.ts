@@ -1,5 +1,5 @@
 import { io, Socket } from "socket.io-client";
-import { Message } from "../types/chatTypes";
+import { LegacyMessage } from "../types/chatTypes";
 
 // Socket URL configuration - remove /api/v1 from base URL
 const USE_PRODUCTION = true;
@@ -10,7 +10,7 @@ const SOCKET_URL = USE_PRODUCTION ? PRODUCTION_SOCKET_URL : LOCAL_SOCKET_URL;
 
 class SocketService {
   private socket: Socket | null = null;
-  private messageCallbacks: ((message: Message) => void)[] = [];
+  private messageCallbacks: ((message: LegacyMessage) => void)[] = [];
   private isConnecting: boolean = false;
 
   connect(token: string) {
@@ -61,9 +61,23 @@ class SocketService {
       });
 
       // Listen for incoming messages
-      this.socket.on("receiveMessage", (message: Message) => {
-        console.log("📩 Received message via socket:", message);
-        this.messageCallbacks.forEach((callback) => callback(message));
+      this.socket.on("receiveMessage", (message: any) => {
+        console.log("📩 Received message via socket:", JSON.stringify(message, null, 2));
+        
+        // Ensure message has senderId - backend might send it in different format
+        const legacyMessage: LegacyMessage = {
+          id: message.id || `msg-${Date.now()}`,
+          senderId: message.senderId || message.sender?.id || "",
+          receiverId: message.receiverId || "",
+          content: message.content || "",
+          messageType: message.messageType || "text",
+          delivered: message.delivered || false,
+          seen: message.seen || message.isRead || false,
+          createdAt: message.createdAt || new Date().toISOString(),
+        };
+        
+        console.log("📩 Converted to LegacyMessage:", legacyMessage);
+        this.messageCallbacks.forEach((callback) => callback(legacyMessage));
       });
     } catch (error) {
       console.error("Failed to initialize socket:", error);
@@ -104,11 +118,11 @@ class SocketService {
     }
   }
 
-  onReceiveMessage(callback: (message: Message) => void) {
+  onReceiveMessage(callback: (message: LegacyMessage) => void) {
     this.messageCallbacks.push(callback);
   }
 
-  removeMessageCallback(callback: (message: Message) => void) {
+  removeMessageCallback(callback: (message: LegacyMessage) => void) {
     this.messageCallbacks = this.messageCallbacks.filter((cb) => cb !== callback);
   }
 

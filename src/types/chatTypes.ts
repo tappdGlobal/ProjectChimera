@@ -1,4 +1,23 @@
+/* ================= USER TYPES (for API responses) ================= */
+
+export interface ChatUser {
+  id: string;
+  name: string;
+  username: string;
+  profilePicUrl?: string;
+}
+
+/* ================= MESSAGE TYPES ================= */
+
 export interface Message {
+  id: string;
+  content: string;
+  sender: ChatUser;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface LegacyMessage {
   id: string;
   senderId: string;
   receiverId: string;
@@ -9,7 +28,15 @@ export interface Message {
   createdAt: string;
 }
 
+/* ================= CONVERSATION TYPES ================= */
+
 export interface Conversation {
+  id: string;
+  user1: ChatUser;
+  user2: ChatUser;
+}
+
+export interface ConversationListItem {
   id: string;
   otherUser: {
     id: string;
@@ -26,14 +53,37 @@ export interface Conversation {
   unreadCount: number;
 }
 
+/* ================= API REQUEST PAYLOADS ================= */
+
+export interface CreateConversationPayload {
+  otherUserId: string;
+}
+
 export interface SendMessagePayload {
+  conversationId: string;
+  content: string;
+}
+
+export interface LegacySendMessagePayload {
   receiverId: string;
   content: string;
   messageType: 'text' | 'image' | 'video';
 }
 
-export interface MessagesResponse {
+/* ================= API RESPONSE TYPES ================= */
+
+export interface CreateConversationResponse {
+  id: string;
+  user1: ChatUser;
+  user2: ChatUser;
+}
+
+export interface GetMessagesResponse {
   messages: Message[];
+}
+
+export interface LegacyMessagesResponse {
+  messages: LegacyMessage[];
   pagination: {
     currentPage: number;
     totalPages: number;

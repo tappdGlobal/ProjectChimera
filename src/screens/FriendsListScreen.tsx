@@ -89,7 +89,7 @@ export default function FriendsListScreen() {
     
     try {
       console.log("Creating conversation with:", friend.id);
-      const conversationId = await createOrGetConversation(friend.id);
+      const conversationId = await createOrGetConversation({ otherUserId: friend.id });
       
       if (!conversationId) {
         Alert.alert("Error", "Failed to start conversation. You may not be friends with this user.");

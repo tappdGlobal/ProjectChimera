@@ -16,7 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Search, Users } from "lucide-react-native";
 import { Theme } from "../styles/Theme";
 import { useChatStore } from "../store/chatStore";
-import { Conversation } from "../types/chatTypes";
+import { ConversationListItem } from "../types/chatTypes";
 import { EngageStackParamList } from "../navigation/Routes";
 import { SCREEN_NAMES } from "../navigation/Routes";
 
@@ -32,11 +32,13 @@ export default function ChatListScreen({ embedded = false }: { embedded?: boolea
   const [showSearch, setShowSearch] = useState(false);
 
   useEffect(() => {
-    getConversations();
+    // Disabled: Backend endpoint /chat/conversations does not exist
+    // getConversations();
   }, []);
 
   const handleRefresh = () => {
-    getConversations();
+    // Disabled: Backend endpoint /chat/conversations does not exist
+    // getConversations();
   };
 
   // Filter conversations based on search query
@@ -50,7 +52,7 @@ export default function ChatListScreen({ embedded = false }: { embedded?: boolea
   // Count unread conversations
   const unreadCount = conversations.filter((conv) => conv.unreadCount > 0).length;
 
-  const handleConversationPress = (conversation: Conversation) => {
+  const handleConversationPress = (conversation: ConversationListItem) => {
     navigation.navigate(SCREEN_NAMES.CHAT_DETAIL, {
       chatId: conversation.otherUser.id,
       name: conversation.otherUser.name || conversation.otherUser.username,
@@ -73,7 +75,7 @@ export default function ChatListScreen({ embedded = false }: { embedded?: boolea
     return date.toLocaleDateString();
   };
 
-  const renderConversation = ({ item }: { item: Conversation }) => {
+  const renderConversation = ({ item }: { item: ConversationListItem }) => {
     const isUnread = item.unreadCount > 0;
 
     return (
