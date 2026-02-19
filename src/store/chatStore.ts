@@ -376,15 +376,50 @@ export const useChatStore = create<ChatState>((set, get) => ({
       messageKey,
     });
 
-    set((state) => ({
-      messages: {
-        ...state.messages,
-        [messageKey]: [
-          ...(state.messages[messageKey] || []),
-          message as any,
-        ],
-      },
-    }));
+    set((state) => {
+      const existingMessages = state.messages[messageKey] || [];
+      
+      // Check if this is a confirmation of an optimistic message
+      // Replace optimistic message if content and sender match within 10 seconds
+      const isOptimisticMatch = existingMessages.some(
+        (m) => m.id?.startsWith('temp-') && 
+               m.senderId === message.senderId && 
+               m.content === message.content &&
+               Math.abs(new Date(m.createdAt).getTime() - new Date(message.createdAt).getTime()) < 10000
+      );
+      
+      if (isOptimisticMatch) {
+        // Replace the optimistic message with the real one
+        console.log("[ChatStore] Replacing optimistic message with:", message.id);
+        return {
+          messages: {
+            ...state.messages,
+            [messageKey]: existingMessages.map((m) =>
+              m.id?.startsWith('temp-') && 
+              m.senderId === message.senderId && 
+              m.content === message.content
+                ? { ...message, conversationId: message.conversationId || messageKey }
+                : m
+            ),
+          },
+        };
+      }
+      
+      // Check for exact duplicate by ID
+      const isDuplicate = existingMessages.some((m) => m.id === message.id);
+      if (isDuplicate) {
+        console.log("[ChatStore] Duplicate message ignored:", message.id);
+        return state;
+      }
+      
+      // Add new message
+      return {
+        messages: {
+          ...state.messages,
+          [messageKey]: [...existingMessages, { ...message, conversationId: message.conversationId || messageKey }],
+        },
+      };
+    });
 
     // Refresh conversations disabled - backend endpoint not available
     // get().getConversations();
