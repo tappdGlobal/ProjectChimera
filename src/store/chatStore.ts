@@ -110,7 +110,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       set({ loading: true, error: null });
       const res = await getMessagesApi(conversationId);
-      const messagesData = (res as any).data || res;
+      
+      // Handle different response structures
+      const responseData = (res as any).data || res;
+      
+      // The API might return { messages: [...] } or directly [...]
+      const messagesData = Array.isArray(responseData) 
+        ? responseData 
+        : responseData?.messages || [];
+
+      console.log("[ChatStore] Fetched messages:", messagesData.length);
 
       // Convert new API format to legacy format
       const legacyMessages: LegacyMessage[] = Array.isArray(messagesData)
@@ -231,12 +240,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
           createdAt: new Date().toISOString(),
         };
 
-        // Add optimistic message to local state
+        // Add optimistic message to local state using conversationId as key
         set((state) => ({
           messages: {
             ...state.messages,
-            [payload.receiverId]: [
-              ...(state.messages[payload.receiverId] || []),
+            [currentConversationId]: [
+              ...(state.messages[currentConversationId] || []),
               optimisticMessage,
             ],
           },
@@ -274,8 +283,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
           set((state) => ({
             messages: {
               ...state.messages,
-              [payload.receiverId]: [
-                ...(state.messages[payload.receiverId] || []),
+              [currentConversationId]: [
+                ...(state.messages[currentConversationId] || []),
                 legacyMessage,
               ],
             },
@@ -322,13 +331,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   receiveMessage: (message: LegacyMessage) => {
     // Add message to local state when received via socket
-    const userId = message.senderId;
+    // Use currentConversationId if available, otherwise fall back to senderId
+    const state = get();
+    const messageKey = state.currentConversationId || message.senderId;
 
     set((state) => ({
       messages: {
         ...state.messages,
-        [userId]: [
-          ...(state.messages[userId] || []),
+        [messageKey]: [
+          ...(state.messages[messageKey] || []),
           message as any,
         ],
       },

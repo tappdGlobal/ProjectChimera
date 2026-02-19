@@ -10,6 +10,18 @@ import {
 } from "../api/storyApi";
 import { Story, StoryView } from "../types/storyTypes";
 
+// Helper function to check if a story is expired (older than 24 hours)
+const isStoryExpired = (story: Story): boolean => {
+  const now = new Date().getTime();
+  const expiresAt = new Date(story.expiresAt).getTime();
+  return now > expiresAt;
+};
+
+// Helper function to filter out expired stories
+const filterExpiredStories = (stories: Story[]): Story[] => {
+  return stories.filter((story) => !isStoryExpired(story));
+};
+
 interface StoryState {
   stories: Story[];
   userStories: Story[];
@@ -24,6 +36,7 @@ interface StoryState {
   viewStory: (storyId: string) => Promise<void>;
   deleteStory: (storyId: string) => Promise<void>;
   clearStoryData: () => void;
+  cleanupExpiredStories: () => void;
 }
 
 export const useStoryStore = create<StoryState>((set, get) => ({
@@ -64,7 +77,9 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     try {
       set({ loading: true, error: null });
       const res = await getUserStoriesApi(userId);
-      set({ userStories: res.data ?? [], loading: false });
+      // Filter out expired stories (older than 24 hours)
+      const validStories = filterExpiredStories(res.data ?? []);
+      set({ userStories: validStories, loading: false });
     } catch (err: any) {
       set({ loading: false, error: err.message || "Failed to fetch user stories" });
     }
@@ -76,7 +91,9 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       const res = await getAllStoriesApi();
       // Handle different response structures
       const storiesData = (res as any).data || res;
-      set({ stories: Array.isArray(storiesData) ? storiesData : [], loading: false });
+      // Filter out expired stories (older than 24 hours)
+      const validStories = filterExpiredStories(Array.isArray(storiesData) ? storiesData : []);
+      set({ stories: validStories, loading: false });
     } catch (err: any) {
       console.error("getAllStories error:", err);
       set({ loading: false, error: err.message || "Failed to fetch stories" });
@@ -147,5 +164,12 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       storyViews: [],
       error: null,
     });
+  },
+
+  cleanupExpiredStories: () => {
+    set((state) => ({
+      stories: filterExpiredStories(state.stories),
+      userStories: filterExpiredStories(state.userStories),
+    }));
   },
 }));
