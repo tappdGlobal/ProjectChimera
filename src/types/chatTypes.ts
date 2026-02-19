@@ -54,6 +54,22 @@ export interface ConversationListItem {
   unreadCount: number;
 }
 
+/* ================= CHAT LIST API TYPES ================= */
+
+export interface ChatListMessage {
+  id: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface ChatListItem {
+  id: string;
+  user1Id: string;
+  user2Id: string;
+  createdAt: string;
+  messages: ChatListMessage[];
+}
+
 /* ================= API REQUEST PAYLOADS ================= */
 
 export interface CreateConversationPayload {

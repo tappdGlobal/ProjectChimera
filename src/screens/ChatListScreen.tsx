@@ -205,7 +205,7 @@ export default function ChatListScreen({ embedded = false }: { embedded?: boolea
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       {mainContent}
     </SafeAreaView>
   );

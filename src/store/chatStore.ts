@@ -4,6 +4,7 @@ import {
   createConversationApi,
   getMessagesApi,
   sendMessageApi,
+  getChatListApi,
   // Legacy APIs
   getConversationsApi,
   getMessagesWithUserApi,
@@ -15,6 +16,7 @@ import {
   Message,
   SendMessagePayload,
   CreateConversationPayload,
+  ChatListItem,
   // Legacy types
   ConversationListItem,
   LegacyMessage,
@@ -24,6 +26,7 @@ import { socketService } from "../services/socket";
 
 interface ChatState {
   conversations: ConversationListItem[];
+  chatList: ChatListItem[]; // New: chat list from /api/v1/chat/list
   messages: Record<string, LegacyMessage[]>; // userId -> messages (legacy format)
   currentChatUserId: string | null;
   currentConversationId: string | null;
@@ -35,6 +38,7 @@ interface ChatState {
   createOrGetConversation: (payload: CreateConversationPayload) => Promise<string | null>;
   getMessages: (conversationId: string) => Promise<void>;
   sendMessageNew: (payload: SendMessagePayload) => Promise<Message | null>;
+  getChatList: () => Promise<void>; // New: fetch chat list
 
   // Legacy methods
   getConversations: () => Promise<void>;
@@ -48,12 +52,30 @@ interface ChatState {
 
 export const useChatStore = create<ChatState>((set, get) => ({
   conversations: [],
+  chatList: [],
   messages: {},
   currentChatUserId: null,
   currentConversationId: null,
   loading: false,
   sendingMessage: false,
   error: null,
+
+  getChatList: async () => {
+    try {
+      set({ loading: true, error: null });
+      const res = await getChatListApi();
+      
+      // Handle different response structures
+      const chatListData = (res as any).data || res;
+      
+      console.log("[ChatStore] Fetched chat list:", chatListData?.length || 0);
+      
+      set({ chatList: chatListData || [], loading: false });
+    } catch (err: any) {
+      console.error("[ChatStore] Get chat list error:", err);
+      set({ loading: false, error: err.message || "Failed to fetch chat list" });
+    }
+  },
 
   createOrGetConversation: async (payload: CreateConversationPayload) => {
     try {
@@ -437,6 +459,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   clearChatData: () => {
     set({
       conversations: [],
+      chatList: [],
       messages: {},
       currentChatUserId: null,
       currentConversationId: null,
