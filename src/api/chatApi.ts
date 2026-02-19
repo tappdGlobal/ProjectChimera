@@ -6,6 +6,7 @@ import {
   SendMessagePayload,
   CreateConversationPayload,
   CreateConversationResponse,
+  ChatListItem,
 } from "../types/chatTypes";
 
 /* ============================================================
@@ -46,6 +47,15 @@ export const sendMessageApi = (
   payload: SendMessagePayload
 ): Promise<ApiResponse<Message>> => {
   return apiClient.post("/chat/messages", payload);
+};
+
+/**
+ * GET /api/v1/chat/list
+ * Get chat list with conversations and last message preview
+ * Response: 200 - Chat list fetched with conversations sorted by most recent
+ */
+export const getChatListApi = (): Promise<ApiResponse<ChatListItem[]>> => {
+  return apiClient.get("/api/v1/chat/list");
 };
 
 /* ============================================================

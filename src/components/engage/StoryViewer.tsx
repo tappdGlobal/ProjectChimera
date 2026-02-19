@@ -17,6 +17,7 @@ import {
 import { Image } from "expo-image";
 import { Video, ResizeMode } from "expo-av";
 import { LinearGradient } from "expo-linear-gradient";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { X, MoreHorizontal, Pause, Play, Heart, Send, Smile, Trash2 } from "lucide-react-native";
 import { Theme } from "../../styles/Theme";
 
@@ -243,7 +244,7 @@ export default function StoryViewer({
 
   return (
     <Modal visible={visible} animationType="fade" transparent>
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
         {/* Progress */}
         <View style={styles.progress}>
           {stories.map((_, i) => (
@@ -413,7 +414,7 @@ export default function StoryViewer({
             />
           </TouchableOpacity>
         </KeyboardAvoidingView>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }
