@@ -42,9 +42,9 @@ export function UploadContentSheet({
   }, [visible]);
 
   // ---------- GALLERY ----------
-  const openGallery = async (type: 'image' | 'video' = 'image') => {
+  const openGallery = async () => {
     try {
-      console.log("Opening gallery for:", type);
+      console.log("Opening gallery for photos and videos");
       
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       console.log("Media library permission:", permission);
@@ -63,7 +63,7 @@ export function UploadContentSheet({
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: type === 'video' ? ImagePicker.MediaTypeOptions.Videos : ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
         quality: 1,
         allowsEditing: false,
         videoMaxDuration: 60,
@@ -73,7 +73,10 @@ export function UploadContentSheet({
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
-        setMediaType(type);
+        // Detect media type from the asset
+        const isVideo = asset.type?.startsWith('video') || 
+                        /\.(mp4|mov|avi|mkv|webm|m4v|3gp)$/i.test(asset.uri);
+        setMediaType(isVideo ? 'video' : 'image');
         setSelectedMedia(asset.uri);
       }
     } catch (error) {
@@ -297,7 +300,7 @@ export function UploadContentSheet({
                 <View style={styles.uploadBox}>
                   <Upload size={36} color={Theme.colors.mutedForeground} />
                   <Text style={styles.uploadText}>
-                    Click to upload a photo
+                    Click to upload a photo or video
                   </Text>
                   <Text style={styles.uploadSubText}>
                     or use camera
@@ -308,20 +311,13 @@ export function UploadContentSheet({
                 <View style={styles.actionRow}>
                   <TouchableOpacity
                     style={styles.actionButton}
-                    onPress={() => openGallery('image')}
+                    onPress={openGallery}
                   >
                     <ImageIcon
                       size={18}
                       color={Theme.colors.foreground}
                     />
-                    <Text style={styles.actionText}>Photos</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={() => openGallery('video')}
-                  >
-                    <Text style={styles.actionText}>Videos</Text>
+                    <Text style={styles.actionText}>Gallery</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity

@@ -99,7 +99,20 @@ export default function ChatDetailScreen() {
       });
       
       if (isForCurrentChat) {
-        receiveMessage(message);
+        // Check if message already exists (avoid duplicates from optimistic updates)
+        const existingMessages = userMessages || [];
+        const isDuplicate = existingMessages.some(
+          (m) => m.id === message.id || 
+                 (m.content === message.content && 
+                  m.senderId === message.senderId &&
+                  Math.abs(new Date(m.createdAt).getTime() - new Date(message.createdAt).getTime()) < 5000)
+        );
+        
+        if (!isDuplicate) {
+          receiveMessage(message);
+        } else {
+          console.log("[ChatDetail] Duplicate message ignored:", message.id);
+        }
       }
     };
 
@@ -115,7 +128,7 @@ export default function ChatDetailScreen() {
         console.log("[ChatDetail] Unsubscribed from socket messages");
       });
     };
-  }, [receiveMessage, chatId, currentConversationId]);
+  }, [receiveMessage, chatId, currentConversationId, userMessages]);
 
   useEffect(() => {
     // Scroll to bottom when messages change

@@ -178,7 +178,7 @@ export default function ChatListScreen({ embedded = false }: { embedded?: boolea
         <FlatList
           data={filteredFriends}
           renderItem={renderFriend}
-          keyExtractor={(item) => item.friendshipId}
+          keyExtractor={(item) => `${item.friendshipId}-${item.user.id}`}
           contentContainerStyle={[
             styles.listContent,
             filteredFriends.length === 0 && styles.emptyListContent,
