@@ -18,8 +18,8 @@ import { Theme, GRADIENT_COLORS } from "../../styles/Theme";
 interface UploadContentSheetProps {
   visible: boolean;
   onClose: () => void;
-  onCreateStory?: (uri: string) => void;
-  onCreatePost?: (uri: string) => void;
+  onCreateStory?: (uri: string, mediaType: 'image' | 'video') => void;
+  onCreatePost?: (uri: string, mediaType: 'image' | 'video') => void;
 }
 
 export function UploadContentSheet({
@@ -28,21 +28,23 @@ export function UploadContentSheet({
   onCreateStory,
   onCreatePost,
 }: UploadContentSheetProps) {
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedMedia, setSelectedMedia] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
   const [showWebCamera, setShowWebCamera] = useState(false);
 
   // Reset state when modal opens
   useEffect(() => {
     if (visible) {
-      setSelectedImage(null);
+      setSelectedMedia(null);
+      setMediaType('image');
       setShowWebCamera(false);
     }
   }, [visible]);
 
   // ---------- GALLERY ----------
-  const openGallery = async () => {
+  const openGallery = async (type: 'image' | 'video' = 'image') => {
     try {
-      console.log("Opening gallery...");
+      console.log("Opening gallery for:", type);
       
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       console.log("Media library permission:", permission);
@@ -61,16 +63,18 @@ export function UploadContentSheet({
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: type === 'video' ? ImagePicker.MediaTypeOptions.Videos : ImagePicker.MediaTypeOptions.Images,
         quality: 1,
         allowsEditing: false,
+        videoMaxDuration: 60,
       });
 
       console.log("Image picker result:", result);
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        // Set selected image to show the "Choose Type" screen
-        setSelectedImage(result.assets[0].uri);
+        const asset = result.assets[0];
+        setMediaType(type);
+        setSelectedMedia(asset.uri);
       }
     } catch (error) {
       console.error("Error opening gallery:", error);
@@ -118,8 +122,10 @@ export function UploadContentSheet({
       console.log("Camera result:", result);
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        // Set selected image to show the "Choose Type" screen
-        setSelectedImage(result.assets[0].uri);
+        const asset = result.assets[0];
+        // Camera only supports images
+        setMediaType('image');
+        setSelectedMedia(asset.uri);
       }
     } catch (error) {
       console.error("Error opening camera:", error);
@@ -161,8 +167,9 @@ export function UploadContentSheet({
       // Convert to data URL
       const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
       setShowWebCamera(false);
-      // Set selected image to show the "Choose Type" screen
-      setSelectedImage(dataUrl);
+      // Set selected media to show the "Choose Type" screen
+      setMediaType('image');
+      setSelectedMedia(dataUrl);
     } catch (error) {
       console.error('Error accessing webcam:', error);
       alert('Failed to access webcam. Please check your browser permissions or use Gallery instead.');
@@ -172,7 +179,8 @@ export function UploadContentSheet({
 
   // ---------- RESET ----------
   const handleClose = () => {
-    setSelectedImage(null);
+    setSelectedMedia(null);
+    setMediaType('image');
     setShowWebCamera(false);
     onClose();
   };
@@ -192,7 +200,7 @@ export function UploadContentSheet({
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>
-              {selectedImage ? "Choose Type" : "Upload Content"}
+              {selectedMedia ? "Choose Type" : "Upload Content"}
             </Text>
             <TouchableOpacity onPress={handleClose}>
               <X size={20} color={Theme.colors.mutedForeground} />
@@ -228,15 +236,20 @@ export function UploadContentSheet({
                   </TouchableOpacity>
                 </View>
               </View>
-            ) : selectedImage ? (
+            ) : selectedMedia ? (
               <View style={{ minHeight: 400 }}>
-                {/* Image Preview */}
+                {/* Media Preview */}
                 <View style={[styles.previewContainer, { minHeight: 260 }]}>
                   <Image
-                    source={{ uri: selectedImage }}
+                    source={{ uri: selectedMedia }}
                     style={[styles.previewImage, { height: 260 }]}
                     resizeMode="cover"
                   />
+                  {mediaType === 'video' && (
+                    <View style={styles.videoBadge}>
+                      <Text style={styles.videoBadgeText}>VIDEO</Text>
+                    </View>
+                  )}
                 </View>
 
                 {/* Buttons */}
@@ -244,8 +257,8 @@ export function UploadContentSheet({
                   <TouchableOpacity
                     activeOpacity={0.85}
                     onPress={() => {
-                      console.log("Create Story pressed with image:", selectedImage);
-                      onCreateStory?.(selectedImage);
+                      console.log("Create Story pressed with media:", selectedMedia, "type:", mediaType);
+                      onCreateStory?.(selectedMedia, mediaType);
                     }}
                     style={styles.typeButtonWrapper}
                   >
@@ -262,8 +275,8 @@ export function UploadContentSheet({
                   <TouchableOpacity
                     activeOpacity={0.85}
                     onPress={() => {
-                      console.log("Create Post pressed with image:", selectedImage);
-                      onCreatePost?.(selectedImage);
+                      console.log("Create Post pressed with media:", selectedMedia, "type:", mediaType);
+                      onCreatePost?.(selectedMedia, mediaType);
                     }}
                     style={styles.typeButtonWrapper}
                   >
@@ -295,13 +308,20 @@ export function UploadContentSheet({
                 <View style={styles.actionRow}>
                   <TouchableOpacity
                     style={styles.actionButton}
-                    onPress={openGallery}
+                    onPress={() => openGallery('image')}
                   >
                     <ImageIcon
                       size={18}
                       color={Theme.colors.foreground}
                     />
-                    <Text style={styles.actionText}>Gallery</Text>
+                    <Text style={styles.actionText}>Photos</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => openGallery('video')}
+                  >
+                    <Text style={styles.actionText}>Videos</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -368,6 +388,22 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 260,
     resizeMode: "cover", // ✅ FIX
+  },
+
+  videoBadge: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+
+  videoBadgeText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "700",
   },
 
   typeRow: {

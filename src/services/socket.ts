@@ -65,6 +65,7 @@ class SocketService {
         console.log("📩 Received message via socket:", JSON.stringify(message, null, 2));
         
         // Ensure message has senderId - backend might send it in different format
+        // Include conversationId from backend to route message to correct chat
         const legacyMessage: LegacyMessage = {
           id: message.id || `msg-${Date.now()}`,
           senderId: message.senderId || message.sender?.id || "",
@@ -74,6 +75,7 @@ class SocketService {
           delivered: message.delivered || false,
           seen: message.seen || message.isRead || false,
           createdAt: message.createdAt || new Date().toISOString(),
+          conversationId: message.conversationId || message.conversation?.id || "",
         };
         
         console.log("📩 Converted to LegacyMessage:", legacyMessage);

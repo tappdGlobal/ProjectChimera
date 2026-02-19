@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { View, Text, StyleSheet, Platform } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -6,6 +6,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { RootNavigator } from "./src/navigation/RootNavigator";
 import { databaseService } from "./src/services/databaseService";
 import { syncService } from "./src/services/syncService";
+import { socketService } from "./src/services/socket";
+import { useChatStore } from "./src/store/chatStore";
 import { ErrorBoundary } from "./src/components/common/ErrorBoundary";
 import { useAuthStore } from "./src/store/authStore";
 import Toast from "react-native-toast-message";
@@ -13,9 +15,13 @@ import { PostHogProvider } from "posthog-react-native";
 
 export default function App() {
   const [initError, setInitError] = useState<string | null>(null);
+  const socketInitialized = useRef(false);
 
   const hydrateAuth = useAuthStore((s) => s.hydrateAuth);
   const isHydrated = useAuthStore((s) => s.isHydrated);
+  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const receiveMessage = useChatStore((s) => s.receiveMessage);
 
   useEffect(() => {
     hydrateAuth();
@@ -39,6 +45,35 @@ export default function App() {
     init();
   }, []);
 
+  // Connect socket when user is authenticated
+  useEffect(() => {
+    if (isAuthenticated && token && !socketInitialized.current) {
+      console.log("[App] Connecting socket with token...");
+      socketService.connect(token);
+      
+      // Set up global message receiver
+      socketService.onReceiveMessage((message) => {
+        console.log("[App] Received message via socket:", message);
+        receiveMessage(message);
+      });
+      
+      socketInitialized.current = true;
+    }
+    
+    // Disconnect socket when user logs out
+    if (!isAuthenticated && socketInitialized.current) {
+      console.log("[App] Disconnecting socket...");
+      socketService.disconnect();
+      socketInitialized.current = false;
+    }
+    
+    return () => {
+      if (socketInitialized.current) {
+        socketService.disconnect();
+      }
+    };
+  }, [isAuthenticated, token, receiveMessage]);
+
   if (!isHydrated) return null;
 
   if (initError) {
@@ -57,7 +92,7 @@ export default function App() {
         options={{
           host: "https://us.i.posthog.com",
           enableSessionReplay: false,
-          captureApplicationLifecycleEvents: true,
+          captureAppLifecycleEvents: true,
         }}
       >
         <ErrorBoundary>

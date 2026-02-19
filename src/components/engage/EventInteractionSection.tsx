@@ -222,7 +222,7 @@ export function EventInteractionSection() {
   const [storyIndex, setStoryIndex] = useState(0);
   const [showUpload, setShowUpload] = useState(false);
   const [showCreateStory, setShowCreateStory] = useState(false);
-  const [storyImage, setStoryImage] = useState<string | null>(null);
+  const [storyMedia, setStoryMedia] = useState<{ uri: string; type: 'image' | 'video' } | null>(null);
   const [viewedStories, setViewedStories] = useState<Set<string>>(new Set());
 
   const { stories, getAllStories, deleteStory, viewStory } = useStoryStore();
@@ -394,12 +394,12 @@ export function EventInteractionSection() {
       <UploadContentSheet
         visible={showUpload}
         onClose={() => setShowUpload(false)}
-        onCreateStory={(uri) => {
-          setStoryImage(uri);
+        onCreateStory={(uri, type) => {
+          setStoryMedia({ uri, type });
           setShowUpload(false);
           setShowCreateStory(true);
         }}
-        onCreatePost={(uri) => {
+        onCreatePost={(uri, type) => {
           setShowUpload(false);
           navigation.navigate(SCREEN_NAMES.CREATE_POST, { imageUri: uri });
         }}
@@ -407,10 +407,11 @@ export function EventInteractionSection() {
 
       <CreateStoryModal
         visible={showCreateStory}
-        imageUri={storyImage}
+        mediaUri={storyMedia?.uri || null}
+        mediaType={storyMedia?.type || 'image'}
         onClose={() => {
           setShowCreateStory(false);
-          setStoryImage(null);
+          setStoryMedia(null);
         }}
         onSuccess={getAllStories}
       />

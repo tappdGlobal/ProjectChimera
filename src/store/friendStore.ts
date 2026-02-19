@@ -39,8 +39,22 @@ export const useFriendStore = create<FriendState>((set, get) => ({
       set({ loading: true, error: null });
       const res = await getFriendsApi();
       const friendsData = (res as any).data || res;
+      
+      // Normalize friend data to ensure avatar field exists
+      const normalizedFriends: Friend[] = Array.isArray(friendsData) 
+        ? friendsData.map((friend: any) => ({
+            ...friend,
+            user: {
+              ...friend.user,
+              // Map profilePicUrl to avatar if avatar is not present
+              avatar: friend.user?.avatar || friend.user?.profilePicUrl || friend.user?.profilePicture || "",
+            },
+          }))
+        : [];
+      
+      console.log("[FriendStore] Fetched friends:", normalizedFriends.length);
       set({
-        friends: Array.isArray(friendsData) ? friendsData : [],
+        friends: normalizedFriends,
         loading: false,
       });
     } catch (err: any) {

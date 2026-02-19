@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   Modal,
-  SafeAreaView,
   View,
   Text,
   TouchableOpacity,
@@ -16,21 +15,23 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Image } from "expo-image";
+import { Video, ResizeMode } from "expo-av";
 import { LinearGradient } from "expo-linear-gradient";
 import { X, MoreHorizontal, Pause, Play, Heart, Send, Smile, Trash2 } from "lucide-react-native";
 import { Theme } from "../../styles/Theme";
 
 const { width } = Dimensions.get("window");
-const STORY_DURATION = 5000;
+const IMAGE_DURATION = 5000;
 
 interface Story {
   id: string;
   username: string;
   profileImage: string;
   image: string;
+  mediaType?: 'image' | 'video';
   caption?: string;
   time: string;
-  userId?: string; // Added to check ownership
+  userId?: string;
 }
 
 interface Props {
@@ -38,9 +39,9 @@ interface Props {
   stories: Story[];
   initialIndex?: number;
   onClose: () => void;
-  currentUserId?: string; // Added to check if user owns the story
-  onDelete?: (storyId: string) => void; // Callback when story is deleted
-  onView?: (storyId: string) => void; // Callback when story is viewed
+  currentUserId?: string;
+  onDelete?: (storyId: string) => void;
+  onView?: (storyId: string) => void;
 }
 
 export default function StoryViewer({
@@ -57,59 +58,91 @@ export default function StoryViewer({
   const [replyText, setReplyText] = useState("");
   const [liked, setLiked] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const [imageLoading, setImageLoading] = useState(true);
-  const [imageError, setImageError] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const progress = useRef<Animated.Value[]>([]);
   const animation = useRef<Animated.CompositeAnimation | null>(null);
-  const remainingTime = useRef(STORY_DURATION);
+  const remainingTime = useRef(IMAGE_DURATION);
+  const videoRef = useRef<Video>(null);
+  const [isVideo, setIsVideo] = useState(false);
+  const [videoDuration, setVideoDuration] = useState<number>(0);
 
-  /* INIT progress bars */
   useEffect(() => {
     progress.current = stories.map(() => new Animated.Value(0));
   }, [stories]);
 
-  /* RESET when opened or user clicked another story */
   useEffect(() => {
     if (!visible) return;
 
     animation.current?.stop();
-    remainingTime.current = STORY_DURATION;
+    remainingTime.current = IMAGE_DURATION;
 
     progress.current.forEach(p => p.setValue(0));
     setIndex(initialIndex);
     setPaused(false);
     setShowMenu(false);
-    setImageLoading(true);
-    setImageError(false);
+    setLoading(true);
+    setError(false);
+    setIsVideo(false);
+    setVideoDuration(0);
     
-    // Mark story as viewed when opened
     if (stories[initialIndex] && onView) {
       onView(stories[initialIndex].id);
     }
   }, [visible, initialIndex]);
 
-  /* START animation on index change */
+  // Detect media type when story changes
+  useEffect(() => {
+    if (!stories[index]) return;
+    
+    const story = stories[index];
+    // Check if mediaType is explicitly set
+    if (story.mediaType) {
+      setIsVideo(story.mediaType === 'video');
+    } else {
+      // Detect based on file extension
+      const url = story.image.toLowerCase();
+      const isVideoFile = /\.(mp4|mov|avi|mkv|webm|m4v|3gp)$/i.test(url);
+      setIsVideo(isVideoFile);
+    }
+  }, [index, stories]);
+
   useEffect(() => {
     if (!visible || paused) return;
     if (!progress.current[index]) return;
-    start();
+    // Only auto-start for images - videos start themselves via onLoad
+    if (!isVideo) {
+      start();
+    }
     return () => animation.current?.stop();
-  }, [index, paused, visible]);
+  }, [index, paused, visible, isVideo]);
 
-  const start = () => {
+  const start = (duration?: number) => {
     animation.current?.stop();
 
     if (!progress.current[index]) return;
 
+    // Use provided duration (for videos) or default image duration
+    const animDuration = duration || IMAGE_DURATION;
+    remainingTime.current = animDuration;
+
+    // Reset progress for current story to 0 before starting
+    progress.current[index].setValue(0);
+
+    const currentIndex = index; // Capture current index for the callback
+
     animation.current = Animated.timing(progress.current[index], {
       toValue: 1,
-      duration: remainingTime.current,
+      duration: animDuration,
       useNativeDriver: false,
     });
 
     animation.current.start(({ finished }) => {
-      if (finished) goNext();
+      if (finished) {
+        // Use setTimeout to ensure we're not in the animation callback context
+        setTimeout(() => goNextFromIndex(currentIndex), 0);
+      }
     });
   };
 
@@ -117,39 +150,56 @@ export default function StoryViewer({
     animation.current?.stop();
     if (progress.current[index]) {
       progress.current[index].stopAnimation(v => {
-        remainingTime.current = STORY_DURATION * (1 - v);
+        const currentDuration = isVideo && videoDuration > 0 ? videoDuration : IMAGE_DURATION;
+        remainingTime.current = currentDuration * (1 - v);
       });
+    }
+    // Pause video if playing
+    if (isVideo && videoRef.current) {
+      videoRef.current.pauseAsync();
     }
     setPaused(true);
   };
 
   const resume = () => {
+    // Resume video if paused
+    if (isVideo && videoRef.current) {
+      videoRef.current.playAsync();
+    }
     setPaused(false);
   };
 
-  const goNext = () => {
-    remainingTime.current = STORY_DURATION;
-    setImageLoading(true);
-    setImageError(false);
+  const goNextFromIndex = (currentIdx: number) => {
+    // Mark current story as complete
+    if (progress.current[currentIdx]) {
+      progress.current[currentIdx].setValue(1);
+    }
+    
+    setLoading(true);
+    setError(false);
 
-    if (index < stories.length - 1) {
-      const nextIndex = index + 1;
+    if (currentIdx < stories.length - 1) {
+      const nextIndex = currentIdx + 1;
       setIndex(nextIndex);
       // Mark next story as viewed
       if (stories[nextIndex] && onView) {
         onView(stories[nextIndex].id);
       }
     } else {
-      onClose(); // end of THIS USER stories
+      onClose();
     }
+  };
+
+  const goNext = () => {
+    goNextFromIndex(index);
   };
 
   const goPrev = () => {
     if (index === 0) return;
 
-    remainingTime.current = STORY_DURATION;
-    setImageLoading(true);
-    setImageError(false);
+    setLoading(true);
+    setError(false);
+    // Reset current story progress
     if (progress.current[index]) {
       progress.current[index].setValue(0);
     }
@@ -239,7 +289,6 @@ export default function StoryViewer({
                 <MoreHorizontal size={20} color="white" />
               </TouchableOpacity>
               
-              {/* Delete menu */}
               {showMenu && isOwner && (
                 <View style={styles.menuDropdown}>
                   <TouchableOpacity 
@@ -259,37 +308,63 @@ export default function StoryViewer({
           </View>
         </View>
 
-        {/* Story Content with Tap Areas */}
+        {/* Story Content */}
         <View style={styles.storyContent}>
-          {/* Left tap area - previous */}
           <Pressable style={styles.leftTapArea} onPress={goPrev} />
           
-          {/* Story Image */}
           <View style={styles.imageContainer}>
-            <Image
-              source={{ uri: story.image }}
-              style={styles.image}
-              contentFit="contain"
-              onLoadStart={() => setImageLoading(true)}
-              onLoadEnd={() => setImageLoading(false)}
-              onError={() => {
-                setImageLoading(false);
-                setImageError(true);
-              }}
-            />
-            {imageLoading && (
+            {isVideo ? (
+              <Video
+                ref={videoRef}
+                source={{ uri: story.image }}
+                style={styles.image}
+                resizeMode={ResizeMode.CONTAIN}
+                shouldPlay={!paused}
+                isLooping={false}
+                onLoadStart={() => setLoading(true)}
+                onLoad={(status) => {
+                  setLoading(false);
+                  if (status.isLoaded && status.durationMillis) {
+                    setVideoDuration(status.durationMillis);
+                    // Start progress animation with video duration
+                    start(status.durationMillis);
+                  }
+                }}
+                onPlaybackStatusUpdate={(status) => {
+                  if (status.isLoaded && status.didJustFinish) {
+                    goNext();
+                  }
+                }}
+                onError={() => {
+                  setLoading(false);
+                  setError(true);
+                }}
+              />
+            ) : (
+              <Image
+                source={{ uri: story.image }}
+                style={styles.image}
+                contentFit="contain"
+                onLoadStart={() => setLoading(true)}
+                onLoadEnd={() => setLoading(false)}
+                onError={() => {
+                  setLoading(false);
+                  setError(true);
+                }}
+              />
+            )}
+            {loading && (
               <View style={styles.loadingOverlay}>
                 <ActivityIndicator size="large" color="white" />
               </View>
             )}
-            {imageError && (
+            {error && (
               <View style={styles.errorOverlay}>
-                <Text style={styles.errorText}>Failed to load image</Text>
+                <Text style={styles.errorText}>Failed to load media</Text>
               </View>
             )}
           </View>
           
-          {/* Right tap area - next */}
           <Pressable style={styles.rightTapArea} onPress={goNext} />
         </View>
 

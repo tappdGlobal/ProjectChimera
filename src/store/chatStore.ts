@@ -188,9 +188,41 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   getConversations: async () => {
-    // DISABLED: Backend endpoint /chat/conversations does not exist
-    // Returning empty conversations list
-    set({ conversations: [], loading: false });
+    try {
+      set({ loading: true, error: null });
+      const res = await getConversationsApi();
+      
+      // Handle different response structures
+      const conversationsData = (res as any).data || res;
+      
+      console.log("[ChatStore] Fetched conversations:", conversationsData?.length || 0);
+      
+      // Transform backend format to frontend format if needed
+      const formattedConversations: ConversationListItem[] = Array.isArray(conversationsData)
+        ? conversationsData.map((conv: any) => ({
+            id: conv.id,
+            otherUser: conv.otherUser || {
+              id: conv.user2?.id || conv.user1?.id,
+              name: conv.user2?.name || conv.user1?.name,
+              username: conv.user2?.username || conv.user1?.username,
+              profilePicUrl: conv.user2?.profilePicUrl || conv.user1?.profilePicUrl,
+            },
+            lastMessage: conv.lastMessage || {
+              content: "",
+              createdAt: conv.createdAt || new Date().toISOString(),
+              senderId: "",
+              seen: true,
+            },
+            unreadCount: conv.unreadCount || 0,
+          }))
+        : [];
+      
+      set({ conversations: formattedConversations, loading: false });
+    } catch (err: any) {
+      console.error("[ChatStore] Get conversations error:", err);
+      set({ loading: false, error: err.message || "Failed to fetch conversations" });
+      // Don't clear existing conversations on error
+    }
   },
 
   getMessagesWithUser: async (userId: string) => {
@@ -331,9 +363,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   receiveMessage: (message: LegacyMessage) => {
     // Add message to local state when received via socket
-    // Use currentConversationId if available, otherwise fall back to senderId
+    // Use conversationId from message (if provided by backend), 
+    // otherwise fall back to currentConversationId or senderId
     const state = get();
-    const messageKey = state.currentConversationId || message.senderId;
+    const messageKey = message.conversationId || state.currentConversationId || message.senderId;
+
+    console.log("[ChatStore] Receiving message:", {
+      messageId: message.id,
+      senderId: message.senderId,
+      conversationId: message.conversationId,
+      currentConversationId: state.currentConversationId,
+      messageKey,
+    });
 
     set((state) => ({
       messages: {
