@@ -36,7 +36,7 @@ export default function ChatDetailScreen() {
     sendingMessage,
     currentConversationId,
     createOrGetConversation,
-    getMessagesWithUser,
+    getMessages,
     sendMessage,
     receiveMessage,
     setCurrentChatUser,
@@ -46,7 +46,9 @@ export default function ChatDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
-  const userMessages = messages[chatId] || [];
+  // Use conversationId if available, otherwise fall back to chatId for socket messages
+  const messageKey = currentConversationId || chatId;
+  const userMessages = messages[messageKey] || [];
 
   useEffect(() => {
     // Initialize chat: Create conversation and load messages
@@ -62,8 +64,8 @@ export default function ChatDetailScreen() {
           return;
         }
         
-        // Load messages with this user (disabled - backend endpoint not available)
-        // await getMessagesWithUser(chatId);
+        // Load messages for this conversation
+        await getMessages(convId);
       } catch (err: any) {
         console.error("Chat initialization error:", err);
         setError(err.message || "Unable to start chat. Please check if you are friends.");
