@@ -168,7 +168,7 @@ export function ReconnectScreen() {
   const [hoveredConnectButton, setHoveredConnectButton] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [showComingSoon, setShowComingSoon] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   const {
     pendingRequests,
@@ -180,6 +180,35 @@ export function ReconnectScreen() {
   const screenWidth = Dimensions.get("window").width;
   const position = React.useRef(new Animated.ValueXY()).current;
 
+  const handleAction = async (
+    requestId: string,
+    action: "ACCEPT" | "REJECT",
+    intent?: string[]
+  ) => {
+    if (actionLoadingId) return;
+
+    setActionLoadingId(requestId);
+
+    const result = await respondToRequest(requestId, action, intent || []);
+
+    if (result?.success) {
+      Toast.show({
+        type: action === "ACCEPT" ? "success" : "info",
+        text1:
+          action === "ACCEPT"
+            ? "Connection Accepted"
+            : "Request Rejected",
+      });
+    } else {
+      Toast.show({
+        type: "error",
+        text1: "Failed",
+        text2: result?.message,
+      });
+    }
+
+    setActionLoadingId(null);
+  };
 
 
   const panResponder = React.useRef(
@@ -192,35 +221,52 @@ export function ReconnectScreen() {
       },
 
       onPanResponderRelease: async (_, gestureState) => {
-        if (gestureState.dx > 120 || gestureState.dx < -120) {
-          const isAccept = gestureState.dx > 0;
-          const toValue = isAccept ? screenWidth : -screenWidth;
+        const user = currentUserRef.current;
 
+        if (!user?.requestId) {
+          Animated.spring(position, {
+            toValue: { x: 0, y: 0 },
+            useNativeDriver: true,
+          }).start();
+          return;
+        }
+
+        const swipeThreshold = 120;
+
+        if (gestureState.dx > swipeThreshold) {
           Animated.timing(position, {
-            toValue: { x: toValue, y: 0 },
+            toValue: { x: screenWidth, y: 0 },
             duration: 250,
-            useNativeDriver: false,
+            useNativeDriver: true,
           }).start(async () => {
-            if (currentUser?.requestId) {
-              await respondToRequest(
-                currentUser.requestId,
-                isAccept ? "ACCEPT" : "REJECT",
-                currentUser.intent
-              );
+            await handleAction(user.requestId, "ACCEPT", user.intent);
 
-            }
 
             position.setValue({ x: 0, y: 0 });
           });
 
+        } else if (gestureState.dx < -swipeThreshold) {
+          Animated.timing(position, {
+            toValue: { x: -screenWidth, y: 0 },
+            duration: 250,
+            useNativeDriver: true,
+          }).start(async () => {
+            await handleAction(user.requestId, "ACCEPT", user.intent);
+
+
+            position.setValue({ x: 0, y: 0 });
+          });
 
         } else {
           Animated.spring(position, {
             toValue: { x: 0, y: 0 },
-            useNativeDriver: false,
+            useNativeDriver: true,
           }).start();
         }
       }
+
+
+
 
 
     })
@@ -234,6 +280,12 @@ export function ReconnectScreen() {
 
   const currentUser =
     pendingRequests.length > 0 ? pendingRequests[0] : null;
+  const currentUserRef = React.useRef(currentUser);
+
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
 
   const renderIntentPills = (intent?: string[]) => {
     if (!intent || intent.length === 0) return null;
@@ -518,8 +570,13 @@ export function ReconnectScreen() {
           )}
 
           {pendingRequests.map((user) => (
-            <View
+            <TouchableOpacity
               key={user.requestId}
+              activeOpacity={0.9}
+              onPress={() => {
+                setSelectedUser(user);
+                setShowProfileModal(true);
+              }}
               style={{
                 backgroundColor: "rgba(169, 1, 109, 0.15)",
                 borderRadius: 16,
@@ -529,6 +586,7 @@ export function ReconnectScreen() {
                 overflow: "hidden",
               }}
             >
+
               {/* 🔹 TOP ROW */}
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <Image
@@ -579,32 +637,18 @@ export function ReconnectScreen() {
                       justifyContent: "center",
                       marginRight: 8,
                     }}
-                    onPress={async () => {
-                      console.log("🚫 Reject clicked:", user.requestId);
+                    onPress={() =>
+                      handleAction(user.requestId, "REJECT", user.intent)
+                    }
+                    disabled={actionLoadingId === user.requestId}
 
-                      const result = await respondToRequest(
-                        user.requestId,
-                        "REJECT",
-                        user.intent
-                      );
-
-                      console.log("📦 Reject API result:", result);
-
-                      if (result?.success) {
-                        Toast.show({
-                          type: "info",
-                          text1: "Request Rejected",
-                        });
-                      } else {
-                        Toast.show({
-                          type: "error",
-                          text1: "Reject Failed",
-                          text2: result?.message || "Something went wrong",
-                        });
-                      }
-                    }}
                   >
-                    <X size={18} color="#FFFFFF" />
+                    {actionLoadingId === user.requestId ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <X size={18} color="#FFFFFF" />
+                    )}
+
                   </TouchableOpacity>
 
                   {/* ❤️ ACCEPT */}
@@ -690,7 +734,7 @@ export function ReconnectScreen() {
                   ))}
                 </View>
               )}
-            </View>
+            </TouchableOpacity>
           ))}
 
         </ScrollView>
@@ -743,62 +787,58 @@ export function ReconnectScreen() {
                       style={styles.profileImage}
                     />
 
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        width: "100%",
-                        marginBottom: 10,
-                      }}
-                    >
-                      {/* 🔹 NAME */}
-                      <Text
-                        style={{
-                          fontSize: 22,
-                          fontWeight: "600",
-                          color: "#FFFFFF",
-                          flex: 1,
-                        }}
-                        numberOfLines={1}
-                      >
-                        {currentUser?.name}
-                      </Text>
+                    {/* 🔹 NAME */}
+<Text
+  style={{
+    fontSize: 22,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    width: "100%",
+    textAlign: "center",
+    marginBottom: 8,
+  }}
+  numberOfLines={1}
+>
+  {currentUser?.name}
+</Text>
 
-                      {/* 🔹 INTENT PILLS */}
-                      {currentUser?.intent?.length > 0 && (
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            marginLeft: 10,
-                          }}
-                        >
-                          {currentUser.intent.map((item, index) => (
-                            <View
-                              key={index}
-                              style={{
-                                paddingHorizontal: 10,
-                                paddingVertical: 5,
-                                borderRadius: 14,
-                                borderWidth: 1,
-                                borderColor: Theme.colors.primary,
-                                marginLeft: 6,
-                              }}
-                            >
-                              <Text
-                                style={{
-                                  fontSize: 11,
-                                  color: Theme.colors.primary,
-                                  fontWeight: "600",
-                                }}
-                              >
-                                {item.charAt(0) + item.slice(1).toLowerCase()}
-                              </Text>
-                            </View>
-                          ))}
-                        </View>
-                      )}
-                    </View>
+{/* 🔹 INTENT PILLS — moved to next line */}
+{currentUser?.intent?.length > 0 && (
+  <View
+    style={{
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "center",
+      marginBottom: 12,
+    }}
+  >
+    {currentUser.intent.map((item, index) => (
+      <View
+        key={index}
+        style={{
+          paddingHorizontal: 10,
+          paddingVertical: 5,
+          borderRadius: 14,
+          borderWidth: 1,
+          borderColor: Theme.colors.primary,
+          marginHorizontal: 4,
+          marginBottom: 6,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 11,
+            color: Theme.colors.primary,
+            fontWeight: "600",
+          }}
+        >
+          {item.charAt(0) + item.slice(1).toLowerCase()}
+        </Text>
+      </View>
+    ))}
+  </View>
+)}
+
 
                     <View style={styles.infoRow}>
                       <View style={styles.infoDot} />
@@ -821,80 +861,50 @@ export function ReconnectScreen() {
                   <View style={styles.actionButtons}>
                     <TouchableOpacity
                       style={styles.declineButtonCircle}
-                      onPress={async () => {
-                        if (!currentUser?.requestId) return;
-                        const result = await respondToRequest(
+                      disabled={actionLoadingId === currentUser?.requestId}
+                      onPress={() =>
+                        handleAction(
                           currentUser.requestId,
                           "REJECT",
                           currentUser.intent
-                        );
-
-                        if (result?.success) {
-                          console.log("🚫 REJECT SUCCESS");
-
-                          Toast.show({
-                            type: "info",
-                            text1: "Request Rejected",
-                            text2: `${currentUser.name}'s request removed`,
-                          });
-                        } else {
-                          console.log("⚠️ REJECT FAILED");
-
-                          Toast.show({
-                            type: "error",
-                            text1: "Failed",
-                            text2: result?.message,
-                          });
-                        }
-
-                      }}
+                        )
+                      }
                     >
-                      <X size={20} color="#FFFFFF" />
+                      {actionLoadingId === currentUser?.requestId ? (
+                        <ActivityIndicator color="#fff" />
+                      ) : (
+                        <X size={20} color="#FFFFFF" />
+                      )}
                     </TouchableOpacity>
+
 
                     <TouchableOpacity
                       style={styles.acceptButtonCircle}
-                      onPress={async () => {
-                        if (!currentUser?.requestId) return;
-                        const result = await respondToRequest(
+                      disabled={actionLoadingId === currentUser?.requestId}
+                      onPress={() =>
+                        handleAction(
                           currentUser.requestId,
                           "ACCEPT",
                           currentUser.intent
-                        );
-
-                        if (result?.success) {
-                          console.log("🎉 ACCEPT SUCCESS");
-
-                          Toast.show({
-                            type: "success",
-                            text1: "Connection Accepted",
-                            text2: `${currentUser.name} is now connected with you`,
-                          });
-                        } else {
-                          console.log("⚠️ ACCEPT FAILED");
-
-                          Toast.show({
-                            type: "error",
-                            text1: "Failed",
-                            text2: result?.message,
-                          });
-                        }
-
-                      }}
+                        )
+                      }
                     >
                       <LinearGradient
                         colors={GRADIENT_COLORS.primary as [string, string]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
                         style={styles.acceptButtonGradientCircle}
                       >
-                        <Heart size={20} color="#FFFFFF" />
+                        {actionLoadingId === currentUser?.requestId ? (
+                          <ActivityIndicator color="#fff" />
+                        ) : (
+                          <Heart size={20} color="#FFFFFF" />
+                        )}
                       </LinearGradient>
                     </TouchableOpacity>
+
                   </View>
 
                   <Text style={styles.buttonInstruction}>
-                    Use the buttons to accept or decline
+                    Swipe left to reject • Swipe right to accept
                   </Text>
                 </Animated.View>
               </View>
@@ -911,7 +921,24 @@ export function ReconnectScreen() {
         visible={showProfileModal}
         user={selectedUser}
         onClose={() => setShowProfileModal(false)}
+        onAccept={() =>
+          handleAction(
+            selectedUser.requestId,
+            "ACCEPT",
+            selectedUser.intent
+          )
+        }
+        onReject={() =>
+          handleAction(
+            selectedUser.requestId,
+            "REJECT",
+            selectedUser.intent
+          )
+        }
+        loading={actionLoadingId === selectedUser?.requestId}
       />
+
+
 
       <ComingSoon visible={showComingSoon} onClose={() => setShowComingSoon(false)} />
     </SafeAreaView>
