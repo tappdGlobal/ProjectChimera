@@ -964,7 +964,7 @@ export const ProfileCreationScreen = () => {
 
   return (
     <LinearGradient colors={["#0A0A1F", "#1A1A3F"]} style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right","bottom"]}>
         <View style={styles.header}>
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <ArrowLeft color="#FFFFFF" size={24} />

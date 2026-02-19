@@ -47,8 +47,6 @@ export const getPendingRequestsApi = async (): Promise<
 
 
   } catch (error: any) {
-    console.log("=== Pending Requests Error ===");
-    console.log(error?.response?.data || error.message);
     throw error;
   }
 };
@@ -61,24 +59,18 @@ export const getAcceptedConnectionsApi = async (): Promise<
   try {
     const response = await apiClient.get("/connections");
 
-    console.log("🔥 FULL ACCEPTED RESPONSE:", response.data);
-
     // 🔥 HANDLE BOTH POSSIBLE STRUCTURES
     if (Array.isArray(response.data)) {
-      console.log("📦 API returned direct array:", response.data.length);
       return response.data;
     }
 
     if (Array.isArray(response.data?.data)) {
-      console.log("📦 API returned wrapped array:", response.data.data.length);
       return response.data.data;
     }
 
-    console.log("⚠️ Unexpected response structure");
     return [];
 
   } catch (error: any) {
-    console.log("❌ getAcceptedConnectionsApi ERROR:", error);
     return [];
   }
 };

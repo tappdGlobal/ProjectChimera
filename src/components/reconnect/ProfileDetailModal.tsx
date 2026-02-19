@@ -6,6 +6,7 @@ import {
   Image,
   ScrollView,
   StyleSheet,
+  ActivityIndicator, 
 } from "react-native";
 import Modal from "react-native-modal";
 import { LinearGradient } from "expo-linear-gradient";
@@ -33,12 +34,20 @@ interface Props {
   visible: boolean;
   user: ProfileUser | null;
   onClose: () => void;
+  onAccept: () => void;
+  onReject: () => void;
+  loadingType: "ACCEPT" | "REJECT" | null;
 }
+
+
 
 export const ProfileDetailModal = ({
   visible,
   user,
   onClose,
+  onAccept,
+  onReject,
+  loading,
 }: Props) => {
   const [tab, setTab] = useState<"about" | "photos">("about");
 
@@ -117,18 +126,43 @@ export const ProfileDetailModal = ({
 
             {/* Action Buttons */}
             <View style={styles.actionRow}>
-              <TouchableOpacity style={styles.declineBtn}>
-                <X size={18} color={Theme.colors.foreground} />
-                <Text style={styles.declineText}>Decline</Text>
-              </TouchableOpacity>
+              <TouchableOpacity
+  style={styles.declineBtn}
+  onPress={onReject}
+  disabled={loading}
+>
+  {loading ? (
+    <ActivityIndicator color={Theme.colors.foreground} />
+  ) : (
+    <>
+      <X size={18} color={Theme.colors.foreground} />
+      <Text style={styles.declineText}>Decline</Text>
+    </>
+  )}
+</TouchableOpacity>
 
-              <LinearGradient
-                colors={GRADIENT_COLORS.primary as [string, string]}
-                style={styles.acceptBtn}
-              >
-                <Heart size={18} color={Theme.colors.primaryForeground} />
-                <Text style={styles.acceptText}>Accept</Text>
-              </LinearGradient>
+
+<TouchableOpacity
+  style={styles.acceptBtnWrapper}
+  onPress={onAccept}
+  disabled={loading}
+>
+  <LinearGradient
+    colors={GRADIENT_COLORS.primary as [string, string]}
+    style={styles.acceptBtn}
+  >
+
+    {loading ? (
+      <ActivityIndicator color="#fff" />
+    ) : (
+      <>
+        <Heart size={18} color={Theme.colors.primaryForeground} />
+        <Text style={styles.acceptText}>Accept</Text>
+      </>
+    )}
+  </LinearGradient>
+</TouchableOpacity>
+
             </View>
 
             {/* Tabs */}
@@ -341,12 +375,15 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 8,
   },
-  tag: {
-    backgroundColor: Theme.colors.secondary,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: Theme.radius.sm,
-  },
+ tag: {
+  backgroundColor: "rgba(255,255,255,0.04)",
+  paddingHorizontal: 12,
+  paddingVertical: 7,
+  borderRadius: 12,
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.12)", // thin visible border
+},
+
   tagText: {
     color: Theme.colors.foreground,
     fontSize: 12,
@@ -362,4 +399,9 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: Theme.radius.sm,
   },
+  acceptBtnWrapper: {
+  flex: 1,
+  marginLeft: 8,
+},
+
 });

@@ -134,12 +134,13 @@ const styles = StyleSheet.create({
     backgroundColor: Theme.colors.background,
   },
 
- header: {
-  height: height * 0.28,
+header: {
+  height: height * 0.34, // taller hero
   justifyContent: "flex-end",
   alignItems: "center",
-  paddingBottom: 50,
+  paddingBottom: 60,
 },
+
 
 
   closeBtn: {
@@ -149,25 +150,29 @@ const styles = StyleSheet.create({
 content: {
   alignItems: "center",
   paddingHorizontal: 20,
-  paddingTop: 60,
+  paddingTop: 80, // more breathing space after avatar
   paddingBottom: 40,
 },
 
 
-  avatar: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    borderWidth: 4,
-    borderColor: Theme.colors.background,
-  },
 
-  name: {
-    marginTop: 16,
-    fontSize: 22,
-    fontWeight: "700",
-    color: Theme.colors.foreground,
-  },
+  avatar: {
+  width: 120,
+  height: 120,
+  borderRadius: 60,
+  borderWidth: 4,
+  borderColor: Theme.colors.background,
+  marginBottom: -60, // KEY FIX → overlap hero properly
+},
+
+
+name: {
+  marginTop: 12,
+  fontSize: 22,
+  fontWeight: "700",
+  color: Theme.colors.foreground,
+},
+
 
   age: {
     color: Theme.colors.mutedForeground,
