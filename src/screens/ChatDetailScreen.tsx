@@ -18,7 +18,7 @@ import { ArrowLeft, Send, MoreVertical } from "lucide-react-native";
 import { Theme } from "../styles/Theme";
 import { useChatStore } from "../store/chatStore";
 import { useAuthStore } from "../store/authStore";
-import { Message } from "../types/chatTypes";
+import { LegacyMessage as Message } from "../types/chatTypes";
 import { EngageStackParamList } from "../navigation/Routes";
 
 type RouteType = RouteProp<EngageStackParamList, "ChatDetail">;
@@ -56,14 +56,14 @@ export default function ChatDetailScreen() {
         setCurrentChatUser(chatId);
         
         // Create or get conversation
-        const convId = await createOrGetConversation(chatId);
+        const convId = await createOrGetConversation({ otherUserId: chatId });
         if (!convId) {
           setError("Failed to create conversation. You may not be friends with this user.");
           return;
         }
         
-        // Load messages with this user
-        await getMessagesWithUser(chatId);
+        // Load messages with this user (disabled - backend endpoint not available)
+        // await getMessagesWithUser(chatId);
       } catch (err: any) {
         console.error("Chat initialization error:", err);
         setError(err.message || "Unable to start chat. Please check if you are friends.");
@@ -106,8 +106,13 @@ export default function ChatDetailScreen() {
 
   const handleSendMessage = async () => {
     if (messageText.trim() === "" || sendingMessage) return;
+    if (!userId) {
+      console.error("[ChatDetail] Cannot send message: userId is not available");
+      return;
+    }
 
     const text = messageText.trim();
+    console.log(`[ChatDetail] Sending message with userId: ${userId}`);
     setMessageText("");
 
     // Send message via REST API
@@ -115,7 +120,7 @@ export default function ChatDetailScreen() {
       receiverId: chatId,
       content: text,
       messageType: "text",
-    });
+    }, userId);
   };
 
   const formatMessageTime = (dateString: string) => {
@@ -125,8 +130,9 @@ export default function ChatDetailScreen() {
 
   const renderMessage = ({ item, index }: { item: Message; index: number }) => {
     const isMyMessage = item.senderId === userId;
-    const prevMessage = index > 0 ? userMessages[index - 1] : null;
-    const showAvatar = !prevMessage || prevMessage.senderId !== item.senderId;
+    
+    // Debug logging
+    console.log(`[ChatDetail] Message ${index}: senderId="${item.senderId}", userId="${userId}", isMyMessage=${isMyMessage}`);
 
     return (
       <View
@@ -135,11 +141,6 @@ export default function ChatDetailScreen() {
           isMyMessage ? styles.myMessageContainer : styles.otherMessageContainer,
         ]}
       >
-        {!isMyMessage && showAvatar && (
-          <Image source={{ uri: avatar }} style={styles.messageAvatar} />
-        )}
-        {!isMyMessage && !showAvatar && <View style={styles.messageAvatarPlaceholder} />}
-
         <View
           style={[
             styles.messageBubble,
@@ -154,21 +155,14 @@ export default function ChatDetailScreen() {
           >
             {item.content}
           </Text>
-          <View style={styles.messageFooter}>
-            <Text
-              style={[
-                styles.messageTime,
-                isMyMessage ? styles.myMessageTime : styles.otherMessageTime,
-              ]}
-            >
-              {formatMessageTime(item.createdAt)}
-            </Text>
-            {isMyMessage && (
-              <Text style={styles.messageStatus}>
-                {item.seen ? "✓✓" : item.delivered ? "✓✓" : "✓"}
-              </Text>
-            )}
-          </View>
+          <Text
+            style={[
+              styles.messageTime,
+              isMyMessage ? styles.myMessageTime : styles.otherMessageTime,
+            ]}
+          >
+            {formatMessageTime(item.createdAt)}
+          </Text>
         </View>
       </View>
     );
@@ -354,22 +348,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginBottom: 12,
     alignItems: "flex-end",
+    width: "100%",
   },
   myMessageContainer: {
     justifyContent: "flex-end",
+    flexDirection: "row-reverse",
   },
   otherMessageContainer: {
     justifyContent: "flex-start",
-  },
-  messageAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginRight: 8,
-  },
-  messageAvatarPlaceholder: {
-    width: 32,
-    marginRight: 8,
   },
   messageBubble: {
     maxWidth: "70%",
@@ -395,12 +381,6 @@ const styles = StyleSheet.create({
   otherMessageText: {
     color: Theme.colors.foreground,
   },
-  messageFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 4,
-    gap: 4,
-  },
   messageTime: {
     fontSize: 11,
   },
@@ -409,10 +389,6 @@ const styles = StyleSheet.create({
   },
   otherMessageTime: {
     color: Theme.colors.mutedForeground,
-  },
-  messageStatus: {
-    fontSize: 11,
-    color: "rgba(255,255,255,0.7)",
   },
   inputContainer: {
     flexDirection: "row",

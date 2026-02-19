@@ -1,14 +1,56 @@
 import { apiClient } from "../services/api";
 import { ApiResponse } from "../types/authTypes";
-import { Conversation, Message, SendMessagePayload, MessagesResponse } from "../types/chatTypes";
+import {
+  Conversation,
+  Message,
+  SendMessagePayload,
+  CreateConversationPayload,
+  CreateConversationResponse,
+} from "../types/chatTypes";
 
-/* ================= CREATE/GET CONVERSATION ================= */
+/* ============================================================
+   CHAT APIs (as per API documentation)
+   ============================================================ */
 
+/**
+ * POST /chat/conversation
+ * Create a new conversation or retrieve existing between two users
+ * Request Body: { otherUserId: string }
+ * Response: 200 - Conversation created or retrieved successfully
+ */
 export const createConversationApi = (
-  otherUserId: string
-): Promise<ApiResponse<{ id: string }>> => {
-  return apiClient.post("/chat/conversation", { otherUserId });
+  payload: CreateConversationPayload
+): Promise<ApiResponse<CreateConversationResponse>> => {
+  return apiClient.post("/chat/conversation", payload);
 };
+
+/**
+ * GET /chat/messages/{conversationId}
+ * Get all messages for a conversation
+ * Path Parameter: conversationId (string, required)
+ * Response: 200 - Messages retrieved successfully
+ */
+export const getMessagesApi = (
+  conversationId: string
+): Promise<ApiResponse<Message[]>> => {
+  return apiClient.get(`/chat/messages/${conversationId}`);
+};
+
+/**
+ * POST /chat/messages
+ * Send a message in a conversation
+ * Request Body: { conversationId: string, content: string }
+ * Response: 201 - Message sent
+ */
+export const sendMessageApi = (
+  payload: SendMessagePayload
+): Promise<ApiResponse<Message>> => {
+  return apiClient.post("/chat/messages", payload);
+};
+
+/* ============================================================
+   LEGACY APIs (for backward compatibility)
+   ============================================================ */
 
 /* ================= GET CONVERSATIONS ================= */
 
@@ -16,20 +58,18 @@ export const getConversationsApi = (): Promise<ApiResponse<Conversation[]>> => {
   return apiClient.get("/chat/conversations");
 };
 
-/* ================= GET MESSAGES WITH USER ================= */
+/* ================= GET MESSAGES WITH USER (Uses new API) ================= */
 
 export const getMessagesWithUserApi = (
-  userId: string,
-  page: number = 1,
-  limit: number = 50
-): Promise<ApiResponse<MessagesResponse>> => {
-  return apiClient.get(`/chat/conversations/${userId}?page=${page}&limit=${limit}`);
+  conversationId: string
+): Promise<ApiResponse<Message[]>> => {
+  return apiClient.get(`/chat/messages/${conversationId}`);
 };
 
-/* ================= SEND MESSAGE ================= */
+/* ================= SEND MESSAGE (Legacy) ================= */
 
-export const sendMessageApi = (
-  payload: SendMessagePayload
+export const sendMessageLegacyApi = (
+  payload: { receiverId: string; content: string; messageType: string }
 ): Promise<ApiResponse<Message>> => {
   return apiClient.post("/chat/messages", payload);
 };
