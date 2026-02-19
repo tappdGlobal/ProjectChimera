@@ -15,8 +15,8 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Search, Users } from "lucide-react-native";
 import { Theme } from "../styles/Theme";
-import { useChatStore } from "../store/chatStore";
-import { ConversationListItem } from "../types/chatTypes";
+import { useFriendStore } from "../store/friendStore";
+import { Friend } from "../types/friendTypes";
 import { EngageStackParamList } from "../navigation/Routes";
 import { SCREEN_NAMES } from "../navigation/Routes";
 
@@ -27,36 +27,33 @@ const DEFAULT_AVATAR =
 
 export default function ChatListScreen({ embedded = false }: { embedded?: boolean }) {
   const navigation = useNavigation<NavigationProp>();
-  const { conversations, loading, getConversations } = useChatStore();
+  const { friends, loading, getFriends } = useFriendStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
 
   useEffect(() => {
-    // Disabled: Backend endpoint /chat/conversations does not exist
-    // getConversations();
+    // Fetch friends on mount
+    getFriends();
   }, []);
 
   const handleRefresh = () => {
-    // Disabled: Backend endpoint /chat/conversations does not exist
-    // getConversations();
+    // Refresh friends list
+    getFriends();
   };
 
-  // Filter conversations based on search query
-  const filteredConversations = conversations.filter((conv) => {
+  // Filter friends based on search query
+  const filteredFriends = friends.filter((friend) => {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
-    const name = (conv.otherUser.name || conv.otherUser.username).toLowerCase();
+    const name = (friend.user.name || friend.user.username).toLowerCase();
     return name.includes(query);
   });
 
-  // Count unread conversations
-  const unreadCount = conversations.filter((conv) => conv.unreadCount > 0).length;
-
-  const handleConversationPress = (conversation: ConversationListItem) => {
+  const handleFriendPress = (friend: Friend) => {
     navigation.navigate(SCREEN_NAMES.CHAT_DETAIL, {
-      chatId: conversation.otherUser.id,
-      name: conversation.otherUser.name || conversation.otherUser.username,
-      avatar: conversation.otherUser.profilePicUrl || DEFAULT_AVATAR,
+      chatId: friend.user.id,
+      name: friend.user.name || friend.user.username,
+      avatar: friend.user.avatar || DEFAULT_AVATAR,
     });
   };
 
@@ -75,49 +72,42 @@ export default function ChatListScreen({ embedded = false }: { embedded?: boolea
     return date.toLocaleDateString();
   };
 
-  const renderConversation = ({ item }: { item: ConversationListItem }) => {
-    const isUnread = item.unreadCount > 0;
-
+  const renderFriend = ({ item }: { item: Friend }) => {
+    // Handle different avatar field names from backend
+    const avatarUrl = item.user.avatar || (item.user as any).profilePicUrl || DEFAULT_AVATAR;
+    
     return (
       <TouchableOpacity
         style={styles.conversationItem}
-        onPress={() => handleConversationPress(item)}
+        onPress={() => handleFriendPress(item)}
       >
         <View style={styles.avatarContainer}>
           <Image
-            source={{ uri: item.otherUser.profilePicUrl || DEFAULT_AVATAR }}
+            source={{ uri: avatarUrl }}
             style={styles.avatar}
+            contentFit="cover"
+            transition={200}
           />
-          {isUnread && <View style={styles.onlineIndicator} />}
+          <View style={styles.onlineIndicator} />
         </View>
 
         <View style={styles.conversationInfo}>
           <View style={styles.conversationHeader}>
             <Text style={styles.userName} numberOfLines={1}>
-              {item.otherUser.name || item.otherUser.username}
+              {item.user.name || item.user.username}
             </Text>
             <Text style={styles.timeText}>
-              {formatTime(item.lastMessage.createdAt)}
+              {formatTime(item.updatedAt)}
             </Text>
           </View>
 
           <View style={styles.messagePreview}>
             <Text
-              style={[
-                styles.lastMessage,
-                isUnread && styles.unreadMessage,
-              ]}
+              style={styles.lastMessage}
               numberOfLines={1}
             >
-              {item.lastMessage.content}
+              Tap to chat
             </Text>
-            {isUnread && item.unreadCount > 0 && (
-              <View style={styles.unreadBadge}>
-                <Text style={styles.unreadCount}>
-                  {item.unreadCount > 99 ? "99+" : item.unreadCount}
-                </Text>
-              </View>
-            )}
           </View>
         </View>
       </TouchableOpacity>
@@ -126,9 +116,9 @@ export default function ChatListScreen({ embedded = false }: { embedded?: boolea
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Text style={styles.emptyStateText}>No conversations yet</Text>
+      <Text style={styles.emptyStateText}>No friends yet</Text>
       <Text style={styles.emptyStateSubtext}>
-        Start chatting with people you've connected with
+        Connect with people to start chatting
       </Text>
       <TouchableOpacity
         style={styles.startChatButton}
@@ -145,9 +135,9 @@ export default function ChatListScreen({ embedded = false }: { embedded?: boolea
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={styles.headerTitle}>Chats</Text>
-          {unreadCount > 0 && (
+          {friends.length > 0 && (
             <View style={styles.newBadge}>
-              <Text style={styles.newBadgeText}>{unreadCount} new</Text>
+              <Text style={styles.newBadgeText}>{friends.length} friends</Text>
             </View>
           )}
         </View>
@@ -166,7 +156,7 @@ export default function ChatListScreen({ embedded = false }: { embedded?: boolea
           <Search size={18} color={Theme.colors.mutedForeground} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search chats..."
+            placeholder="Search friends..."
             placeholderTextColor={Theme.colors.mutedForeground}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -180,18 +170,18 @@ export default function ChatListScreen({ embedded = false }: { embedded?: boolea
         </View>
       )}
 
-      {loading && conversations.length === 0 ? (
+      {loading && friends.length === 0 ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Theme.colors.primary} />
         </View>
       ) : (
         <FlatList
-          data={filteredConversations}
-          renderItem={renderConversation}
-          keyExtractor={(item) => item.id}
+          data={filteredFriends}
+          renderItem={renderFriend}
+          keyExtractor={(item) => item.friendshipId}
           contentContainerStyle={[
             styles.listContent,
-            filteredConversations.length === 0 && styles.emptyListContent,
+            filteredFriends.length === 0 && styles.emptyListContent,
           ]}
           ListEmptyComponent={renderEmptyState}
           refreshControl={

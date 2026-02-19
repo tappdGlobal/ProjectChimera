@@ -19,14 +19,16 @@ import Toast from "react-native-toast-message";
 
 interface CreateStoryModalProps {
   visible: boolean;
-  imageUri: string | null;
+  mediaUri: string | null;
+  mediaType?: 'image' | 'video';
   onClose: () => void;
   onSuccess?: () => void;
 }
 
 export function CreateStoryModal({
   visible,
-  imageUri,
+  mediaUri,
+  mediaType = 'image',
   onClose,
   onSuccess,
 }: CreateStoryModalProps) {
@@ -40,36 +42,61 @@ export function CreateStoryModal({
     }
   }, [visible]);
 
-  if (!imageUri) return null;
+  if (!mediaUri) return null;
 
   const handlePublish = async () => {
     try {
-      console.log("Publishing story with image:", imageUri);
+      console.log("Publishing story with media:", mediaUri, "type:", mediaType);
       
-      if (!imageUri) {
-        throw new Error("No image selected");
+      if (!mediaUri) {
+        throw new Error("No media selected");
       }
       
       // Extract filename from URI
-      const filename = imageUri.split('/').pop() || 'story.jpg';
+      const filename = mediaUri.split('/').pop() || (mediaType === 'video' ? 'story.mp4' : 'story.jpg');
       const match = /\.([\w]+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : 'image/jpeg';
+      const extension = match ? match[1].toLowerCase() : (mediaType === 'video' ? 'mp4' : 'jpg');
+      
+      // Determine MIME type based on media type and extension
+      let mimeType: string;
+      if (mediaType === 'video') {
+        const videoMimeTypes: Record<string, string> = {
+          mp4: 'video/mp4',
+          mov: 'video/quicktime',
+          avi: 'video/x-msvideo',
+          mkv: 'video/x-matroska',
+          webm: 'video/webm',
+          m4v: 'video/x-m4v',
+          '3gp': 'video/3gpp',
+        };
+        mimeType = videoMimeTypes[extension] || 'video/mp4';
+      } else {
+        const imageMimeTypes: Record<string, string> = {
+          jpg: 'image/jpeg',
+          jpeg: 'image/jpeg',
+          png: 'image/png',
+          gif: 'image/gif',
+          webp: 'image/webp',
+        };
+        mimeType = imageMimeTypes[extension] || 'image/jpeg';
+      }
       
       console.log("Story payload:", {
         caption: caption || undefined,
+        mediaType,
         media: {
-          uri: imageUri,
+          uri: mediaUri,
           name: filename,
-          type: type,
+          type: mimeType,
         },
       });
 
       await createStory({
         caption: caption || undefined,
         media: {
-          uri: imageUri,
+          uri: mediaUri,
           name: filename,
-          type: type,
+          type: mimeType,
         },
       });
 
@@ -119,9 +146,14 @@ export function CreateStoryModal({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
           >
-            {/* Image Preview */}
+            {/* Media Preview */}
             <View style={styles.imageWrapper}>
-              <Image source={{ uri: imageUri }} style={styles.image} />
+              <Image source={{ uri: mediaUri }} style={styles.image} />
+              {mediaType === 'video' && (
+                <View style={styles.videoOverlay}>
+                  <Text style={styles.videoText}>VIDEO</Text>
+                </View>
+              )}
             </View>
 
             {/* Caption Input */}
@@ -214,6 +246,27 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 320,
     resizeMode: "cover",
+  },
+
+  videoOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  videoText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "700",
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
 
   captionWrapper: {

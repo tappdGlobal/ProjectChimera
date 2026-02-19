@@ -26,6 +26,7 @@ export interface LegacyMessage {
   delivered: boolean;
   seen: boolean;
   createdAt: string;
+  conversationId?: string; // Optional: used for routing socket messages to correct chat
 }
 
 /* ================= CONVERSATION TYPES ================= */

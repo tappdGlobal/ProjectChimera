@@ -82,20 +82,40 @@ export default function ChatDetailScreen() {
   useEffect(() => {
     // Listen for incoming messages via socket
     const handleIncomingMessage = (message: Message) => {
-      receiveMessage(message);
+      console.log("[ChatDetail] Received message via socket:", message);
+      
+      // Only process messages for the current conversation
+      // Message should have conversationId from backend, or we check sender
+      const isForCurrentChat = 
+        message.conversationId === currentConversationId ||
+        message.senderId === chatId ||
+        message.receiverId === chatId;
+      
+      console.log("[ChatDetail] Message for current chat?", isForCurrentChat, {
+        messageConversationId: message.conversationId,
+        currentConversationId,
+        messageSenderId: message.senderId,
+        chatId,
+      });
+      
+      if (isForCurrentChat) {
+        receiveMessage(message);
+      }
     };
 
     // Subscribe to socket messages
     import("../services/socket").then(({ socketService }) => {
       socketService.onReceiveMessage(handleIncomingMessage);
+      console.log("[ChatDetail] Subscribed to socket messages for chat:", chatId);
     });
 
     return () => {
       import("../services/socket").then(({ socketService }) => {
         socketService.removeMessageCallback(handleIncomingMessage);
+        console.log("[ChatDetail] Unsubscribed from socket messages");
       });
     };
-  }, [receiveMessage]);
+  }, [receiveMessage, chatId, currentConversationId]);
 
   useEffect(() => {
     // Scroll to bottom when messages change
