@@ -75,4 +75,10 @@ export const getAcceptedConnectionsApi = async (): Promise<
   }
 };
 
+/* ================= UNFRIEND / REMOVE CONNECTION ================= */
+
+export const unfriendConnectionApi = async (friendId: string): Promise<void> => {
+  await apiClient.delete(`/connections/${friendId}`);
+};
+
 

@@ -449,8 +449,8 @@ export function EventInteractionSection() {
                 thumbnailImage={myStoriesData.thumbnailImage}
                 viewed={myStoriesData.viewed}
                 onPress={() => {
-                  // Find the index in displayStories for my story (it's always at index 1 now)
-                  setStoryIndex(1);
+                  // Use 1000 as offset to indicate "my story" (distinguishes from displayStories indices)
+                  setStoryIndex(1000);
                   setShowStoryModal(true);
                 }}
               />
@@ -462,8 +462,9 @@ export function EventInteractionSection() {
                 key={story.id}
                 item={story}
                 onPress={() => {
-                  // Index + 2 because 0 is add-story, 1 is my story (if exists)
-                  setStoryIndex(myStoriesData ? index + 2 : index + 1);
+                  // Index + 1 because 0 is add-story
+                  // Note: myStoriesData is rendered separately, not in displayStories
+                  setStoryIndex(index + 1);
                   setShowStoryModal(true);
                 }}
               />
@@ -475,8 +476,8 @@ export function EventInteractionSection() {
       <StoryViewer
         visible={showStoryModal}
         stories={(() => {
-          // Handle My Story (index 1 when myStoriesData exists)
-          if (myStoriesData && storyIndex === 1) {
+          // storyIndex >= 1000 means it's "my story" (offset by 1000 to distinguish from displayStories indices)
+          if (storyIndex >= 1000 && myStoriesData) {
             return myStoriesData.stories.map((s: any) => ({
               id: s.id,
               username: myStoriesData.name || "Unknown",

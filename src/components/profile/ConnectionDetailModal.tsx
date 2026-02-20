@@ -7,12 +7,14 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import Modal from "react-native-modal";
 import { LinearGradient } from "expo-linear-gradient";
 import { Theme, GRADIENT_COLORS } from "../../styles/Theme";
-import { X, ArrowLeft, MessageCircle, UserMinus } from "lucide-react-native";
+import { X, ArrowLeft, MessageCircle, UserMinus, AlertTriangle } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useConnectionStore } from "../../store/connectionStore";
 
 const { height } = Dimensions.get("window");
 
@@ -20,16 +22,98 @@ interface Props {
   visible: boolean;
   user: any;
   onClose: () => void;
+  onUnfriend?: () => void;
 }
+
+// Custom Confirmation Modal Component
+interface ConfirmModalProps {
+  visible: boolean;
+  title: string;
+  message: string;
+  confirmText: string;
+  cancelText: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isLoading?: boolean;
+}
+
+const ConfirmModal = ({
+  visible,
+  title,
+  message,
+  confirmText,
+  cancelText,
+  onConfirm,
+  onCancel,
+  isLoading,
+}: ConfirmModalProps) => (
+  <Modal
+    isVisible={visible}
+    animationIn="fadeIn"
+    animationOut="fadeOut"
+    backdropOpacity={0.7}
+    onBackdropPress={!isLoading ? onCancel : undefined}
+    style={styles.confirmModal}
+  >
+    <View style={styles.confirmContainer}>
+      <View style={styles.confirmIconContainer}>
+        <AlertTriangle size={32} color="#ff3040" />
+      </View>
+      <Text style={styles.confirmTitle}>{title}</Text>
+      <Text style={styles.confirmMessage}>{message}</Text>
+      <View style={styles.confirmButtons}>
+        <TouchableOpacity
+          style={[styles.confirmBtn, styles.cancelBtn]}
+          onPress={onCancel}
+          disabled={isLoading}
+        >
+          <Text style={styles.cancelBtnText}>{cancelText}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.confirmBtn, styles.removeConfirmBtn, isLoading && styles.btnDisabled]}
+          onPress={onConfirm}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.removeConfirmBtnText}>{confirmText}</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </View>
+  </Modal>
+);
 
 export const ConnectionDetailModal = ({
   visible,
   user,
   onClose,
+  onUnfriend,
 }: Props) => {
   const [tab, setTab] = useState<"about" | "photos">("about");
+  const [isRemoving, setIsRemoving] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const { unfriendConnection } = useConnectionStore();
 
   if (!user) return null;
+
+  const handleRemovePress = () => {
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmRemove = async () => {
+    setIsRemoving(true);
+    const result = await unfriendConnection(user.id);
+    setIsRemoving(false);
+    setShowConfirmModal(false);
+    
+    if (result.success) {
+      onUnfriend?.();
+      onClose();
+    }
+    // Error is handled silently - could add a toast notification here
+  };
 
   return (
     <Modal
@@ -89,9 +173,19 @@ export const ConnectionDetailModal = ({
               <Text style={styles.messageText}>Message</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.removeBtn}>
-              <UserMinus size={18} color={Theme.colors.foreground} />
-              <Text style={styles.removeText}>Remove</Text>
+            <TouchableOpacity 
+              style={[styles.removeBtn, isRemoving && styles.removeBtnDisabled]}
+              onPress={handleRemovePress}
+              disabled={isRemoving}
+            >
+              {isRemoving ? (
+                <ActivityIndicator size="small" color={Theme.colors.foreground} />
+              ) : (
+                <>
+                  <UserMinus size={18} color={Theme.colors.foreground} />
+                  <Text style={styles.removeText}>Remove</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -147,6 +241,18 @@ export const ConnectionDetailModal = ({
           )}
         </ScrollView>
       </SafeAreaView>
+
+      {/* Confirmation Modal */}
+      <ConfirmModal
+        visible={showConfirmModal}
+        title="Remove Friend"
+        message={`Are you sure you want to remove ${user.name || "this user"} from your connections?`}
+        confirmText="Remove"
+        cancelText="Cancel"
+        onConfirm={handleConfirmRemove}
+        onCancel={() => setShowConfirmModal(false)}
+        isLoading={isRemoving}
+      />
     </Modal>
   );
 };
@@ -256,6 +362,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
+  removeBtnDisabled: {
+    opacity: 0.6,
+  },
+
   removeText: {
     color: Theme.colors.foreground,
     fontSize: 15,
@@ -319,5 +429,85 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 12,
+  },
+
+  /* CONFIRMATION MODAL */
+  confirmModal: {
+    margin: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  confirmContainer: {
+    backgroundColor: "#1c1c1e",
+    borderRadius: 20,
+    padding: 24,
+    width: "100%",
+    maxWidth: 320,
+    alignItems: "center",
+  },
+
+  confirmIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(255, 48, 64, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+
+  confirmTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: Theme.colors.foreground,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+
+  confirmMessage: {
+    fontSize: 15,
+    color: Theme.colors.mutedForeground,
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+
+  confirmButtons: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+
+  confirmBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  cancelBtn: {
+    backgroundColor: "#2c2c2e",
+  },
+
+  cancelBtnText: {
+    color: Theme.colors.foreground,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+
+  removeConfirmBtn: {
+    backgroundColor: "#ff3040",
+  },
+
+  removeConfirmBtnText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+
+  btnDisabled: {
+    opacity: 0.6,
   },
 });

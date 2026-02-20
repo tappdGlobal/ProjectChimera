@@ -112,12 +112,19 @@ export default function StoryViewer({
   useEffect(() => {
     if (!visible || paused) return;
     if (!progress.current[index]) return;
+    if (!stories[index]) return;
+    
+    // Check media type directly from story data to avoid stale state
+    const story = stories[index];
+    const isVideoFile = story.mediaType === 'video' || 
+      /\.(mp4|mov|avi|mkv|webm|m4v|3gp)$/i.test(story.image.toLowerCase());
+    
     // Only auto-start for images - videos start themselves via onLoad
-    if (!isVideo) {
+    if (!isVideoFile) {
       start();
     }
     return () => animation.current?.stop();
-  }, [index, paused, visible, isVideo]);
+  }, [index, paused, visible, stories]);
 
   const start = (duration?: number) => {
     animation.current?.stop();

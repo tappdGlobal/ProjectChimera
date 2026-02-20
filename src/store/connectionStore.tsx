@@ -5,6 +5,7 @@ import {
   getPendingRequestsApi,
   respondConnectionApi,
   getAcceptedConnectionsApi,
+  unfriendConnectionApi,
 } from "../api/connectionApi";
 
 import {
@@ -33,6 +34,8 @@ interface ConnectionState {
     action: ConnectionAction,
     intent: ConnectionIntent[]
   ) => Promise<RespondResult>;
+
+  unfriendConnection: (friendId: string) => Promise<RespondResult>;
 
   removeLocally: (requestId: string) => void;
 }
@@ -121,6 +124,33 @@ export const useConnectionStore = create<ConnectionState>((set, get) => {
             error?.response?.data?.message ||
             error?.message ||
             "Something went wrong",
+        };
+      }
+    },
+
+    // ================= UNFRIEND / REMOVE CONNECTION =================
+    unfriendConnection: async (friendId) => {
+      try {
+        await unfriendConnectionApi(friendId);
+
+        // Remove from accepted connections list
+        const updated = get().acceptedConnections.filter(
+          (connection) => connection.id !== friendId
+        );
+
+        set({ acceptedConnections: updated });
+
+        return {
+          success: true,
+          message: "User has been unfriended successfully",
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          message:
+            error?.response?.data?.message ||
+            error?.message ||
+            "Failed to unfriend user",
         };
       }
     },
