@@ -12,6 +12,7 @@ import { ErrorBoundary } from "./src/components/common/ErrorBoundary";
 import { useAuthStore } from "./src/store/authStore";
 import Toast from "react-native-toast-message";
 import { PostHogProvider } from "posthog-react-native";
+import { useWarningsSuppression } from "./src/hooks/useWarningsSuppression";
 
 export default function App() {
   const [initError, setInitError] = useState<string | null>(null);
@@ -22,6 +23,9 @@ export default function App() {
   const token = useAuthStore((s) => s.token);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const receiveMessage = useChatStore((s) => s.receiveMessage);
+
+  // Suppress non-critical warnings during app initialization
+  useWarningsSuppression();
 
   useEffect(() => {
     hydrateAuth();

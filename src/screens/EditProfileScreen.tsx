@@ -233,11 +233,33 @@ export const EditProfileScreen = ({ navigation }: any) => {
         <View style={styles.twoColumn}>
           <View style={styles.column}>
             <Text style={styles.label}>Age</Text>
-            <TextInput style={styles.input} value={age} onChangeText={setAge} keyboardType="numeric" />
+              <TextInput
+                style={styles.input}
+                value={age}
+                onChangeText={(text) => {
+                  // Only allow digits — reject any non-numeric input
+                  if (/^\d*$/.test(text)) {
+                    setAge(text);
+                  }
+                }}
+                keyboardType="numeric"
+                maxLength={3}
+              />
           </View>
           <View style={styles.column}>
-            <Text style={styles.label}>Height</Text>
-            <TextInput style={styles.input} value={height} onChangeText={setHeight} />
+            <Text style={styles.label}>Height (cm)</Text>
+              <TextInput
+                style={styles.input}
+                value={height}
+                onChangeText={(text) => {
+                  // Only allow digits — reject any non-numeric input
+                  if (/^\d*$/.test(text)) {
+                    setHeight(text);
+                  }
+                }}
+                keyboardType="numeric"
+                maxLength={3}
+              />
           </View>
         </View>
 

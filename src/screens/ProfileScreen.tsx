@@ -693,6 +693,14 @@ export function ProfileScreen() {
         translucent={false}
       />
 
+      {/* Full-screen loader while fetching */}
+      {loading && (
+        <View style={styles.fullScreenLoader}>
+          <ActivityIndicator size="large" color={Theme.colors.primary} />
+          <Text style={styles.loaderText}>Loading profile...</Text>
+        </View>
+      )}
+
       <View style={styles.mainContainer}>
         {/* Header */}
         <View style={styles.header}>
@@ -1388,6 +1396,25 @@ export function ProfileScreen() {
 const styles = StyleSheet.create({
   flex1: { flex: 1 },
   mainContainer: { flex: 1, backgroundColor: Theme.colors.background },
+  
+  fullScreenLoader: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: Theme.colors.background,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
+  
+  loaderText: {
+    color: Theme.colors.foreground,
+    fontSize: 14,
+    marginTop: 16,
+    textAlign: "center",
+  },
 
   header: {
     paddingTop: 0,
