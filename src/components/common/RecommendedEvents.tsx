@@ -4,74 +4,117 @@ import React from "react";
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
+  ActivityIndicator,
+  StyleSheet,
 } from "react-native";
-import { ChevronRight } from "lucide-react-native";
 import { EventCard } from "./EventCard";
-import { Button } from "../ui/Button";
 import { Theme } from "../../styles/Theme";
-
-type Event = {
-  id: string;
-  title: string;
-  date: string;
-  time: string;
-  location: string;
-  image: string;
-};
-
-const recommendedEvents: Event[] = [
-  {
-    id: "1",
-    title: "Summer Rooftop Party",
-    date: "Sep 22",
-    time: "8:00 PM",
-    location: "Sky Lounge, Downtown",
-    image:
-      "https://images.unsplash.com/photo-1709131407822-84a466b130c2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
-  },
-  {
-    id: "2",
-    title: "Live Jazz Night",
-    date: "Sep 24",
-    time: "9:00 PM",
-    location: "Blue Note Cafe",
-    image:
-      "https://images.unsplash.com/photo-1631061434620-db65394197e2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
-  },
-];
+import { FeedEvent } from "../../types/feedTypes";
 
 interface RecommendedEventsProps {
-  onEventSelect?: (event: Event) => void;
-  onExploreAllClick?: () => void;
+  events: FeedEvent[];
+  loading?: boolean;
+  onEventSelect?: (event: FeedEvent) => void;
   searchQuery?: string;
 }
 
 export function RecommendedEvents({
+  events,
+  loading = false,
   onEventSelect,
-  onExploreAllClick,
   searchQuery = "",
 }: RecommendedEventsProps) {
-  // Filter events based on search query
-  const filteredEvents = recommendedEvents.filter(event =>
-    searchQuery === "" ||
-    event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    event.location.toLowerCase().includes(searchQuery.toLowerCase())
+
+  /* ================= LOADING ================= */
+
+  if (loading) {
+    return (
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="large" color={Theme.colors.primary} />
+      </View>
+    );
+  }
+
+  /* ================= DATE FORMATTER ================= */
+
+const formatEventDateTime = (
+  dateStr: string,
+  timeStr?: string
+) => {
+  try {
+    let dateObj: Date;
+
+    // ISO format
+    if (dateStr.includes("T")) {
+      dateObj = new Date(dateStr);
+    } 
+    // Separate date + time
+    else if (timeStr) {
+      dateObj = new Date(`${dateStr}T${timeStr}`);
+    } 
+    // Only date
+    else {
+      dateObj = new Date(dateStr);
+    }
+
+    if (isNaN(dateObj.getTime())) {
+      return dateStr;
+    }
+
+    // Month Day format (Mar 10)
+    const month = dateObj.toLocaleString("en-US", {
+      month: "short",
+    });
+
+    const day = dateObj.getDate();
+
+    // Time with uppercase AM/PM
+    const time = dateObj
+      .toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      })
+      .toUpperCase();
+
+    return `${month} ${day} · ${time}`;
+  } catch {
+    return dateStr;
+  }
+};
+
+  /* ================= FILTER EVENTS ================= */
+
+  const filteredEvents = events.filter(
+    (event) =>
+      searchQuery === "" ||
+      event.eventName
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      event.city
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase())
   );
 
-  // Don't render if no results from search
   if (searchQuery && filteredEvents.length === 0) {
     return null;
   }
+
+  if (!events || events.length === 0) {
+    return null;
+  }
+
+  /* ================= RENDER ================= */
+
   return (
     <View style={styles.container}>
-      {/* HEADER */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Recommended for You</Text>
+        <Text style={styles.headerTitle}>
+          Recommended for You
+        </Text>
       </View>
 
-      {/* HORIZONTAL EVENT LIST */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -80,33 +123,25 @@ export function RecommendedEvents({
         {filteredEvents.map((event) => (
           <EventCard
             key={event.id}
-            event={event}
+            event={{
+              id: event.id,
+              title: event.eventName,
+              date: formatEventDateTime(
+                event.eventDate,
+                event.eventTime
+              ),
+              time: "", // combined already
+              location: `${event.venue}, ${event.city}`,
+              image: event.images?.[0] ?? "",
+            }}
             size="small"
             onClick={() => onEventSelect?.(event)}
           />
         ))}
-
-        {/* EXPLORE ALL */}
-        <View style={styles.exploreAllWrapper}>
-          <Button
-            variant="outline"
-            onClick={onExploreAllClick}
-            style={styles.exploreAllButton}
-            textStyle={styles.exploreAllText}
-          >
-            Explore All
-            <ChevronRight
-              size={16}
-              color={Theme.colors.primary}
-              style={styles.chevron}
-            />
-          </Button>
-        </View>
       </ScrollView>
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
@@ -114,9 +149,6 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     paddingHorizontal: 16,
     marginBottom: 16,
   },
@@ -134,25 +166,9 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
 
-  exploreAllWrapper: {
-    flexShrink: 0,
-    width: 128,
+  loaderContainer: {
+    paddingVertical: 40,
     justifyContent: "center",
     alignItems: "center",
-  },
-
-  exploreAllButton: {
-    borderColor: Theme.colors.primary,
-    borderWidth: 1,
-    borderRadius: 9999,
-    minHeight: 40,
-  },
-
-  exploreAllText: {
-    color: Theme.colors.primary,
-  },
-
-  chevron: {
-    marginLeft: 4,
   },
 });

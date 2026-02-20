@@ -1,57 +1,104 @@
 // src/components/common/WishlistedEvents.tsx
 
 import React from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
-import { ChevronRight } from "lucide-react-native";
-import { EventCard } from "./EventCard";
-import { Button } from "../ui/Button";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+} from "react-native";
 import { Theme } from "../../styles/Theme";
-
-const wishlistedEvents = [
-  {
-    id: "w1",
-    title: "Intimate House Concert",
-    date: "Oct 5",
-    time: "7:00 PM",
-    location: "Artist's Studio, Brooklyn",
-    image:
-      "https://images.unsplash.com/photo-1655238865814-1e57e8dff451",
-    isWishlisted: true,
-  },
-  {
-    id: "w2",
-    title: "Silent Film & Wine Tasting",
-    date: "Oct 8",
-    time: "6:30 PM",
-    location: "Historic Movie Palace",
-    image:
-      "https://images.unsplash.com/photo-1524712245354-2c4e5e7121c0",
-    isWishlisted: true,
-  },
-];
-
+import { WishlistEvent } from "../../types/wishlistTypes";
+import { WishlistEventCard } from "./WishlistEventCard";
 interface WishlistedEventsProps {
-  onEventSelect?: (event: any) => void;
-  onExploreAllClick?: () => void;
+  events?: WishlistEvent[];
+  loading?: boolean;
+  onEventSelect?: (event: WishlistEvent) => void;
   searchQuery?: string;
 }
 
 export function WishlistedEvents({
+  events = [],
+  loading = false,
   onEventSelect,
-  onExploreAllClick,
   searchQuery = "",
 }: WishlistedEventsProps) {
-  // Filter events based on search query
-  const filteredEvents = wishlistedEvents.filter(event =>
+
+  /* ================= DATE FORMATTER ================= */
+
+  const formatEventDateTime = (
+    dateStr: string,
+    timeStr?: string
+  ) => {
+    try {
+      let dateObj: Date;
+
+      if (dateStr.includes("T")) {
+        dateObj = new Date(dateStr);
+      } else if (timeStr) {
+        dateObj = new Date(`${dateStr}T${timeStr}`);
+      } else {
+        dateObj = new Date(dateStr);
+      }
+
+      if (isNaN(dateObj.getTime())) {
+        return dateStr;
+      }
+
+      const month = dateObj.toLocaleString("en-US", {
+        month: "short",
+      });
+
+      const day = dateObj.getDate();
+
+      const time = dateObj
+        .toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        })
+        .toUpperCase();
+
+      return `${month} ${day} · ${time}`;
+    } catch {
+      return dateStr;
+    }
+  };
+
+  /* ================= SAFE FILTER ================= */
+
+  const filteredEvents = events.filter((event) =>
     searchQuery === "" ||
-    event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    event.location.toLowerCase().includes(searchQuery.toLowerCase())
+    event.eventName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    event.location?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Don't render if no results from search
-  if (filteredEvents.length === 0) {
+  /* ================= LOADING ================= */
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Your Wishlist</Text>
+        </View>
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator
+            size="small"
+            color={Theme.colors.primary}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  /* ================= EMPTY ================= */
+
+  if (!filteredEvents || filteredEvents.length === 0) {
     return null;
   }
+
+  /* ================= RENDER ================= */
 
   return (
     <View style={styles.container}>
@@ -65,30 +112,22 @@ export function WishlistedEvents({
         contentContainerStyle={styles.scrollContent}
       >
         {filteredEvents.map((event) => (
-          <EventCard
+          <WishlistEventCard
             key={event.id}
-            event={event}
-            size="small"
-            showWishlist={true}
-            onClick={() => onEventSelect?.(event)}   // ✅ PASS FULL EVENT
+            event={{
+              id: event.id,
+              title: event.eventName,
+              date: formatEventDateTime(
+                event.eventDate,
+                event.eventTime
+              ),
+              time: "",
+              location: event.location,
+              image: event.images?.[0] || "",
+            }}
+            onClick={() => onEventSelect?.(event)}
           />
         ))}
-
-        <View style={styles.exploreAllWrapper}>
-          <Button
-            variant="outline"
-            onClick={onExploreAllClick}
-            style={styles.exploreAllButton}
-            textStyle={styles.exploreAllText}
-          >
-            Explore All
-            <ChevronRight
-              size={16}
-              color={Theme.colors.primary}
-              style={styles.chevron}
-            />
-          </Button>
-        </View>
       </ScrollView>
     </View>
   );
@@ -99,9 +138,6 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     paddingHorizontal: 16,
     marginBottom: 16,
   },
@@ -116,22 +152,8 @@ const styles = StyleSheet.create({
     gap: 16,
     paddingBottom: 8,
   },
-  exploreAllWrapper: {
-    flexShrink: 0,
-    width: 128,
-    justifyContent: "center",
+  loaderContainer: {
+    paddingVertical: 20,
     alignItems: "center",
-  },
-  exploreAllButton: {
-    borderColor: Theme.colors.primary,
-    borderWidth: 1,
-    borderRadius: 9999,
-    minHeight: 40,
-  },
-  exploreAllText: {
-    color: Theme.colors.primary,
-  },
-  chevron: {
-    marginLeft: 4,
   },
 });

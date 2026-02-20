@@ -28,6 +28,7 @@ export const SCREEN_NAMES = {
   EXPLORE_HOME: "ExploreHome",
   EVENT_DISCOVERY: "EventDiscovery",
   EVENT_DETAIL: "EventDetail",
+  CATEGORY_EVENTS: "CategoryEvents",
 
   // ================= ENGAGE STACK =================
   ENGAGE_HOME: "EngageHome",
@@ -93,6 +94,9 @@ export type ExploreStackParamList = {
 
   [SCREEN_NAMES.EVENT_DETAIL]: {
     event: any;
+  };
+  [SCREEN_NAMES.CATEGORY_EVENTS]: {
+    category: string;
   };
 };
 
