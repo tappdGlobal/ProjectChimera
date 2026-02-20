@@ -11,7 +11,7 @@ import {
   ScrollView,
   ActivityIndicator
 } from "react-native";
-import { Heart, MapPin, Layers, LayoutGrid, X, Eye, MessageCircle, Clock, UserPlus, ArrowLeft, Briefcase, GraduationCap } from "lucide-react-native";
+import { Heart, MapPin, Layers, LayoutGrid, X, Eye, MessageCircle, Clock, UserPlus, ArrowLeft, Briefcase, GraduationCap, RefreshCw } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Theme, GRADIENT_COLORS } from "../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
@@ -169,6 +169,7 @@ export function ReconnectScreen() {
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [showComingSoon, setShowComingSoon] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const {
     pendingRequests,
@@ -208,6 +209,28 @@ export function ReconnectScreen() {
     }
 
     setActionLoadingId(null);
+  };
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    
+    setIsRefreshing(true);
+    try {
+      await fetchPendingRequests();
+      Toast.show({
+        type: "success",
+        text1: "Refreshed",
+        text2: "Latest requests loaded",
+      });
+    } catch (error: any) {
+      Toast.show({
+        type: "error",
+        text1: "Refresh failed",
+        text2: error?.message || "Could not load requests",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
 
@@ -398,45 +421,59 @@ export function ReconnectScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Reconnect</Text>
+        
+        {/* Refresh Button */}
+        <TouchableOpacity
+          onPress={handleRefresh}
+          disabled={isRefreshing}
+          style={{ padding: 8 }}
+        >
+          {isRefreshing ? (
+            <ActivityIndicator size="small" color={Theme.colors.primary} />
+          ) : (
+            <RefreshCw size={22} color={Theme.colors.foreground} />
+          )}
+        </TouchableOpacity>
+      </View>
 
-        {/* Tab Selector - Row 1 */}
-        <View style={styles.tabContainer}>
+      {/* Tab Selector - Row 1 */}
+      <View style={styles.tabContainer}>
+        {renderGradientToggle(
+          "friendRequests",
+          <Heart
+            size={16}
+            color={activeButton === "friendRequests" ? "#FFFFFF" : "rgba(255, 255, 255, 0.7)"}
+            style={styles.tabIcon}
+          />,
+          "Friend Requests",
+          styles.tabButton,
+        )}
+
+        {renderGradientToggle(
+          "crossedPaths",
+          <MapPin
+            size={16}
+            color={activeButton === "crossedPaths" ? "#FFFFFF" : "rgba(255, 255, 255, 0.7)"}
+            style={styles.tabIcon}
+          />,
+          "Crossed Paths",
+          styles.tabButton,
+        )}
+      </View>
+
+      {/* View Mode Toggle - Row 2 (Hidden when Crossed Paths is active) */}
+      {activeButton !== "crossedPaths" && (
+        <View style={styles.viewModeContainer}>
           {renderGradientToggle(
-            "friendRequests",
-            <Heart
+            "swipe",
+            <Layers
               size={16}
-              color={activeButton === "friendRequests" ? "#FFFFFF" : "rgba(255, 255, 255, 0.7)"}
+              color={activeButton === "swipe" ? "#FFFFFF" : "rgba(255, 255, 255, 0.7)"}
               style={styles.tabIcon}
             />,
-            "Friend Requests",
-            styles.tabButton,
+            "Swipe",
+            styles.viewModeButton,
           )}
-
-          {renderGradientToggle(
-            "crossedPaths",
-            <MapPin
-              size={16}
-              color={activeButton === "crossedPaths" ? "#FFFFFF" : "rgba(255, 255, 255, 0.7)"}
-              style={styles.tabIcon}
-            />,
-            "Crossed Paths",
-            styles.tabButton,
-          )}
-        </View>
-
-        {/* View Mode Toggle - Row 2 (Hidden when Crossed Paths is active) */}
-        {activeButton !== "crossedPaths" && (
-          <View style={styles.viewModeContainer}>
-            {renderGradientToggle(
-              "swipe",
-              <Layers
-                size={16}
-                color={activeButton === "swipe" ? "#FFFFFF" : "rgba(255, 255, 255, 0.7)"}
-                style={styles.tabIcon}
-              />,
-              "Swipe",
-              styles.viewModeButton,
-            )}
 
             {renderGradientToggle(
               "list",
@@ -450,7 +487,6 @@ export function ReconnectScreen() {
             )}
           </View>
         )}
-      </View>
 
       {/* Content */}
       {activeButton === "crossedPaths" ? (
@@ -955,18 +991,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 16,
     paddingBottom: 20,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: "bold",
     color: "#FFFFFF",
-    textAlign: "center",
-    marginBottom: 20,
+    flex: 1,
   },
   tabContainer: {
     flexDirection: "row",
     gap: 12,
     marginBottom: 12,
+    paddingHorizontal: 24,
   },
   tabButton: {
     flex: 1,
@@ -1002,6 +1041,8 @@ const styles = StyleSheet.create({
   viewModeContainer: {
     flexDirection: "row",
     gap: 12,
+    paddingHorizontal: 24,
+    marginBottom: 12,
   },
   viewModeButton: {
     flex: 1,

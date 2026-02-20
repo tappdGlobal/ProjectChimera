@@ -39,10 +39,41 @@ import { TermsOfServiceModal } from "../components/Legal/TermsOfServiceModal";
 import { PrivacyPolicyModal } from "../components/Legal/PrivacyPolicyModal";
 import { ActivityIndicator } from "react-native";
 import { updateUserApi, uploadProfilePictureApi } from "../api/userApi";
-import { signupApi } from "../api/authApi";
+import { signupApi, checkUsernameApi, checkEmailApi, checkPhoneApi } from "../api/authApi";
 
 const TOTAL_STEPS = 6;
 const RESEND_COOLDOWN = 60; // 60 seconds cooldown
+
+// 🔹 Password Requirement Checker Component
+interface RequirementCheckProps {
+  label: string;
+  met: boolean;
+}
+
+const RequirementCheck: React.FC<RequirementCheckProps> = ({ label, met }) => (
+  <View style={{ flexDirection: "row", alignItems: "center", marginVertical: 4 }}>
+    <Text
+      style={{
+        color: met ? "#10B981" : "rgba(255,255,255,0.3)",
+        fontSize: 14,
+        fontWeight: "bold",
+        marginRight: 8,
+        width: 16,
+        textAlign: "center",
+      }}
+    >
+      {met ? "✓" : "○"}
+    </Text>
+    <Text
+      style={{
+        color: met ? "#10B981" : "rgba(255,255,255,0.5)",
+        fontSize: 12,
+      }}
+    >
+      {label}
+    </Text>
+  </View>
+);
 
 const INTERESTS = [
   "Music",
@@ -133,6 +164,34 @@ export const ProfileCreationScreen = () => {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [isResending, setIsResending] = useState(false);
 
+  // Error state for fields
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [confirmPasswordError, setConfirmPasswordError] = useState("");
+  const [firstNameError, setFirstNameError] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+  const [ageError, setAgeError] = useState("");
+  const [usernameError, setUsernameError] = useState("");
+  const [cityError, setCityError] = useState("");
+  const [verificationCodeError, setVerificationCodeError] = useState("");
+
+  // Real-time password validation state
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    minLength: false,
+    hasLowercase: false,
+    hasUppercase: false,
+    hasNumber: false,
+    hasSpecialChar: false,
+  });
+
+  // Availability check states
+  const [checkingUsername, setCheckingUsername] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  const [checkingPhone, setCheckingPhone] = useState(false);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
+  const [phoneAvailable, setPhoneAvailable] = useState<boolean | null>(null);
+
   const { signup, verifyEmail, loading, error, clearError } = useAuthStore();
 
   // Countdown timer for resend cooldown
@@ -142,6 +201,88 @@ export const ProfileCreationScreen = () => {
       return () => clearTimeout(timer);
     }
   }, [resendCooldown]);
+
+  // Real-time password validation feedback
+  useEffect(() => {
+    if (!password) {
+      setPasswordRequirements({
+        minLength: false,
+        hasLowercase: false,
+        hasUppercase: false,
+        hasNumber: false,
+        hasSpecialChar: false,
+      });
+      return;
+    }
+
+    const requirements = {
+      minLength: password.length >= 8,
+      hasLowercase: /[a-z]/.test(password),
+      hasUppercase: /[A-Z]/.test(password),
+      hasNumber: /[0-9]/.test(password),
+      hasSpecialChar: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
+    };
+
+    setPasswordRequirements(requirements);
+
+    // Check if all requirements are met
+    const allMet = Object.values(requirements).every(Boolean);
+    if (allMet) {
+      setPasswordError("");
+    } else {
+      setPasswordError("Password does not meet all requirements");
+    }
+  }, [password]);
+
+  // Debounced username availability check
+  useEffect(() => {
+    if (!username.trim() || username.length < 3) {
+      setUsernameAvailable(null);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      checkUsernameAvailability(username);
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [username]);
+
+  // Debounced email availability check - only after format validation
+  useEffect(() => {
+    if (!email.trim()) {
+      setEmailAvailable(null);
+      setEmailError("");
+      return;
+    }
+
+    // First validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      // Invalid format - show format error
+      setEmailAvailable(null);
+      setEmailError("Please enter a valid email address");
+      return;
+    }
+
+    // Email format is valid - clear errors
+    setEmailAvailable(true);
+    setEmailError("");
+  }, [email]);
+
+  // Debounced phone availability check
+  useEffect(() => {
+    if (!phone.trim() || phone.length < 10) {
+      setPhoneAvailable(null);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      checkPhoneAvailability(phone);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [phone]);
 
   useEffect(() => {
     if (error) {
@@ -160,6 +301,159 @@ export const ProfileCreationScreen = () => {
     }
   };
 
+  // Validation helper functions
+  const validateEmail = (emailValue: string): string => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailValue) {
+      return "Email is required";
+    }
+    if (!emailRegex.test(emailValue)) {
+      return "Please enter a valid email address";
+    }
+    return "";
+  };
+
+  const validatePassword = (passwordValue: string): string => {
+    if (!passwordValue) {
+      return "Password is required";
+    }
+    if (passwordValue.length < 8) {
+      return "Password must be at least 8 characters";
+    }
+    const hasLowercase = /[a-z]/.test(passwordValue);
+    const hasUppercase = /[A-Z]/.test(passwordValue);
+    const hasNumber = /[0-9]/.test(passwordValue);
+    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(passwordValue);
+    
+    if (!hasLowercase) {
+      return "Password must contain at least one lowercase letter";
+    }
+    if (!hasUppercase) {
+      return "Password must contain at least one uppercase letter";
+    }
+    if (!hasNumber) {
+      return "Password must contain at least one number";
+    }
+    if (!hasSpecialChar) {
+      return "Password must contain at least one special character";
+    }
+    return "";
+  };
+
+  const validatePhone = (phoneValue: string): string => {
+    if (!phoneValue) {
+      return "Phone number is required";
+    }
+    // Only require that the phone contains digits (length not enforced here)
+    if (!/^\d+$/.test(phoneValue)) {
+      return "Phone number must contain only digits";
+    }
+    // Require exactly 10 digits
+    if (phoneValue.length !== 10) {
+      return "Phone number must be 10 digits";
+    }
+    return "";
+  };
+
+  const validateAge = (ageValue: string): string => {
+    if (!ageValue) {
+      return "Age is required";
+    }
+    const ageNum = parseInt(ageValue, 10);
+    if (isNaN(ageNum)) {
+      return "Age must be a valid number";
+    }
+    if (ageNum <= 0) {
+      return "Age must be greater than 0";
+    }
+    return "";
+  };
+
+  const checkUsernameAvailability = async (usernameToCHeck: string) => {
+    if (!usernameToCHeck.trim() || usernameToCHeck.length < 3) {
+      return;
+    }
+
+    setCheckingUsername(true);
+    try {
+      const response = await checkUsernameApi(usernameToCHeck);
+
+      // API may return either a wrapped ApiResponse `{ data: { available } }`
+      // or a direct object `{ available }` depending on backend/version.
+      const available = response?.data?.available ?? response?.available ?? null;
+
+      // If we could determine availability, set it; otherwise mark as unknown (null).
+      // Do NOT block the user based on availability here; backend will validate on signup.
+      setUsernameAvailable(typeof available === "boolean" ? available : null);
+      // Clear any availability-related username errors (we only require the field be non-empty)
+      setUsernameError("");
+    } catch (error: any) {
+      console.error("Username check error:", error);
+      // If API fails, don't assume taken — mark availability as unknown
+      setUsernameAvailable(null);
+      setUsernameError("");
+      // Log quietly; avoid showing a toast for transient network errors
+      console.warn("Could not verify username availability:", error?.message || error);
+    } finally {
+      setCheckingUsername(false);
+    }
+  };
+
+  const checkEmailAvailability = async (emailToCheck: string) => {
+    if (!emailToCheck.trim()) {
+      return;
+    }
+
+    setCheckingEmail(true);
+    try {
+      const response = await checkEmailApi(emailToCheck);
+      setEmailAvailable(response.data?.available ?? false);
+      if (!response.data?.available) {
+        // Email is already registered
+        setEmailError("This email is already registered. Please use another.");
+      } else {
+        // Email is available - clear any availability-related errors
+        setEmailError("");
+        setEmailAvailable(true);
+      }
+    } catch (error: any) {
+      console.error("Email check error:", error);
+      // Network error or API issue - don't block user, just note it
+      setCheckingEmail(false);
+      setEmailAvailable(null);
+      console.warn("Could not verify email availability - user can still proceed");
+      return;
+    } finally {
+      setCheckingEmail(false);
+    }
+  };
+
+  const checkPhoneAvailability = async (phoneToCheck: string) => {
+    if (!phoneToCheck.trim()) {
+      return;
+    }
+
+    setCheckingPhone(true);
+    try {
+      const response = await checkPhoneApi(phoneToCheck);
+      // Record availability for UI hinting, but do not block submission based on it.
+      setPhoneAvailable(response.data?.available ?? response?.available ?? null);
+      // Clear any availability-related phone errors (we only require the field be non-empty)
+      if (phoneError?.includes("already")) {
+        setPhoneError("");
+      }
+    } catch (error: any) {
+      console.error("Phone check error:", error);
+      // If API fails, mark availability unknown and don't block the user
+      setPhoneAvailable(null);
+      setPhoneError("");
+      // Log quietly; avoid showing a toast for transient/network errors
+      console.warn("Could not verify phone availability:", error?.message || error);
+    } finally {
+      setCheckingPhone(false);
+    }
+  };
+
   const handleBack = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
@@ -169,44 +463,96 @@ export const ProfileCreationScreen = () => {
   };
 
   const validateStep1 = () => {
-    if (!email || !password || !confirmPassword) {
-      Alert.alert("Error", "Please fill in all fields");
+    // Clear previous errors
+    setPasswordError("");
+    setConfirmPasswordError("");
+
+    // Validate email format
+    const emailErr = validateEmail(email);
+    if (emailErr) {
+      setEmailError(emailErr);
       return false;
     }
+
+    // Validate password
+    const passwordErr = validatePassword(password);
+    if (passwordErr) {
+      setPasswordError(passwordErr);
+      return false;
+    }
+
+    // Validate confirm password
+    if (!confirmPassword) {
+      setConfirmPasswordError("Please confirm your password");
+      return false;
+    }
+
     if (password !== confirmPassword) {
-      Alert.alert("Error", "Passwords do not match");
+      setConfirmPasswordError("Passwords do not match");
       return false;
     }
-    if (password.length < 8) {
-      Alert.alert("Error", "Password must be at least 8 characters");
-      return false;
-    }
+
     return true;
   };
 
   const validateStep2 = () => {
-    if (!firstName || !lastName || !username || !phone || !age) {
-      Alert.alert("Error", "Please fill in all required fields");
+    // Clear previous errors
+    setFirstNameError("");
+    setAgeError("");
+
+    // Validate first name
+    if (!firstName.trim()) {
+      setFirstNameError("First name is required");
       return false;
     }
+
+    // Validate username
+    if (!username.trim()) {
+      setUsernameError("Username is required");
+      return false;
+    }
+
+    // Do not block on username availability here; only require the field be non-empty.
+
+    // Validate phone
+    const phoneErr = validatePhone(phone);
+    if (phoneErr) {
+      setPhoneError(phoneErr);
+      return false;
+    }
+
+    // Do not block on phone availability here; only require the field be non-empty.
+
+    // Validate age
+    const ageErr = validateAge(age);
+    if (ageErr) {
+      setAgeError(ageErr);
+      return false;
+    }
+
     return true;
   };
 
   const validateStep3 = () => {
     if (selectedInterests.length < 3) {
-      // Alert matches design text "2 selected (1 more needed)" approximately
+      Toast.show({
+        type: "error",
+        text1: "Select Interests",
+        text2: "Please select at least 3 interests to continue",
+      });
       return false;
     }
     return true;
   };
 
   const validateStep4 = () => {
-    // For now, location is optional or we can enforce it. Design implies it's a setup step.
-    // Let's make it optional for now as it's complex to mock valid countries/cities without a library or big list.
-    // But if user enters nothing, we might want to warn or just proceed.
-    // The screenshot has "Select your country" placeholder.
-    // I'll assume it's optional for this task unless I implement a full picker.
-    // Actually, I'll toggle the validation off for now or check if permission is granted.
+    // Clear previous error
+    setCityError("");
+
+    if (!location.city) {
+      setCityError("Please select a city");
+      return false;
+    }
     return true;
   };
 
@@ -221,10 +567,19 @@ export const ProfileCreationScreen = () => {
   };
 
   const validateStep6 = () => {
-    if (verificationCode.length !== 6) {
-      Alert.alert("Error", "Please enter a valid 6-digit code");
+    // Clear previous error
+    setVerificationCodeError("");
+
+    if (!verificationCode) {
+      setVerificationCodeError("Verification code is required");
       return false;
     }
+
+    if (verificationCode.length !== 6) {
+      setVerificationCodeError("Please enter a valid 6-digit code");
+      return false;
+    }
+
     return true;
   };
 
@@ -362,11 +717,18 @@ export const ProfileCreationScreen = () => {
     if (currentStep === 1) {
       if (validateStep1()) setCurrentStep(2);
     } else if (currentStep === 2) {
+      // Extra guard: ensure phone is exactly 10 digits before proceeding
+      const phoneDigits = phone.replace(/[^0-9]/g, "");
+      if (!/^\d{10}$/.test(phoneDigits)) {
+        setPhoneError("Phone number must be 10 digits");
+        return;
+      }
+
       if (validateStep2()) setCurrentStep(3);
     } else if (currentStep === 3) {
       if (validateStep3()) setCurrentStep(4);
     } else if (currentStep === 4) {
-      setCurrentStep(5);
+      if (validateStep4()) setCurrentStep(5);
     } else if (currentStep === 5) {
       if (validateStep5()) {
         try {
@@ -449,27 +811,43 @@ export const ProfileCreationScreen = () => {
       </Text>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Email</Text>
+        <Text style={styles.inputLabel}>
+          Email <Text style={styles.asterisk}>*</Text>
+        </Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, emailError && styles.inputError]}
           placeholder="Enter your email"
           placeholderTextColor="rgba(255,255,255,0.4)"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(text) => {
+            // Sanitize input: allow letters, numbers and common email characters only
+            const sanitized = text.replace(/[^a-zA-Z0-9@._+\-]/g, "");
+            setEmail(sanitized);
+            // Reset availability while editing
+            setEmailAvailable(null);
+            // Provide immediate inline validation feedback
+            const err = validateEmail(sanitized);
+            setEmailError(err);
+          }}
           keyboardType="email-address"
           autoCapitalize="none"
         />
+        {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Password</Text>
-        <View style={styles.passwordContainer}>
+        <Text style={styles.inputLabel}>
+          Password <Text style={styles.asterisk}>*</Text>
+        </Text>
+        <View style={[styles.passwordContainer, passwordError && styles.passwordContainerError]}>
           <TextInput
             style={styles.passwordInput}
             placeholder="Create a password"
             placeholderTextColor="rgba(255,255,255,0.4)"
             value={password}
-            onChangeText={setPassword}
+            onChangeText={(text) => {
+              setPassword(text);
+            }}
             secureTextEntry={!showPassword}
           />
           <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
@@ -480,17 +858,48 @@ export const ProfileCreationScreen = () => {
             )}
           </TouchableOpacity>
         </View>
+        
+        {/* Real-time password requirements */}
+        {password && (
+          <View style={styles.passwordRequirementsContainer}>
+            <RequirementCheck
+              label="At least 8 characters"
+              met={passwordRequirements.minLength}
+            />
+            <RequirementCheck
+              label="Uppercase letter (A-Z)"
+              met={passwordRequirements.hasUppercase}
+            />
+            <RequirementCheck
+              label="Lowercase letter (a-z)"
+              met={passwordRequirements.hasLowercase}
+            />
+            <RequirementCheck
+              label="Number (0-9)"
+              met={passwordRequirements.hasNumber}
+            />
+            <RequirementCheck
+              label="Special character (!@#$%^&*)"
+              met={passwordRequirements.hasSpecialChar}
+            />
+          </View>
+        )}
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Confirm Password</Text>
-        <View style={styles.passwordContainer}>
+        <Text style={styles.inputLabel}>
+          Confirm Password <Text style={styles.asterisk}>*</Text>
+        </Text>
+        <View style={[styles.passwordContainer, confirmPasswordError && styles.passwordContainerError]}>
           <TextInput
             style={styles.passwordInput}
             placeholder="Confirm your password"
             placeholderTextColor="rgba(255,255,255,0.4)"
             value={confirmPassword}
-            onChangeText={setConfirmPassword}
+            onChangeText={(text) => {
+              setConfirmPassword(text);
+              setConfirmPasswordError("");
+            }}
             secureTextEntry={!showConfirmPassword}
           />
           <TouchableOpacity
@@ -503,6 +912,7 @@ export const ProfileCreationScreen = () => {
             )}
           </TouchableOpacity>
         </View>
+        {confirmPasswordError ? <Text style={styles.errorText}>{confirmPasswordError}</Text> : null}
       </View>
     </View>
   );
@@ -543,20 +953,26 @@ export const ProfileCreationScreen = () => {
 
       <View style={styles.row}>
         <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-          <Text style={styles.inputLabel}>First Name</Text>
+          <Text style={styles.inputLabel}>
+            First Name <Text style={styles.asterisk}>*</Text>
+          </Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, firstNameError && styles.inputError]}
             placeholder="First name"
             placeholderTextColor="rgba(255,255,255,0.4)"
             value={firstName}
-            onChangeText={setFirstName}
+            onChangeText={(text) => {
+              setFirstName(text);
+              setFirstNameError("");
+            }}
           />
+          {firstNameError ? <Text style={styles.errorText}>{firstNameError}</Text> : null}
         </View>
         <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
           <Text style={styles.inputLabel}>Last Name</Text>
           <TextInput
             style={styles.input}
-            placeholder="Last name"
+            placeholder="Last name (optional)"
             placeholderTextColor="rgba(255,255,255,0.4)"
             value={lastName}
             onChangeText={setLastName}
@@ -565,39 +981,102 @@ export const ProfileCreationScreen = () => {
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Username</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Choose a unique username"
-          placeholderTextColor="rgba(255,255,255,0.4)"
-          value={username}
-          onChangeText={setUsername}
-          autoCapitalize="none"
-        />
+        <Text style={styles.inputLabel}>
+          Username <Text style={styles.asterisk}>*</Text>
+        </Text>
+        <View style={{ position: "relative" }}>
+          <TextInput
+            style={[styles.input, usernameError && styles.inputError]}
+            placeholder="Choose a unique username"
+            placeholderTextColor="rgba(255,255,255,0.4)"
+            value={username}
+            onChangeText={(text) => {
+              setUsername(text);
+              if (text.trim().length < 3) {
+                setUsernameError("");
+              }
+            }}
+            autoCapitalize="none"
+            editable={!checkingUsername}
+          />
+          {checkingUsername && (
+            <ActivityIndicator
+              style={styles.inputSpinner}
+              size="small"
+              color="#DB2777"
+            />
+          )}
+          {usernameAvailable === true && !checkingUsername && (
+            <Text style={styles.successIndicator}>✓</Text>
+          )}
+        </View>
+        {usernameError ? <Text style={styles.errorText}>{usernameError}</Text> : null}
+        {usernameAvailable === true && !checkingUsername && (
+          <Text style={styles.successText}>Username is available</Text>
+        )}
       </View>
 
       <View style={styles.row}>
         <View style={[styles.inputGroup, { flex: 2, marginRight: 8 }]}>
-          <Text style={styles.inputLabel}>Phone</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Phone number"
-            placeholderTextColor="rgba(255,255,255,0.4)"
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-          />
+          <Text style={styles.inputLabel}>
+            Phone <Text style={styles.asterisk}>*</Text>
+          </Text>
+          <View style={{ position: "relative" }}>
+            <TextInput
+              style={[styles.input, phoneError && styles.inputError]}
+              placeholder="10-digit phone number"
+              placeholderTextColor="rgba(255,255,255,0.4)"
+              value={phone}
+              onChangeText={(text) => {
+                // Only allow digits
+                const numericOnly = text.replace(/[^0-9]/g, "");
+                setPhone(numericOnly);
+                // Show immediate inline error if user entered fewer than 10 digits
+                if (numericOnly.length > 0 && numericOnly.length < 10) {
+                  setPhoneError("Phone number must be 10 digits");
+                } else {
+                  setPhoneError("");
+                }
+              }}
+              keyboardType="number-pad"
+              maxLength={10}
+              editable={!checkingPhone}
+            />
+            {checkingPhone && (
+              <ActivityIndicator
+                style={styles.inputSpinner}
+                size="small"
+                color="#DB2777"
+              />
+            )}
+            {phoneAvailable === true && !checkingPhone && (
+              <Text style={styles.successIndicator}>✓</Text>
+            )}
+          </View>
+          {phoneError ? <Text style={styles.errorText}>{phoneError}</Text> : null}
+          {phoneAvailable === true && !checkingPhone && (
+            <Text style={styles.successText}>Phone number is available</Text>
+          )}
         </View>
         <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
-          <Text style={styles.inputLabel}>Age</Text>
+          <Text style={styles.inputLabel}>
+            Age <Text style={styles.asterisk}>*</Text>
+          </Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, ageError && styles.inputError]}
             placeholder="Your age"
             placeholderTextColor="rgba(255,255,255,0.4)"
             value={age}
-            onChangeText={setAge}
+            onChangeText={(text) => {
+              // Only allow digits
+              const numericOnly = text.replace(/[^0-9]/g, "");
+              setAge(numericOnly);
+              setAgeError("");
+            }}
             keyboardType="number-pad"
+            maxLength={3}
           />
+          {ageError ? <Text style={styles.errorText}>{ageError}</Text> : null}
         </View>
       </View>
 
@@ -686,9 +1165,11 @@ export const ProfileCreationScreen = () => {
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>City</Text>
+        <Text style={styles.inputLabel}>
+          City <Text style={styles.asterisk}>*</Text>
+        </Text>
         <TouchableOpacity
-          style={styles.dropdownButton}
+          style={[styles.dropdownButton, cityError && styles.dropdownButtonError]}
           onPress={() => setShowCityDropdown(true)}
         >
           <Text
@@ -701,6 +1182,7 @@ export const ProfileCreationScreen = () => {
           </Text>
           <ChevronDown color="rgba(255,255,255,0.4)" size={20} />
         </TouchableOpacity>
+        {cityError ? <Text style={styles.errorText}>{cityError}</Text> : null}
 
         <Modal
           visible={showCityDropdown}
@@ -900,19 +1382,26 @@ export const ProfileCreationScreen = () => {
       </Text>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Verification Code</Text>
+        <Text style={styles.inputLabel}>
+          Verification Code <Text style={styles.asterisk}>*</Text>
+        </Text>
         <TextInput
           style={[
             styles.input,
             { textAlign: "center", letterSpacing: 8, fontSize: 24 },
+            verificationCodeError && styles.inputError,
           ]}
           placeholder="000000"
           placeholderTextColor="rgba(255,255,255,0.2)"
           value={verificationCode}
-          onChangeText={setVerificationCode}
+          onChangeText={(text) => {
+            setVerificationCode(text);
+            setVerificationCodeError("");
+          }}
           keyboardType="number-pad"
           maxLength={6}
         />
+        {verificationCodeError ? <Text style={styles.errorText}>{verificationCodeError}</Text> : null}
       </View>
 
       <View style={{ alignItems: "center", marginTop: 20 }}>
@@ -1456,5 +1945,83 @@ const styles = StyleSheet.create({
   dropdownItemTextSelected: {
     color: "#DB2777",
     fontWeight: "600",
+  },
+  asterisk: {
+    color: "#FF6B6B",
+    fontWeight: "bold",
+  },
+  errorText: {
+    color: "#FF6B6B",
+    fontSize: 12,
+    marginTop: 6,
+    fontWeight: "500",
+  },
+  inputError: {
+    borderColor: "#FF6B6B",
+  },
+  passwordContainerError: {
+    borderColor: "#FF6B6B",
+  },
+  dropdownButtonError: {
+    borderColor: "#FF6B6B",
+  },
+  passwordHint: {
+    color: "rgba(255,255,255,0.5)",
+    fontSize: 12,
+    marginTop: 8,
+    fontStyle: "italic",
+  },
+  inputSpinner: {
+    position: "absolute",
+    right: 16,
+    top: "50%",
+    marginTop: -12,
+  },
+  successIndicator: {
+    position: "absolute",
+    right: 16,
+    top: "50%",
+    marginTop: -12,
+    color: "#10B981",
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  successText: {
+    color: "#10B981",
+    fontSize: 12,
+    marginTop: 6,
+    fontWeight: "500",
+  },
+  passwordRequirementsContainer: {
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: "#DB2777",
+  },
+  requirementRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 4,
+  },
+  requirementIcon: {
+    color: "rgba(255,255,255,0.3)",
+    fontSize: 14,
+    fontWeight: "bold",
+    marginRight: 8,
+    width: 16,
+    textAlign: "center",
+  },
+  requirementMetIcon: {
+    color: "#10B981",
+  },
+  requirementText: {
+    color: "rgba(255,255,255,0.5)",
+    fontSize: 12,
+  },
+  requirementMetText: {
+    color: "#10B981",
   },
 });

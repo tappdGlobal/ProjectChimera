@@ -165,3 +165,27 @@ export const verifyDeleteAccountOtpApi = (
 export const restoreAccountApi = (): Promise<ApiResponse<{ user: User; token: string }>> => {
   return apiClient.post("/auth/account/restore");
 };
+
+/* ================= CHECK USERNAME AVAILABILITY ================= */
+
+export const checkUsernameApi = (
+  username: string
+): Promise<ApiResponse<{ available: boolean }>> => {
+  return apiClient.get(`/auth/check-username/${username}`);
+};
+
+/* ================= CHECK EMAIL AVAILABILITY ================= */
+
+export const checkEmailApi = (
+  email: string
+): Promise<ApiResponse<{ available: boolean }>> => {
+  return apiClient.get(`/auth/check-email/${email}`);
+};
+
+/* ================= CHECK PHONE AVAILABILITY ================= */
+
+export const checkPhoneApi = (
+  phone: string
+): Promise<ApiResponse<{ available: boolean }>> => {
+  return apiClient.get(`/auth/check-phone/${phone}`);
+};

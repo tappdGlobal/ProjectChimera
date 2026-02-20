@@ -1907,7 +1907,7 @@ export function HostScreen({ route }: any) {
         {/* HEADER */}
         <View style={styles.mainHeader}>
           <TouchableOpacity
-            onPress={handlePublishedTabClick}
+            onPress={() => navigation.goBack()}
             style={styles.headerIconLeft}
           >
             <ArrowLeft size={22} color={Theme.colors.foreground} />
