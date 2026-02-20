@@ -64,7 +64,7 @@ export default function ChatDetailScreen() {
       try {
         setCurrentChatUser(chatId);
         
-        // Step 1: Create or get conversation (ensure it exists on backend)
+        // Create or get conversation
         const convId = await createOrGetConversation({ otherUserId: chatId });
         if (!convId) {
           setError("Failed to create conversation. You may not be friends with this user.");
@@ -72,32 +72,8 @@ export default function ChatDetailScreen() {
           return;
         }
         
-        // Step 2: Try to load messages
-        try {
-          await getMessages(convId);
-        } catch (msgErr: any) {
-          // If conversation not found on backend, try to recreate it
-          if (msgErr.response?.status === 404) {
-            console.log("[ChatDetail] Conversation not found on backend, attempting to recreate...");
-            
-            // Force create conversation on backend
-            const { createConversationApi } = await import("../api/chatApi");
-            try {
-              const res = await createConversationApi({ otherUserId: chatId });
-              const newConvId = (res as any).data?.id || (res as any).data;
-              
-              if (newConvId) {
-                // Update current conversation ID
-                useChatStore.setState({ currentConversationId: newConvId });
-                // Try loading messages again with new ID
-                await getMessages(newConvId);
-              }
-            } catch (createErr) {
-              console.error("[ChatDetail] Failed to recreate conversation:", createErr);
-            }
-          }
-        }
-        
+        // Load messages for this conversation
+        await getMessages(convId);
         setIsLoadingChat(false);
       } catch (err: any) {
         console.error("Chat initialization error:", err);
@@ -254,7 +230,7 @@ export default function ChatDetailScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -319,9 +295,8 @@ export default function ChatDetailScreen() {
 
       {/* Input Area */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
-        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
         <View style={styles.inputContainer}>
           <TextInput
@@ -474,15 +449,11 @@ const styles = StyleSheet.create({
   otherMessageTime: {
     color: Theme.colors.mutedForeground,
   },
-  keyboardAvoidingView: {
-    width: "100%",
-  },
   inputContainer: {
     flexDirection: "row",
     alignItems: "flex-end",
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8, // Reduced bottom padding since SafeAreaView no longer handles bottom
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: Theme.colors.border,
     backgroundColor: Theme.colors.background,

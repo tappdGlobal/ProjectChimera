@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -10,13 +10,13 @@ import {
   TextInput,
 } from "react-native";
 import { Image } from "expo-image";
-import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Search, Users } from "lucide-react-native";
 import { Theme } from "../styles/Theme";
-import { useChatStore } from "../store/chatStore";
-import { ChatListItem, LegacyMessage } from "../types/chatTypes";
+import { useFriendStore } from "../store/friendStore";
+import { Friend } from "../types/friendTypes";
 import { EngageStackParamList } from "../navigation/Routes";
 import { SCREEN_NAMES } from "../navigation/Routes";
 
@@ -27,57 +27,33 @@ const DEFAULT_AVATAR =
 
 export default function ChatListScreen({ embedded = false }: { embedded?: boolean }) {
   const navigation = useNavigation<NavigationProp>();
-  const { chatList, loading, getChatList } = useChatStore();
+  const { friends, loading, getFriends } = useFriendStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
 
-  // Fetch chat list on mount and when screen is focused
-  useFocusEffect(
-    useCallback(() => {
-      getChatList();
-    }, [])
-  );
-
-  // Listen for new messages via socket and refresh chat list
   useEffect(() => {
-    const handleNewMessage = (message: LegacyMessage) => {
-      console.log("[ChatList] New message received via socket:", message);
-      // Refresh chat list to show updated last message and order
-      getChatList();
-    };
-
-    // Subscribe to socket messages
-    import("../services/socket").then(({ socketService }) => {
-      socketService.onReceiveMessage(handleNewMessage);
-      console.log("[ChatList] Subscribed to socket messages");
-    });
-
-    return () => {
-      import("../services/socket").then(({ socketService }) => {
-        socketService.removeMessageCallback(handleNewMessage);
-        console.log("[ChatList] Unsubscribed from socket messages");
-      });
-    };
-  }, [getChatList]);
+    // Fetch friends on mount
+    getFriends();
+  }, []);
 
   const handleRefresh = () => {
-    // Refresh chat list
-    getChatList();
+    // Refresh friends list
+    getFriends();
   };
 
-  // Filter chat list based on search query
-  const filteredChatList = chatList.filter((chat) => {
+  // Filter friends based on search query
+  const filteredFriends = friends.filter((friend) => {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
-    const name = (chat.otherUser.name || chat.otherUser.username).toLowerCase();
+    const name = (friend.user.name || friend.user.username).toLowerCase();
     return name.includes(query);
   });
 
-  const handleChatPress = (chat: ChatListItem) => {
+  const handleFriendPress = (friend: Friend) => {
     navigation.navigate(SCREEN_NAMES.CHAT_DETAIL, {
-      chatId: chat.otherUser.id,
-      name: chat.otherUser.name || chat.otherUser.username,
-      avatar: chat.otherUser.profilePicUrl || DEFAULT_AVATAR,
+      chatId: friend.user.id,
+      name: friend.user.name || friend.user.username,
+      avatar: friend.user.avatar || DEFAULT_AVATAR,
     });
   };
 
@@ -96,15 +72,14 @@ export default function ChatListScreen({ embedded = false }: { embedded?: boolea
     return date.toLocaleDateString();
   };
 
-  const renderChatItem = ({ item }: { item: ChatListItem }) => {
-    const avatarUrl = item.otherUser.profilePicUrl || DEFAULT_AVATAR;
-    const lastMessageText = item.lastMessage?.content || "Tap to chat";
-    const isUnread = item.unreadCount > 0;
+  const renderFriend = ({ item }: { item: Friend }) => {
+    // Handle different avatar field names from backend
+    const avatarUrl = item.user.avatar || (item.user as any).profilePicUrl || DEFAULT_AVATAR;
     
     return (
       <TouchableOpacity
         style={styles.conversationItem}
-        onPress={() => handleChatPress(item)}
+        onPress={() => handleFriendPress(item)}
       >
         <View style={styles.avatarContainer}>
           <Image
@@ -119,25 +94,20 @@ export default function ChatListScreen({ embedded = false }: { embedded?: boolea
         <View style={styles.conversationInfo}>
           <View style={styles.conversationHeader}>
             <Text style={styles.userName} numberOfLines={1}>
-              {item.otherUser.name || item.otherUser.username}
+              {item.user.name || item.user.username}
             </Text>
-            <Text style={[styles.timeText, isUnread && styles.unreadTimeText]}>
-              {item.lastMessage ? formatTime(item.lastMessage.createdAt) : ""}
+            <Text style={styles.timeText}>
+              {formatTime(item.updatedAt)}
             </Text>
           </View>
 
           <View style={styles.messagePreview}>
             <Text
-              style={[styles.lastMessage, isUnread && styles.unreadMessage]}
+              style={styles.lastMessage}
               numberOfLines={1}
             >
-              {lastMessageText}
+              Tap to chat
             </Text>
-            {isUnread && (
-              <View style={styles.unreadBadge}>
-                <Text style={styles.unreadCount}>{item.unreadCount}</Text>
-              </View>
-            )}
           </View>
         </View>
       </TouchableOpacity>
@@ -165,9 +135,9 @@ export default function ChatListScreen({ embedded = false }: { embedded?: boolea
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={styles.headerTitle}>Chats</Text>
-          {chatList.length > 0 && (
+          {friends.length > 0 && (
             <View style={styles.newBadge}>
-              <Text style={styles.newBadgeText}>{chatList.length} chats</Text>
+              <Text style={styles.newBadgeText}>{friends.length} friends</Text>
             </View>
           )}
         </View>
@@ -186,7 +156,7 @@ export default function ChatListScreen({ embedded = false }: { embedded?: boolea
           <Search size={18} color={Theme.colors.mutedForeground} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search chats..."
+            placeholder="Search friends..."
             placeholderTextColor={Theme.colors.mutedForeground}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -200,18 +170,18 @@ export default function ChatListScreen({ embedded = false }: { embedded?: boolea
         </View>
       )}
 
-      {loading && chatList.length === 0 ? (
+      {loading && friends.length === 0 ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Theme.colors.primary} />
         </View>
       ) : (
         <FlatList
-          data={filteredChatList}
-          renderItem={renderChatItem}
-          keyExtractor={(item) => item.id}
+          data={filteredFriends}
+          renderItem={renderFriend}
+          keyExtractor={(item) => `${item.friendshipId}-${item.user.id}`}
           contentContainerStyle={[
             styles.listContent,
-            filteredChatList.length === 0 && styles.emptyListContent,
+            filteredFriends.length === 0 && styles.emptyListContent,
           ]}
           ListEmptyComponent={renderEmptyState}
           refreshControl={
@@ -361,10 +331,6 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 13,
     color: Theme.colors.mutedForeground,
-  },
-  unreadTimeText: {
-    color: Theme.colors.primary,
-    fontWeight: "600",
   },
   messagePreview: {
     flexDirection: "row",

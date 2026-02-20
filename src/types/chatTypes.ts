@@ -60,22 +60,14 @@ export interface ChatListMessage {
   id: string;
   content: string;
   createdAt: string;
-  senderId: string;
-}
-
-export interface ChatListOtherUser {
-  id: string;
-  name: string;
-  username: string;
-  profilePicUrl?: string;
 }
 
 export interface ChatListItem {
-  id: string;                    // conversationId
-  updatedAt: string;             // for sorting - most recent first
-  otherUser: ChatListOtherUser;  // the other participant
-  lastMessage: ChatListMessage | null;  // last message or null if no messages
-  unreadCount: number;           // unread messages count
+  id: string;
+  user1Id: string;
+  user2Id: string;
+  createdAt: string;
+  messages: ChatListMessage[];
 }
 
 /* ================= API REQUEST PAYLOADS ================= */
