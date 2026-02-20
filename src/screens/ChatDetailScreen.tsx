@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -32,7 +33,7 @@ export default function ChatDetailScreen() {
   const { userId } = useAuthStore();
   const {
     messages,
-    loading,
+    loading: storeLoading,
     sendingMessage,
     currentConversationId,
     createOrGetConversation,
@@ -40,10 +41,12 @@ export default function ChatDetailScreen() {
     sendMessage,
     receiveMessage,
     setCurrentChatUser,
+    clearChatData,
   } = useChatStore();
 
   const [messageText, setMessageText] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isLoadingChat, setIsLoadingChat] = useState(true);
   const flatListRef = useRef<FlatList>(null);
 
   // Use conversationId if available, otherwise fall back to chatId for socket messages
@@ -51,24 +54,31 @@ export default function ChatDetailScreen() {
   const userMessages = messages[messageKey] || [];
 
   useEffect(() => {
+    // Reset state when chatId changes
+    setIsLoadingChat(true);
+    setError(null);
+    setMessageText("");
+    
     // Initialize chat: Create conversation and load messages
     const initializeChat = async () => {
       try {
-        setError(null);
         setCurrentChatUser(chatId);
         
         // Create or get conversation
         const convId = await createOrGetConversation({ otherUserId: chatId });
         if (!convId) {
           setError("Failed to create conversation. You may not be friends with this user.");
+          setIsLoadingChat(false);
           return;
         }
         
         // Load messages for this conversation
         await getMessages(convId);
+        setIsLoadingChat(false);
       } catch (err: any) {
         console.error("Chat initialization error:", err);
         setError(err.message || "Unable to start chat. Please check if you are friends.");
+        setIsLoadingChat(false);
       }
     };
 
@@ -138,6 +148,13 @@ export default function ChatDetailScreen() {
       }, 100);
     }
   }, [userMessages.length]);
+
+  const handleRefresh = async () => {
+    // Refresh messages by re-fetching from server
+    if (currentConversationId) {
+      await getMessages(currentConversationId);
+    }
+  };
 
   const handleSendMessage = async () => {
     if (messageText.trim() === "" || sendingMessage) return;
@@ -247,7 +264,7 @@ export default function ChatDetailScreen() {
       )}
 
       {/* Messages List */}
-      {loading && userMessages.length === 0 ? (
+      {isLoadingChat ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Theme.colors.primary} />
         </View>
@@ -266,6 +283,13 @@ export default function ChatDetailScreen() {
           onContentSizeChange={() => {
             flatListRef.current?.scrollToEnd({ animated: false });
           }}
+          refreshControl={
+            <RefreshControl
+              refreshing={storeLoading}
+              onRefresh={handleRefresh}
+              tintColor={Theme.colors.primary}
+            />
+          }
         />
       )}
 
@@ -283,7 +307,7 @@ export default function ChatDetailScreen() {
             onChangeText={setMessageText}
             multiline
             maxLength={1000}
-            editable={!error && !loading}
+            editable={!error && !isLoadingChat}
           />
           <TouchableOpacity
             style={[

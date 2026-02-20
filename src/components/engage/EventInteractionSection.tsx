@@ -16,6 +16,7 @@ import {
 import { Image } from "expo-image";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { Theme } from "../../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
@@ -42,6 +43,8 @@ type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
 const DEFAULT_AVATAR =
   "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
+
+const VIEWED_STORIES_KEY = "viewedStories";
 
 const POSTS = [
   {
@@ -96,6 +99,44 @@ const StoryItem = ({ item, onPress }: StoryItemProps) => (
     <Text style={styles.storyName}>{item.name}</Text>
   </View>
 );
+
+/* ---------------- MY STORY BADGE ---------------- */
+
+interface MyStoryBadgeProps {
+  hasStories: boolean;
+  thumbnailImage?: string;
+  viewed: boolean;
+  onPress: () => void;
+}
+
+const MyStoryBadge = ({ hasStories, thumbnailImage, viewed, onPress }: MyStoryBadgeProps) => {
+  if (!hasStories) return null;
+  
+  return (
+    <View style={styles.myStoryItem}>
+      <TouchableOpacity onPress={onPress}>
+        <LinearGradient
+          colors={
+            viewed
+              ? ["#9E9E9E", "#757575", "#616161"]
+              : ["#e91e63", "#9c27b0", "#673ab7"]
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.storyGradient}
+        >
+          <View style={styles.storyImageContainer}>
+            <Image
+              source={{ uri: thumbnailImage || DEFAULT_AVATAR }}
+              style={styles.storyImage}
+            />
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
+      <Text style={styles.storyName}>My Story</Text>
+    </View>
+  );
+};
 
 /* ---------------- FEED POST ---------------- */
 
@@ -230,6 +271,39 @@ export function EventInteractionSection() {
   const { userId } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
 
+  // Load viewed stories from AsyncStorage on mount
+  useEffect(() => {
+    const loadViewedStories = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(VIEWED_STORIES_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setViewedStories(new Set(parsed));
+        }
+      } catch (error) {
+        console.error("Failed to load viewed stories:", error);
+      }
+    };
+    loadViewedStories();
+  }, []);
+
+  // Persist viewed stories to AsyncStorage whenever they change
+  useEffect(() => {
+    const saveViewedStories = async () => {
+      try {
+        const storiesArray = Array.from(viewedStories);
+        await AsyncStorage.setItem(VIEWED_STORIES_KEY, JSON.stringify(storiesArray));
+      } catch (error) {
+        console.error("Failed to save viewed stories:", error);
+      }
+    };
+    
+    // Only save if we have viewed stories (avoid saving on initial empty state)
+    if (viewedStories.size > 0) {
+      saveViewedStories();
+    }
+  }, [viewedStories]);
+
   useEffect(() => {
     getAllStories();
     fetchFeed();
@@ -278,6 +352,22 @@ export function EventInteractionSection() {
       return acc;
     }, []);
 
+  // Separate current user's stories from other users' stories
+  const myStoryGroup = groupedStories.find((group: any) => group.isUser);
+  const otherStories = groupedStories.filter((group: any) => !group.isUser);
+
+  const myStoriesData = myStoryGroup ? {
+    id: myStoryGroup.userId,
+    name: "My Story",
+    isUser: true,
+    userId: myStoryGroup.userId,
+    thumbnailImage: myStoryGroup.stories[0].mediaUrl,
+    profileImage: myStoryGroup.profileImage,
+    viewed: myStoryGroup.stories.every((s: any) => viewedStories.has(s.id)),
+    storyCount: myStoryGroup.stories.length,
+    stories: myStoryGroup.stories,
+  } : null;
+
   const displayStories = [
     {
       id: "add-story",
@@ -288,7 +378,7 @@ export function EventInteractionSection() {
       storyCount: 0,
     },
 
-    ...groupedStories.map((group: any) => ({
+    ...otherStories.map((group: any) => ({
       id: group.userId,
       name: group.name,
       isUser: group.isUser,
@@ -345,17 +435,36 @@ export function EventInteractionSection() {
         }
         ListHeaderComponent={
           <ScrollView horizontal style={{ padding: 16 }}>
-            {displayStories.map((story, index) => (
+            {/* Add Story Button */}
+            <StoryItem
+              key={displayStories[0].id}
+              item={displayStories[0]}
+              onPress={() => setShowUpload(true)}
+            />
+            
+            {/* My Story Badge - only shown if user has stories */}
+            {myStoriesData && (
+              <MyStoryBadge
+                hasStories={true}
+                thumbnailImage={myStoriesData.thumbnailImage}
+                viewed={myStoriesData.viewed}
+                onPress={() => {
+                  // Find the index in displayStories for my story (it's always at index 1 now)
+                  setStoryIndex(1);
+                  setShowStoryModal(true);
+                }}
+              />
+            )}
+            
+            {/* Other Users' Stories */}
+            {displayStories.slice(1).map((story, index) => (
               <StoryItem
                 key={story.id}
                 item={story}
                 onPress={() => {
-                  if (story.id === "add-story") {
-                    setShowUpload(true);
-                  } else {
-                    setStoryIndex(index);
-                    setShowStoryModal(true);
-                  }
+                  // Index + 2 because 0 is add-story, 1 is my story (if exists)
+                  setStoryIndex(myStoriesData ? index + 2 : index + 1);
+                  setShowStoryModal(true);
                 }}
               />
             ))}
@@ -366,6 +475,20 @@ export function EventInteractionSection() {
       <StoryViewer
         visible={showStoryModal}
         stories={(() => {
+          // Handle My Story (index 1 when myStoriesData exists)
+          if (myStoriesData && storyIndex === 1) {
+            return myStoriesData.stories.map((s: any) => ({
+              id: s.id,
+              username: myStoriesData.name || "Unknown",
+              profileImage: myStoriesData.profileImage || DEFAULT_AVATAR,
+              image: s.mediaUrl,
+              caption: s.caption || "",
+              time: "",
+              userId: myStoriesData.userId,
+            }));
+          }
+          
+          // Handle other stories
           const selectedUser: any = displayStories[storyIndex];
           if (!selectedUser || selectedUser.id === "add-story" || !selectedUser.stories) return [];
           return selectedUser.stories.map((s: any) => ({
@@ -426,6 +549,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Theme.colors.background },
 
   storyItem: { alignItems: "center", marginRight: 16 },
+  myStoryItem: { alignItems: "center", marginRight: 16 },
   addStoryContainer: {
     width: 64,
     height: 64,
