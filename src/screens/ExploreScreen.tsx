@@ -16,24 +16,42 @@ import { MapTabContent } from "../components/explore/MapTabContent";
 import { BookingTabContent } from "../components/explore/BookingTabContent";
 import ComingSoon from "../components/common/ComingSoon";
 
-import { ExploreStackParamList, SCREEN_NAMES } from "../navigation/Routes";
+import {
+  ExploreStackParamList,
+  SCREEN_NAMES,
+} from "../navigation/Routes";
+
 import { useAnalytics } from "../hooks/useAnalytics";
+import { FeedEvent } from "../types/feedTypes";
+
+/* ================= NAVIGATION TYPE ================= */
 
 type ExploreNavigationProp = NativeStackNavigationProp<
   ExploreStackParamList,
-  "ExploreScreen"
+  typeof SCREEN_NAMES.EXPLORE_HOME
 >;
 
 export function ExploreScreen() {
   const navigation = useNavigation<ExploreNavigationProp>();
-  const { trackEvent, trackSearch, trackNavigation } =
+
+  const { trackEvent, trackSearch } =
     useAnalytics("ExploreScreen");
 
-  const [showExploreAll, setShowExploreAll] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [showExploreAll, setShowExploreAll] =
+    useState(false);
+
+  const [searchQuery, setSearchQuery] =
+    useState("");
+
   type ExploreTabKey = "explore" | "map" | "bookings";
-  const [activeTab, setActiveTab] = useState<ExploreTabKey>("explore");
-  const [showComingSoon, setShowComingSoon] = useState(false);
+
+  const [activeTab, setActiveTab] =
+    useState<ExploreTabKey>("explore");
+
+  const [showComingSoon, setShowComingSoon] =
+    useState(false);
+
+  /* ================= HANDLERS ================= */
 
   const handleExploreAllClick = () => {
     setShowExploreAll(true);
@@ -45,23 +63,34 @@ export function ExploreScreen() {
 
   const handleCategorySelect = (category: string) => {
     trackEvent("category_selected", { category });
-    navigation.navigate("EventDiscovery", { category });
+
+    navigation.navigate(
+      SCREEN_NAMES.EVENT_DISCOVERY,
+      { category }
+    );
   };
 
-  const handleEventSelect = (event: any) => {
+  const handleEventSelect = (event: FeedEvent) => {
     trackEvent("event_selected", {
       event_id: event?.id,
-      event_name: event?.name,
+      event_name: event?.eventName,
     });
-    navigation.navigate("EventDetail", { event });
+
+    navigation.navigate(
+      SCREEN_NAMES.EVENT_DETAIL,
+      { event }
+    );
   };
 
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
+
     if (query.length > 2) {
       trackSearch(query);
     }
   };
+
+  /* ================= CONDITIONAL SCREEN ================= */
 
   if (showExploreAll) {
     return (
@@ -72,54 +101,83 @@ export function ExploreScreen() {
     );
   }
 
+  /* ================= MAIN SCREEN ================= */
+
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView
+      style={styles.container}
+      edges={["top"]}
+    >
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
         {/* HEADER */}
         <Header
           onProfileClick={() =>
-            navigation.getParent()?.navigate(SCREEN_NAMES.PROFILE)
+            navigation
+              .getParent()
+              ?.navigate(SCREEN_NAMES.PROFILE)
           }
           onSettingsClick={() =>
-            navigation.getParent()?.navigate(SCREEN_NAMES.PROFILE, {
-              initialTab: "settings",
-            })
+            navigation
+              .getParent()
+              ?.navigate(SCREEN_NAMES.PROFILE)
           }
           onNotificationClick={() =>
-            navigation.getParent()?.navigate(SCREEN_NAMES.NOTIFICATIONS)
+            navigation
+              .getParent()
+              ?.navigate(
+                SCREEN_NAMES.NOTIFICATIONS
+              )
           }
           onSearchChange={handleSearchChange}
         />
 
-        <View style={{ paddingHorizontal: Theme.spacing.m }}>
-          <ExploreTab 
-            activeTab={activeTab} 
+        <View
+          style={{
+            paddingHorizontal: Theme.spacing.m,
+          }}
+        >
+          <ExploreTab
+            activeTab={activeTab}
             onChange={(tab) => {
-              if (tab === "map" || tab === "bookings") {
+              if (
+                tab === "map" ||
+                tab === "bookings"
+              ) {
                 setShowComingSoon(true);
               } else {
                 setActiveTab(tab);
               }
-            }} 
+            }}
           />
         </View>
 
         <View style={{ flex: 1 }}>
           {activeTab === "explore" && (
             <ExploreTabContent
-              onCategorySelect={handleCategorySelect}
               onEventSelect={handleEventSelect}
-              onExploreAllClick={handleExploreAllClick}
+              onExploreAllClick={
+                handleExploreAllClick
+              }
               searchQuery={searchQuery}
             />
           )}
 
-          {activeTab === "map" && <MapTabContent />}
+          {activeTab === "map" && (
+            <MapTabContent />
+          )}
 
-          {activeTab === "bookings" && <BookingTabContent />}
+          {activeTab === "bookings" && (
+            <BookingTabContent />
+          )}
         </View>
       </ScrollView>
-      <ComingSoon visible={showComingSoon} onClose={() => setShowComingSoon(false)} />
+
+      <ComingSoon
+        visible={showComingSoon}
+        onClose={() =>
+          setShowComingSoon(false)
+        }
+      />
     </SafeAreaView>
   );
 }

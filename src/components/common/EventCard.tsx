@@ -11,7 +11,11 @@ import {
 import { Calendar, MapPin, Heart, Users } from "lucide-react-native";
 import { Card, CardContent } from "../ui/Card";
 import { Theme } from "../../styles/Theme";
-
+import { ActivityIndicator } from "react-native";
+import { useWishlistStore } from "../../store/wishlistStore";
+import {
+  removeFromWishlistApi,
+} from "../../api/wishlistApi";
 interface EventCardProps {
   title?: string;
   date?: string;
@@ -19,7 +23,6 @@ interface EventCardProps {
   location?: string;
   image?: string;
   attendees?: number;
-  isWishlisted?: boolean;
   event?: {
     id: string;
     title: string;
@@ -27,7 +30,6 @@ interface EventCardProps {
     time: string;
     location: string;
     image: string;
-    isWishlisted?: boolean;
   };
   size?: "small" | "medium" | "large";
   layout?: "grid" | "list";
@@ -43,7 +45,6 @@ export function EventCard({
   location: propLocation,
   image: propImage,
   attendees,
-  isWishlisted: propIsWishlisted,
   size = "medium",
   layout = "grid",
   showWishlist = false,
@@ -54,10 +55,27 @@ export function EventCard({
   const time = propTime || event?.time || "";
   const location = propLocation || event?.location || "";
   const image = propImage || event?.image || "";
-  const isWishlisted = propIsWishlisted || event?.isWishlisted || false;
-
+  const [loading, setLoading] = React.useState(false);
   const cardStyle: ViewStyle = {};
   const imageStyle: ImageStyle = {};
+
+const toggleWishlist = useWishlistStore(
+  (state) => state.toggleWishlist
+);
+
+const handleWishlistPress = async () => {
+  if (!event?.id || loading) return;
+
+  try {
+    setLoading(true);
+    await toggleWishlist(event.id); // API call inside store
+  } catch (err) {
+    console.log("Wishlist error:", err);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   if (layout === "grid") {
     if (size === "small") {
@@ -106,16 +124,20 @@ export function EventCard({
 
           <View style={styles.listImageContainer}>
             {showWishlist && (
-              <TouchableOpacity style={styles.wishlistButtonSmall}>
-                <Heart
-                  size={iconSize}
-                  color={
-                    isWishlisted
-                      ? Theme.colors.primary
-                      : Theme.colors.foreground
-                  }
-                  fill={isWishlisted ? Theme.colors.primary : "none"}
-                />
+              <TouchableOpacity
+                style={styles.wishlistButtonSmall}
+                onPress={handleWishlistPress}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color={Theme.colors.primary} />
+                ) : (
+                  <Heart
+                    size={iconSize}
+                    color={Theme.colors.primary}
+                    fill="none"
+                  />
+                )}
               </TouchableOpacity>
             )}
           </View>
@@ -162,12 +184,20 @@ export function EventCard({
         )}
 
         {showWishlist && (
-          <TouchableOpacity style={styles.wishlistButtonLarge}>
-            <Heart
-              size={20}
-              color={isWishlisted ? Theme.colors.primary : Theme.colors.foreground}
-              fill={isWishlisted ? Theme.colors.primary : "none"}
-            />
+          <TouchableOpacity
+            style={styles.wishlistButtonLarge}
+            onPress={handleWishlistPress}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Heart
+                size={20}
+                color={Theme.colors.primary}
+                fill="none"
+              />
+            )}
           </TouchableOpacity>
         )}
       </View>
@@ -196,9 +226,24 @@ export function EventCard({
         </View>
 
         <View style={styles.addWishlistWrapper}>
-          <TouchableOpacity style={styles.addWishlistButton}>
-            <Heart size={16} color={Theme.colors.primary} />
-            <Text style={styles.addWishlistText}>Add to Wishlist</Text>
+          <TouchableOpacity
+            style={styles.addWishlistButton}
+            onPress={handleWishlistPress}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Heart
+                size={20}
+                color={Theme.colors.primary}
+                fill="none"
+              />
+            )}
+
+            <Text style={styles.addWishlistText}>
+              Add to Wishlist
+            </Text>
           </TouchableOpacity>
         </View>
       </CardContent>

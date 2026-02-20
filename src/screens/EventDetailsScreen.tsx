@@ -8,61 +8,43 @@ import {
   Image,
   Dimensions,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { GRADIENT_COLORS } from "../styles/Theme";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Alert, Linking } from "react-native";
 import {
   ArrowLeft,
   Calendar,
   MapPin,
   Clock,
   Users,
-  Info,
   Star,
-  ChevronRight,
 } from "lucide-react-native";
-import { useNavigation } from "@react-navigation/native";
+import {
+  useNavigation,
+  useRoute,
+  RouteProp,
+} from "@react-navigation/native";
+
 import { Theme } from "../styles/Theme";
 import { Card, CardContent } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 
-// --- MOCK DATA ---
-const EVENT_IMAGES = [
-  "https://images.unsplash.com/photo-1514525253440-b393452e8d26?w=800&q=80",
-  "https://images.unsplash.com/photo-1533174072545-e8d9859f6471?w=800&q=80",
-];
+import {
+  ExploreStackParamList,
+  SCREEN_NAMES,
+} from "../navigation/Routes";
 
-const TICKET_TYPES = [
-  {
-    id: "standard",
-    name: "Standard Entry",
-    price: "₹1,200",
-    left: 45,
-    features: ["Entry to event", "1 Welcome drink", "Access to main floor"],
-  },
-  {
-    id: "premium",
-    name: "Premium Pass",
-    price: "₹2,500",
-    left: 23,
-    features: [
-      "Entry to event",
-      "3 Premium drinks",
-      "VIP lounge access",
-      "Priority entry",
-    ],
-  },
-  {
-    id: "table",
-    name: "Table for 4",
-    price: "₹8,000",
-    left: 8,
-    features: [
-      "Reserved table for 4",
-      "Bottle service",
-      "Dedicated waiter",
-      "Dance floor access",
-    ],
-  },
-];
+import { FeedEvent } from "../types/feedTypes";
+
+/* ================= ROUTE TYPE ================= */
+
+type RouteType = RouteProp<
+  ExploreStackParamList,
+  typeof SCREEN_NAMES.EVENT_DETAIL
+>;
+
+/* ================= DUMMY REVIEWS (UNCHANGED) ================= */
 
 const REVIEWS = {
   event: [
@@ -71,21 +53,7 @@ const REVIEWS = {
       name: "Priya M.",
       rating: 5,
       date: "Nov 15, 2024",
-      text: "Amazing atmosphere! The DJ was incredible and the venue was perfect. Definitely attending the next one!",
-    },
-    {
-      id: "r2",
-      name: "Rahul K.",
-      rating: 4,
-      date: "Nov 10, 2024",
-      text: "Great party, good music, and excellent service. The energy was infectious!",
-    },
-    {
-      id: "r3",
-      name: "Anisha S.",
-      rating: 5,
-      date: "Nov 8, 2024",
-      text: "Best party I've been to this year! Everything was perfectly organized and the vibes were unmatched.",
+      text: "Amazing atmosphere! The DJ was incredible and the venue was perfect.",
     },
   ],
   host: [
@@ -94,257 +62,371 @@ const REVIEWS = {
       name: "Vikram P.",
       rating: 5,
       date: "Nov 12, 2024",
-      text: "Professional organizing and excellent communication. The event exceeded all expectations!",
-    },
-    {
-      id: "h2",
-      name: "Deepika R.",
-      rating: 4,
-      date: "Nov 5, 2024",
-      text: "Well-organized event with great attention to detail. The host was responsive and accommodating.",
-    },
-    {
-      id: "h3",
-      name: "Arjun T.",
-      rating: 5,
-      date: "Oct 28, 2024",
-      text: "Amazing host! Everything was as promised and more. Will definitely book again.",
+      text: "Professional organizing and excellent communication.",
     },
   ],
 };
 
-// --- COMPONENTS ---
-
-const TabButton = ({
-  title,
-  isActive,
-  onPress,
-}: {
-  title: string;
-  isActive: boolean;
-  onPress: () => void;
-}) => (
-  <TouchableOpacity
-    style={[styles.tabButton, isActive && styles.tabButtonActive]}
-    onPress={onPress}
-  >
-    <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
-      {title}
-    </Text>
-  </TouchableOpacity>
-);
-
-const SectionTitle = ({ title }: { title: string }) => (
-  <Text style={styles.sectionTitle}>{title}</Text>
-);
-
-const DetailRow = ({
-  icon,
-  label,
-  subLabel,
-  rightElement,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  subLabel?: string;
-  rightElement?: React.ReactNode;
-}) => (
-  <View style={styles.detailRow}>
-    <View style={styles.detailRowLeft}>
-      {icon}
-      <View style={styles.detailTextContainer}>
-        <Text style={styles.detailLabel}>{label}</Text>
-        {subLabel && <Text style={styles.detailSubLabel}>{subLabel}</Text>}
-      </View>
-    </View>
-    {rightElement}
-  </View>
-);
-
-const ReviewCard = ({ review }: { review: any }) => (
-  <Card style={styles.reviewCard}>
-    <CardContent style={styles.reviewContent}>
-      <View style={styles.reviewHeader}>
-        <Text style={styles.reviewerName}>{review.name}</Text>
-        <View style={styles.ratingContainer}>
-          {[...Array(5)].map((_, i) => (
-            <Star
-              key={i}
-              size={14}
-              color={
-                i < review.rating ? "#FACC15" : Theme.colors.mutedForeground
-              }
-              fill={i < review.rating ? "#FACC15" : "transparent"}
-            />
-          ))}
-          <Text style={styles.reviewDate}>{review.date}</Text>
-        </View>
-      </View>
-      <Text style={styles.reviewText}>{review.text}</Text>
-    </CardContent>
-  </Card>
-);
-
 export function EventDetailsScreen() {
   const navigation = useNavigation();
+  const route = useRoute<RouteType>();
+  const event: FeedEvent = route.params.event;
+
   const [activeTab, setActiveTab] = useState<
     "Availability" | "Details" | "Reviews"
   >("Details");
+
   const { width } = Dimensions.get("window");
+
+  const genderPreference = "Mixed Gender";
+  const handleAddToCalendar = async () => {
+    try {
+      // 1️⃣ Parse ISO date directly
+      const baseDate = new Date(event.eventDate);
+
+      if (isNaN(baseDate.getTime())) {
+        Alert.alert("Invalid date from API");
+        return;
+      }
+
+      // 2️⃣ Override hours using eventTime (04:30)
+      const [hours, minutes] = event.eventTime
+        .split(":")
+        .map(Number);
+
+      baseDate.setHours(hours);
+      baseDate.setMinutes(minutes);
+      baseDate.setSeconds(0);
+
+      const startDate = new Date(baseDate);
+      const endDate = new Date(
+        startDate.getTime() + 2 * 60 * 60 * 1000
+      );
+
+      // 3️⃣ Google calendar format (LOCAL TIME, no UTC conversion)
+      const formatDateForGoogle = (date: Date) => {
+        const yyyy = date.getFullYear();
+        const mm = String(date.getMonth() + 1).padStart(2, "0");
+        const dd = String(date.getDate()).padStart(2, "0");
+        const hh = String(date.getHours()).padStart(2, "0");
+        const min = String(date.getMinutes()).padStart(2, "0");
+
+        return `${yyyy}${mm}${dd}T${hh}${min}00`;
+      };
+
+      const start = formatDateForGoogle(startDate);
+      const end = formatDateForGoogle(endDate);
+
+      const url =
+        `https://calendar.google.com/calendar/render?action=TEMPLATE` +
+        `&text=${encodeURIComponent(event.eventName)}` +
+        `&dates=${start}/${end}` +
+        `&details=${encodeURIComponent(event.description || "")}` +
+        `&location=${encodeURIComponent(
+          `${event.venue}, ${event.city}, ${event.country}`
+        )}`;
+
+      await Linking.openURL(url);
+    } catch (error) {
+      console.log("Calendar error:", error);
+      Alert.alert("Unable to open calendar");
+    }
+  };
+  const handleOpenMaps = () => {
+    if (event.latitude && event.longitude) {
+      const url = `https://www.google.com/maps/search/?api=1&query=${event.latitude},${event.longitude}`;
+      Linking.openURL(url);
+    } else {
+      Alert.alert("Location not available");
+    }
+  };
+  /* ================= DETAILS TAB ================= */
 
   const renderDetails = () => (
     <View style={styles.tabContent}>
-      <Text style={styles.eventTitleLarge}>Jazz & Wine Night</Text>
+      <Text style={styles.eventTitleLarge}>
+        {event.eventName}
+      </Text>
 
-      <View style={styles.detailsGroup}>
-        <View style={styles.detailItem}>
+      {/* DATE + CALENDAR */}
+      <View style={styles.rowBetween}>
+        <View style={styles.row}>
           <Calendar size={20} color={Theme.colors.primary} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.detailItemTitle}>Saturday, Dec 21, 2024</Text>
-            <Text style={styles.detailItemSubtitle}>8:00 PM - 2:00 AM</Text>
+          <View style={{ marginLeft: 10 }}>
+            <Text style={styles.detailItemTitle}>
+              {new Date(event.eventDate).toDateString()}
+            </Text>
+            <Text style={styles.detailItemSubtitle}>
+              {event.eventTime}
+            </Text>
           </View>
-          <TouchableOpacity style={styles.actionButtonSmall}>
-            <Text style={styles.actionButtonTextSmall}>Add to Calendar</Text>
-          </TouchableOpacity>
         </View>
 
-        <View style={styles.detailItem}>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={handleAddToCalendar}
+        >
+          <LinearGradient
+            colors={GRADIENT_COLORS.primary as [string, string]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.gradientButton}
+          >
+            <Text style={styles.gradientButtonText}>
+              Add to Calendar
+            </Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+
+      {/* LOCATION */}
+      <View style={styles.rowBetween}>
+        <View style={styles.row}>
           <MapPin size={20} color={Theme.colors.primary} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.detailItemTitle}>Blue Note Jazz Cafe</Text>
+          <View style={{ marginLeft: 10 }}>
+            <Text style={styles.detailItemTitle}>
+              {event.venue}
+            </Text>
+            <Text style={styles.detailItemSubtitle}>
+              {event.city}, {event.country}
+            </Text>
           </View>
-          <TouchableOpacity style={styles.actionButtonSmallOutline}>
-            <Text style={styles.actionButtonTextSmallOutline}>Open Maps</Text>
-          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          style={styles.outlineButton}
+          onPress={handleOpenMaps}
+        >
+          <Text style={styles.outlineButtonText}>
+            Open Maps
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.divider} />
+
+      {/* GENDER */}
+      <View style={styles.detailItem}>
+        <Users size={20} color={Theme.colors.primary} />
+        <View style={{ marginLeft: 10 }}>
+          <Text style={styles.detailItemSubtitle}>
+            Gender Preference
+          </Text>
+          <Text style={styles.detailItemTitle}>
+            {genderPreference}
+          </Text>
+        </View>
+      </View>
+
+      {/* AGE */}
+      <View style={styles.detailItem}>
+        <Clock size={20} color={Theme.colors.primary} />
+        <View style={{ marginLeft: 10 }}>
+          <Text style={styles.detailItemSubtitle}>
+            Age Restrictions
+          </Text>
+          <Text style={styles.detailItemTitle}>
+            {event.ageLimit ?? "Not specified"}
+          </Text>
         </View>
       </View>
 
       <View style={styles.divider} />
 
-      <View style={styles.detailsGroup}>
-        <View style={styles.detailItem}>
-          <Users size={20} color={Theme.colors.primary} />
-          <View>
-            <Text style={styles.detailItemSubtitle}>Gender Preference</Text>
-            <Text style={styles.detailItemTitle}>Mixed Gender</Text>
-          </View>
-        </View>
-        <View style={styles.detailItem}>
-          <Clock size={20} color={Theme.colors.primary} />
-          <View>
-            <Text style={styles.detailItemSubtitle}>Age Restrictions</Text>
-            <Text style={styles.detailItemTitle}>All Ages Welcome</Text>
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.divider} />
-
-      <SectionTitle title="About This Event" />
+      <Text style={styles.sectionTitle}>
+        About This Event
+      </Text>
       <Text style={styles.descriptionText}>
-        Experience the smooth sounds of live jazz in an intimate setting with
-        world-class musicians and craft cocktails.
+        {event.description}
       </Text>
     </View>
   );
 
+  /* ================= AVAILABILITY TAB ================= */
+
   const renderAvailability = () => (
     <View style={styles.tabContent}>
-      {TICKET_TYPES.map((ticket) => (
-        <Card key={ticket.id} style={styles.ticketCard}>
-          <CardContent style={styles.ticketContent}>
-            <View style={styles.ticketHeader}>
-              <Text style={styles.ticketName}>{ticket.name}</Text>
-              <Badge style={styles.ticketBadge}>
-                <Text style={styles.ticketBadgeText}>{ticket.left} left</Text>
-              </Badge>
-            </View>
-            <Text style={styles.ticketPrice}>{ticket.price}</Text>
+      {event.tickets.map((ticket, index) => {
+        const available =
+          ticket.quantityTotal - (ticket.quantitySold ?? 0);
 
-            <View style={styles.featuresList}>
-              {ticket.features.map((feature, index) => (
-                <View key={index} style={styles.featureItem}>
-                  <View style={styles.featureDot} />
-                  <Text style={styles.featureText}>{feature}</Text>
-                </View>
-              ))}
-            </View>
+        return (
+          <Card key={index} style={styles.ticketCard}>
+            <CardContent style={styles.ticketContent}>
+              <View style={styles.ticketHeader}>
+                <Text style={styles.ticketName}>
+                  {ticket.ticketLabel}
+                </Text>
 
-            <TouchableOpacity style={styles.bookButton}>
-              <Text style={styles.bookButtonText}>Book Now</Text>
-            </TouchableOpacity>
-          </CardContent>
-        </Card>
-      ))}
+                <LinearGradient
+                  colors={GRADIENT_COLORS.primary as [string, string]}
+                  style={styles.leftBadge}
+                >
+                  <Text style={styles.leftBadgeText}>
+                    {available} left
+                  </Text>
+                </LinearGradient>
+              </View>
+
+              <Text style={styles.ticketPrice}>
+                {ticket.ticketType === "Free"
+                  ? "Free"
+                  : `₹${ticket.price}`}
+              </Text>
+
+              <TouchableOpacity
+                disabled={available === 0}
+                activeOpacity={0.9}
+              >
+                <LinearGradient
+                  colors={GRADIENT_COLORS.primary as [string, string]}
+                  style={[
+                    styles.bookButton,
+                    available === 0 && { opacity: 0.5 },
+                  ]}
+                >
+                  <Text style={styles.bookButtonText}>
+                    {available === 0
+                      ? "Sold Out"
+                      : "Book Now"}
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </CardContent>
+          </Card>
+        );
+      })}
     </View>
   );
+
+  /* ================= REVIEWS TAB (DUMMY) ================= */
 
   const renderReviews = () => (
     <View style={styles.tabContent}>
-      <SectionTitle title="Event Reviews" />
+      <Text style={styles.sectionTitle}>
+        Event Reviews
+      </Text>
+
       {REVIEWS.event.map((review) => (
-        <ReviewCard key={review.id} review={review} />
-      ))}
+        <View key={review.id} style={styles.reviewCardNew}>
+          {/* Header Row */}
+          <View style={styles.reviewHeaderRow}>
+            <View style={styles.reviewUserRow}>
+              <View style={styles.avatarCircle}>
+                <Text style={styles.avatarText}>
+                  {review.name.charAt(0)}
+                </Text>
+              </View>
 
-      <View style={styles.spacer} />
+              <View>
+                <Text style={styles.reviewerNameNew}>
+                  {review.name}
+                </Text>
+                <Text style={styles.reviewDateNew}>
+                  {review.date}
+                </Text>
+              </View>
+            </View>
 
-      <SectionTitle title="Host Reviews" />
-      {REVIEWS.host.map((review) => (
-        <ReviewCard key={review.id} review={review} />
+            <View style={styles.ratingRow}>
+              {[...Array(5)].map((_, i) => (
+                <Star
+                  key={i}
+                  size={14}
+                  color={
+                    i < review.rating
+                      ? "#FFD700"
+                      : Theme.colors.mutedForeground
+                  }
+                  fill={
+                    i < review.rating
+                      ? "#FFD700"
+                      : "transparent"
+                  }
+                />
+              ))}
+            </View>
+          </View>
+
+          {/* Review Text */}
+          <Text style={styles.reviewTextNew}>
+            {review.text}
+          </Text>
+        </View>
       ))}
     </View>
   );
 
+  /* ================= MAIN RETURN ================= */
+
   return (
-    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      {/* Header */}
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={styles.backButton}
         >
-          <ArrowLeft size={24} color={Theme.colors.foreground} />
+          <ArrowLeft
+            size={24}
+            color={Theme.colors.foreground}
+          />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Jazz & Wine Night</Text>
-        <View style={{ width: 40 }} />
+
+        <Text style={styles.headerTitle}>
+          {event.eventName}
+        </Text>
+
+        <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView style={styles.scrollView}>
-        {/* Image Gallery */}
+      <ScrollView>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.galleryContainer}
         >
-          {EVENT_IMAGES.map((img, index) => (
+          {event.images?.map((img, index) => (
             <Image
               key={index}
               source={{ uri: img }}
-              style={[styles.galleryImage, { width: width * 0.8 }]}
+              style={[
+                styles.galleryImage,
+                { width: width * 0.8 },
+              ]}
             />
           ))}
         </ScrollView>
 
-        {/* Tabs */}
-        <View style={styles.tabContainer}>
-          <View style={styles.tabWrapper}>
-            {(["Availability", "Details", "Reviews"] as const).map((tab) => (
-              <TabButton
+        <View style={styles.segmentContainer}>
+          {(["Availability", "Details", "Reviews"] as const).map(
+            (tab, index) => (
+              <TouchableOpacity
                 key={tab}
-                title={tab}
-                isActive={activeTab === tab}
+                style={[
+                  styles.segmentButton,
+                  activeTab === tab && styles.segmentButtonActive,
+                  index === 0 && styles.leftEdge,
+                  index === 2 && styles.rightEdge,
+                ]}
                 onPress={() => setActiveTab(tab)}
-              />
-            ))}
-          </View>
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.segmentText,
+                    activeTab === tab && styles.segmentTextActive,
+                  ]}
+                >
+                  {tab}
+                </Text>
+              </TouchableOpacity>
+            )
+          )}
         </View>
 
-        {/* Content */}
         {activeTab === "Details" && renderDetails()}
-        {activeTab === "Availability" && renderAvailability()}
+        {activeTab === "Availability" &&
+          renderAvailability()}
         {activeTab === "Reviews" && renderReviews()}
-
-        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -355,262 +437,345 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Theme.colors.background,
   },
+
+  /* ================= HEADER ================= */
+
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: 16,
+    padding: Theme.spacing.m,
     borderBottomWidth: 1,
     borderColor: Theme.colors.border,
   },
-  backButton: {
-    padding: 8,
-  },
+
   headerTitle: {
     color: Theme.colors.foreground,
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: "600",
   },
-  scrollView: {
-    flex: 1,
-  },
+
+  /* ================= GALLERY ================= */
+
   galleryContainer: {
-    padding: 16,
-    gap: 12,
+    padding: Theme.spacing.m,
+    gap: Theme.spacing.s,
   },
+
   galleryImage: {
     height: 200,
     borderRadius: Theme.radius.lg,
     backgroundColor: Theme.colors.muted,
   },
-  tabContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  tabWrapper: {
+
+  /* ================= SEGMENTED TABS ================= */
+
+  segmentContainer: {
     flexDirection: "row",
-    backgroundColor: "#1e1b2e", // Darker background for tabs
-    borderRadius: 9999,
-    padding: 4,
+    marginHorizontal: Theme.spacing.m,
+    marginTop: Theme.spacing.m,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+    borderRadius: Theme.radius.lg,
+    overflow: "hidden",
   },
-  tabButton: {
+
+  segmentButton: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 12,
     alignItems: "center",
-    borderRadius: 9999,
+    backgroundColor: "transparent",
   },
-  tabButtonActive: {
-    // Let's match the screenshot: Looks like the tab bar is standard segmented style.
-    // Active tab seems to be highlighted.
-    // Actually in screenshot "Details" is selected and has a dark background maybe?
-    // Wait, let's use a standard look.
-    // Screenshot 1: "Details" is active, looks like it has a bottom border or just text color?
-    // Ah, wait. The screenshot shows a capsule style tab switcher.
-    // Active tab has a lighter background.
+
+  segmentButtonActive: {
     backgroundColor: Theme.colors.muted,
   },
-  tabText: {
+
+  segmentText: {
     color: Theme.colors.mutedForeground,
-    fontWeight: "600",
     fontSize: 14,
+    fontWeight: "600",
   },
-  tabTextActive: {
+
+  segmentTextActive: {
     color: Theme.colors.foreground,
   },
+
+  /* ================= CONTENT ================= */
+
   tabContent: {
-    paddingHorizontal: 16,
-    gap: 16,
+    paddingHorizontal: Theme.spacing.m,
+    paddingTop: Theme.spacing.m,
+    gap: Theme.spacing.m,
   },
+
   eventTitleLarge: {
     fontSize: 24,
-    fontWeight: "bold",
+    fontWeight: "700",
     color: Theme.colors.foreground,
-    marginBottom: 8,
   },
+
   detailsGroup: {
-    gap: 16,
+    gap: Theme.spacing.m,
   },
+
   detailItem: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 12,
   },
+
   detailItemTitle: {
     color: Theme.colors.foreground,
     fontSize: 16,
     fontWeight: "500",
   },
+
   detailItemSubtitle: {
     color: Theme.colors.mutedForeground,
     fontSize: 14,
     marginTop: 2,
   },
-  actionButtonSmall: {
-    backgroundColor: "#9333ea", // Purple-600
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  actionButtonTextSmall: {
-    color: "white",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  actionButtonSmallOutline: {
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  actionButtonTextSmallOutline: {
-    color: Theme.colors.foreground,
-    fontSize: 12,
-    fontWeight: "600",
-  },
+
   divider: {
     height: 1,
     backgroundColor: Theme.colors.border,
-    marginVertical: 8,
+    marginVertical: Theme.spacing.s,
   },
+
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: "600",
     color: Theme.colors.foreground,
-    marginBottom: 12,
+    marginBottom: Theme.spacing.s,
   },
+
   descriptionText: {
     color: Theme.colors.mutedForeground,
     lineHeight: 22,
     fontSize: 15,
   },
 
-  // Ticket Card
+  /* ================= PREMIUM TICKET CARD ================= */
+
   ticketCard: {
-    backgroundColor: "#1e1b2e", // Dark card
-    borderColor: Theme.colors.border,
+    backgroundColor: Theme.colors.card,
+    borderRadius: Theme.radius.xl,
+    marginBottom: Theme.spacing.l,
     borderWidth: 1,
-    borderRadius: Theme.radius.lg,
-    padding: 0,
+    borderColor: Theme.colors.border,
   },
+
   ticketContent: {
-    padding: 16,
+    padding: Theme.spacing.m,
   },
+
   ticketHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
+
   ticketName: {
-    color: Theme.colors.foreground,
     fontSize: 18,
     fontWeight: "600",
+    color: Theme.colors.foreground,
   },
-  ticketBadge: {
-    backgroundColor: "#be185d", // Pink-700
-    borderWidth: 0,
+
+  leftBadge: {
+    backgroundColor: Theme.colors.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
   },
-  ticketBadgeText: {
-    color: "white",
+
+  leftBadgeText: {
+    color: Theme.colors.primaryForeground,
     fontSize: 12,
-    fontWeight: "bold",
+    fontWeight: "600",
   },
+
   ticketPrice: {
-    color: "#a855f7", // Purple-500
-    fontSize: 20,
-    fontWeight: "bold",
-    marginVertical: 8,
+    fontSize: 24,
+    fontWeight: "700",
+    color: Theme.colors.primary,
+    marginTop: Theme.spacing.s,
+    marginBottom: Theme.spacing.m,
   },
+
   featuresList: {
-    gap: 8,
-    marginBottom: 16,
+    marginBottom: Theme.spacing.m,
+    gap: Theme.spacing.s,
   },
+
   featureItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
   },
+
   featureDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#a855f7",
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Theme.colors.primary,
+    marginRight: 10,
   },
+
   featureText: {
     color: Theme.colors.mutedForeground,
     fontSize: 14,
   },
+
   bookButton: {
-    backgroundColor: "#9333ea", // Purple-600
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: Theme.colors.primary,
+    paddingVertical: 14,
+    borderRadius: Theme.radius.lg,
     alignItems: "center",
   },
+
   bookButtonText: {
-    color: "white",
-    fontWeight: "bold",
+    color: Theme.colors.primaryForeground,
+    fontWeight: "600",
     fontSize: 16,
   },
 
-  // Review Card
+  /* ================= REVIEW CARD ================= */
+
   reviewCard: {
-    backgroundColor: "#1e1b2e",
+    backgroundColor: Theme.colors.card,
     borderColor: Theme.colors.border,
     borderWidth: 1,
-    marginBottom: 12,
+    marginBottom: Theme.spacing.m,
+    borderRadius: Theme.radius.lg,
   },
+
   reviewContent: {
-    padding: 16,
+    padding: Theme.spacing.m,
   },
-  reviewHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
+
   reviewerName: {
     color: Theme.colors.foreground,
-    fontWeight: "bold",
+    fontWeight: "600",
     fontSize: 16,
   },
-  ratingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  reviewDate: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 12,
-    marginLeft: 8,
-  },
+
   reviewText: {
     color: Theme.colors.mutedForeground,
     lineHeight: 20,
+    marginTop: 6,
   },
+
   spacer: {
-    height: 20,
+    height: Theme.spacing.l,
   },
-  detailRow: {
+  row: {
     flexDirection: "row",
     alignItems: "center",
+  },
+
+  rowBetween: {
+    flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 8,
-  },
-  detailRowLeft: {
-    flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    marginBottom: Theme.spacing.m,
   },
-  detailTextContainer: {
-    gap: 2,
+
+  primaryButton: {
+    backgroundColor: Theme.colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: Theme.radius.md,
   },
-  detailLabel: {
+
+  primaryButtonText: {
+    color: Theme.colors.primaryForeground,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+
+  outlineButton: {
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: Theme.radius.md,
+  },
+
+  outlineButtonText: {
     color: Theme.colors.foreground,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "500",
   },
-  detailSubLabel: {
+  gradientButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: Theme.radius.md,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  gradientButtonText: {
+    color: Theme.colors.primaryForeground,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  reviewCardNew: {
+    backgroundColor: Theme.colors.card,
+    borderRadius: Theme.radius.lg,
+    padding: Theme.spacing.m,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+    marginBottom: Theme.spacing.m,
+  },
+
+  reviewHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+
+  reviewUserRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  avatarCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: Theme.colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10,
+  },
+
+  avatarText: {
+    color: "white",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+
+  reviewerNameNew: {
+    color: Theme.colors.foreground,
+    fontWeight: "600",
+    fontSize: 15,
+  },
+
+  reviewDateNew: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 12,
+    marginTop: 2,
+  },
+
+  ratingRow: {
+    flexDirection: "row",
+    gap: 2,
+  },
+
+  reviewTextNew: {
     color: Theme.colors.mutedForeground,
     fontSize: 14,
+    lineHeight: 20,
   },
 });
