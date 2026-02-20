@@ -133,10 +133,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       }
 
+      const token = res.data?.token ?? null;
+      
+      // Connect socket after successful login
+      if (token) {
+        socketService.connect(token);
+      }
+      
       set({
-        token: res.data?.token ?? null,
+        token,
         userId,
-        isAuthenticated: !!res.data?.token,
+        isAuthenticated: !!token,
         loading: false,
       });
     } catch (err: any) {
@@ -190,6 +197,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await AsyncStorage.removeItem("token");
     await AsyncStorage.removeItem("userId");
 
+    // Disconnect socket on logout
+    socketService.disconnect();
+    
     set({
       userId: null,
       token: null,
@@ -209,10 +219,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await AsyncStorage.setItem("userId", res.data.user.id);
       }
 
+      const token = res.data?.token ?? null;
+      
+      // Connect socket after successful Google login
+      if (token) {
+        socketService.connect(token);
+      }
+      
       set({
         userId: res.data?.user?.id ?? null,
-        token: res.data?.token ?? null,
-        isAuthenticated: !!res.data?.token,
+        token,
+        isAuthenticated: !!token,
         loading: false,
       });
     } catch (err: any) {
@@ -316,10 +333,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await AsyncStorage.setItem("userId", res.data.user.id);
       }
 
+      const token = res.data?.token ?? null;
+      
+      // Connect socket after account restoration
+      if (token) {
+        socketService.connect(token);
+      }
+
       set({
         userId: res.data?.user?.id ?? null,
-        token: res.data?.token ?? null,
-        isAuthenticated: !!res.data?.token,
+        token,
+        isAuthenticated: !!token,
         loading: false,
         accountStatus: "active",
         restorationDeadline: null,
@@ -338,6 +362,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       ]);
 
       if (token && userId) {
+        // Connect socket with existing token
+        socketService.connect(token);
+        
         set({
           token,
           userId,
@@ -345,6 +372,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isHydrated: true,
         });
       } else if (token) {
+        // Connect socket with existing token
+        socketService.connect(token);
+        
         set({
           token,
           isAuthenticated: true,
