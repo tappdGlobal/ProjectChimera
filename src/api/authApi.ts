@@ -165,3 +165,17 @@ export const verifyDeleteAccountOtpApi = (
 export const restoreAccountApi = (): Promise<ApiResponse<{ user: User; token: string }>> => {
   return apiClient.post("/auth/account/restore");
 };
+
+/* ================= CHECK USERNAME AVAILABILITY ================= */
+
+export interface CheckUsernameResponse {
+  success: boolean;
+  available: boolean;
+  message: string;
+}
+
+export const checkUsernameApi = (
+  username: string
+): Promise<ApiResponse<CheckUsernameResponse>> => {
+  return apiClient.get(`/users/check-username?username=${encodeURIComponent(username)}`);
+};

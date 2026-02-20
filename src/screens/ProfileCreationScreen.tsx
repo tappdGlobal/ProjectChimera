@@ -39,7 +39,7 @@ import { TermsOfServiceModal } from "../components/Legal/TermsOfServiceModal";
 import { PrivacyPolicyModal } from "../components/Legal/PrivacyPolicyModal";
 import { ActivityIndicator } from "react-native";
 import { updateUserApi, uploadProfilePictureApi } from "../api/userApi";
-import { signupApi } from "../api/authApi";
+import { signupApi, checkUsernameApi } from "../api/authApi";
 
 const TOTAL_STEPS = 6;
 const RESEND_COOLDOWN = 60; // 60 seconds cooldown
@@ -133,6 +133,11 @@ export const ProfileCreationScreen = () => {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [isResending, setIsResending] = useState(false);
 
+  // Username availability check state
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
+  const [usernameError, setUsernameError] = useState("");
+
   const { signup, verifyEmail, loading, error, clearError } = useAuthStore();
 
   // Countdown timer for resend cooldown
@@ -151,6 +156,35 @@ export const ProfileCreationScreen = () => {
       clearError();
     }
   }, [error, clearError]);
+
+  // Debounced username availability check
+  useEffect(() => {
+    if (!username || username.length < 3) {
+      setUsernameAvailable(null);
+      setUsernameError("");
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setCheckingUsername(true);
+      try {
+        const response = await checkUsernameApi(username);
+        if (response.data) {
+          setUsernameAvailable(response.data.available);
+          setUsernameError(response.data.available ? "" : "Username is already taken");
+        }
+      } catch (err: any) {
+        console.error("Username check error:", err);
+        // API not available - don't show error to user, just reset state
+        setUsernameAvailable(null);
+        setUsernameError("");
+      } finally {
+        setCheckingUsername(false);
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [username]);
 
   const toggleInterest = (interest: string) => {
     if (selectedInterests.includes(interest)) {
@@ -566,14 +600,43 @@ export const ProfileCreationScreen = () => {
 
       <View style={styles.inputGroup}>
         <Text style={styles.inputLabel}>Username</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Choose a unique username"
-          placeholderTextColor="rgba(255,255,255,0.4)"
-          value={username}
-          onChangeText={setUsername}
-          autoCapitalize="none"
-        />
+        <View style={styles.usernameInputContainer}>
+          <TextInput
+            style={[
+              styles.input,
+              styles.usernameInput,
+              usernameAvailable === true && styles.usernameInputAvailable,
+              usernameAvailable === false && styles.usernameInputTaken,
+            ]}
+            placeholder="Choose a unique username"
+            placeholderTextColor="rgba(255,255,255,0.4)"
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+          />
+          {checkingUsername && (
+            <ActivityIndicator
+              style={styles.usernameCheckIndicator}
+              size="small"
+              color="rgba(255,255,255,0.6)"
+            />
+          )}
+          {!checkingUsername && usernameAvailable === true && (
+            <View style={[styles.usernameStatusIndicator, styles.usernameAvailableIndicator]}>
+              <Text style={styles.usernameStatusText}>✓</Text>
+            </View>
+          )}
+          {!checkingUsername && usernameAvailable === false && (
+            <View style={[styles.usernameStatusIndicator, styles.usernameTakenIndicator]}>
+              <Text style={styles.usernameStatusText}>✗</Text>
+            </View>
+          )}
+        </View>
+        {usernameError ? (
+          <Text style={styles.usernameErrorText}>{usernameError}</Text>
+        ) : usernameAvailable === true ? (
+          <Text style={styles.usernameSuccessText}>Username is available</Text>
+        ) : null}
       </View>
 
       <View style={styles.row}>
@@ -1456,5 +1519,59 @@ const styles = StyleSheet.create({
   dropdownItemTextSelected: {
     color: "#DB2777",
     fontWeight: "600",
+  },
+
+  // Username availability check styles
+  usernameInputContainer: {
+    position: "relative",
+  },
+  usernameInput: {
+    paddingRight: 50,
+  },
+  usernameInputAvailable: {
+    borderColor: "#22C55E",
+    backgroundColor: "rgba(34, 197, 94, 0.05)",
+  },
+  usernameInputTaken: {
+    borderColor: "#EF4444",
+    backgroundColor: "rgba(239, 68, 68, 0.05)",
+  },
+  usernameCheckIndicator: {
+    position: "absolute",
+    right: 16,
+    top: "50%",
+    marginTop: -10,
+  },
+  usernameStatusIndicator: {
+    position: "absolute",
+    right: 16,
+    top: "50%",
+    marginTop: -12,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  usernameAvailableIndicator: {
+    backgroundColor: "#22C55E",
+  },
+  usernameTakenIndicator: {
+    backgroundColor: "#EF4444",
+  },
+  usernameStatusText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  usernameErrorText: {
+    color: "#EF4444",
+    fontSize: 12,
+    marginTop: 6,
+  },
+  usernameSuccessText: {
+    color: "#22C55E",
+    fontSize: 12,
+    marginTop: 6,
   },
 });
