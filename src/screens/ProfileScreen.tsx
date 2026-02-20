@@ -11,6 +11,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Modal,
 } from "react-native";
 import {
   ArrowLeft,
@@ -27,6 +28,7 @@ import {
   CreditCard,
   Trash2,
   ChevronRight,
+  ChevronLeft,
   KeyRound,
   X,
 } from "lucide-react-native";
@@ -122,6 +124,7 @@ export function ProfileScreen() {
   const [showSettings, setShowSettings] = useState(false);
   const [showOnlineStatus, setShowOnlineStatus] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number>(0);
   const [tempProfileImage, setTempProfileImage] = useState<string | null>(null);
   const [showProfileImageConfirm, setShowProfileImageConfirm] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
@@ -509,31 +512,85 @@ export function ProfileScreen() {
 
   const insets = useSafeAreaInsets();
 
-  const PhotoDialog = () => (
-    <Dialog open={!!selectedPhoto} onOpenChange={() => setSelectedPhoto(null)}>
-      <View style={[styles.photoModalContainer, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        {/* Close Button */}
-        <TouchableOpacity
-          style={styles.closeButton}
-          onPress={() => setSelectedPhoto(null)}
-          activeOpacity={0.7}
-        >
-          <X size={28} color="white" />
-        </TouchableOpacity>
+  const PhotoDialog = () => {
+    const photos = user?.photos ?? [];
 
-        {/* Image Container */}
-        <View style={styles.photoImageContainer}>
-          {selectedPhoto && (
-            <Image
-              source={{ uri: selectedPhoto }}
-              style={styles.fullSizePhoto}
-              resizeMode="contain"
-            />
-          )}
+    const handleNextPhoto = () => {
+      if (selectedPhotoIndex < photos.length - 1) {
+        const nextIndex = selectedPhotoIndex + 1;
+        setSelectedPhotoIndex(nextIndex);
+        setSelectedPhoto(photos[nextIndex]);
+      }
+    };
+
+    const handlePrevPhoto = () => {
+      if (selectedPhotoIndex > 0) {
+        const prevIndex = selectedPhotoIndex - 1;
+        setSelectedPhotoIndex(prevIndex);
+        setSelectedPhoto(photos[prevIndex]);
+      }
+    };
+
+    return (
+      <Modal
+        visible={!!selectedPhoto}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setSelectedPhoto(null)}
+      >
+        <View style={styles.photoModalOverlay}>
+          <View style={styles.photoModalContent}>
+            <View style={styles.photoModalContainer}>
+              {/* Close Button */}
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setSelectedPhoto(null)}
+                activeOpacity={0.7}
+              >
+                <X size={24} color="white" />
+              </TouchableOpacity>
+
+              {/* Image Container with Navigation */}
+              <View style={styles.photoImageContainer}>
+                {selectedPhoto && (
+                  <>
+                    {/* Previous Button */}
+                    {selectedPhotoIndex > 0 && (
+                      <TouchableOpacity
+                        style={[styles.navButton, styles.navButtonLeft]}
+                        onPress={handlePrevPhoto}
+                        activeOpacity={0.7}
+                      >
+                        <ChevronLeft size={32} color="white" />
+                      </TouchableOpacity>
+                    )}
+
+                    {/* Photo */}
+                    <Image
+                      source={{ uri: selectedPhoto }}
+                      style={styles.fullSizePhoto}
+                      resizeMode="contain"
+                    />
+
+                    {/* Next Button */}
+                    {selectedPhotoIndex < photos.length - 1 && (
+                      <TouchableOpacity
+                        style={[styles.navButton, styles.navButtonRight]}
+                        onPress={handleNextPhoto}
+                        activeOpacity={0.7}
+                      >
+                        <ChevronRight size={32} color="white" />
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )}
+              </View>
+            </View>
+          </View>
         </View>
-      </View>
-    </Dialog>
-  );
+      </Modal>
+    );
+  };
 
   const handleConfirmProfilePicture = async () => {
     if (!user?.id || !tempProfileImage) return;
@@ -800,10 +857,30 @@ export function ProfileScreen() {
                     {/* Existing Photos */}
                     {(user?.photos ?? []).map((photo, index) => (
                       <View key={photo || `photo-${index}`} style={styles.photoItemWrapper}>
+                        {/* Delete Button - positioned outside the photo touch area */}
+                        <TouchableOpacity
+                          style={styles.deletePhotoButton}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            handleDeletePhoto(photo);
+                          }}
+                          disabled={deletingPhotoUrl === photo}
+                        >
+                          <X
+                            size={18}
+                            color={Theme.colors.foreground}
+                            strokeWidth={3}
+                          />
+                        </TouchableOpacity>
+                        {/* Photo - clickable to view full screen */}
                         <TouchableOpacity
                           style={styles.photoItem}
-                          onPress={() => setSelectedPhoto(photo)}
+                          onPress={() => {
+                            setSelectedPhotoIndex(index);
+                            setSelectedPhoto(photo);
+                          }}
                           disabled={deletingPhotoUrl === photo}
+                          activeOpacity={0.9}
                         >
                           <Image
                             source={{ uri: photo }}
@@ -817,18 +894,6 @@ export function ProfileScreen() {
                               />
                             </View>
                           )}
-                        </TouchableOpacity>
-                        {/* Delete Button */}
-                        <TouchableOpacity
-                          style={styles.deletePhotoButton}
-                          onPress={() => handleDeletePhoto(photo)}
-                          disabled={deletingPhotoUrl === photo}
-                        >
-                          <X
-                            size={18}
-                            color={Theme.colors.foreground}
-                            strokeWidth={3}
-                          />
                         </TouchableOpacity>
                       </View>
                     ))}
@@ -1686,6 +1751,98 @@ const styles = StyleSheet.create({
     color: Theme.colors.mutedForeground,
     fontSize: 14,
     fontWeight: "500",
+  },
+
+  // Photo Modal Styles
+  photoModalContent: {
+    width: "95%",
+    height: "85%",
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    padding: 0,
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+
+  photoModalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(20, 20, 30, 0.98)",
+    borderRadius: 20,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    position: "relative",
+  },
+
+  closeButton: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 20,
+  },
+
+  photoCounter: {
+    position: "absolute",
+    top: 20,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 15,
+  },
+
+  photoCounterText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+    textShadowColor: "rgba(0, 0, 0, 0.8)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+
+  photoImageContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#000",
+    position: "relative",
+  },
+
+  fullSizePhoto: {
+    width: "100%",
+    height: "100%",
+  },
+
+  photoModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.85)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 10,
+  },
+
+  navButton: {
+    position: "absolute",
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 20,
+  },
+
+  navButtonLeft: {
+    left: 10,
+  },
+
+  navButtonRight: {
+    right: 10,
   },
 });
 
