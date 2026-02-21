@@ -26,12 +26,13 @@ export const AboutTab: React.FC<Props> = ({ userId }) => {
 
   // ✅ Always fetch when tab opens & userId exists
   useEffect(() => {
-    if (!userId) {
-      console.log("AboutTab ❌ userId is null");
-      return;
+    if (!userId) return;
+
+    // prevent unnecessary refetch
+    if (!profile) {
+      fetchUser(userId);
     }
-    fetchUser(userId);
-  }, [userId]);
+  }, [userId, profile]);
 
   const lookingForList = useMemo(() => {
     if (!user?.lookingFor) return ["Friendship"];
@@ -46,13 +47,7 @@ export const AboutTab: React.FC<Props> = ({ userId }) => {
   }, [user]);
 
   // ⏳ Loading UI
-  if (loading) {
-    return (
-      <View style={{ padding: 24, alignItems: "center" }}>
-        <ActivityIndicator size="large" color={Theme.colors.primary} />
-      </View>
-    );
-  }
+
 
   // ❌ Only show error if loading finished and no user
   if (!user && !loading) {
@@ -66,35 +61,54 @@ export const AboutTab: React.FC<Props> = ({ userId }) => {
   return (
     <View style={styles.container}>
       {/* ===== Edit Button ===== */}
-      <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={() => navigation.navigate(SCREEN_NAMES.EDIT_PROFILE)}
-      >
-        <LinearGradient
-          colors={GRADIENT_COLORS.primary}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.editButtonFull}
+      {loading ? (
+        <View style={styles.editButtonLoader}>
+          <ActivityIndicator size="large" color={Theme.colors.primary} />
+        </View>
+      ) : (
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate(SCREEN_NAMES.EDIT_PROFILE)}
         >
-          <Edit size={18} color="#fff" />
-          <Text style={styles.editButtonText}>Edit Details</Text>
-        </LinearGradient>
-      </TouchableOpacity>
+          <LinearGradient
+            colors={GRADIENT_COLORS.primary}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.editButtonFull}
+          >
+            <Edit size={18} color="#fff" />
+            <Text style={styles.editButtonText}>Edit Details</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
 
       {/* ===== About Me ===== */}
       <Text style={styles.sectionTitle}>About Me</Text>
       <Text style={styles.bioText}>{user?.bio ?? "No bio available."}</Text>
 
       {/* Occupation & Education */}
-      <View style={styles.twoColumnRow}>
-        <View style={styles.columnHalf}>
-          <Text style={styles.label}>Occupation</Text>
-          <Text style={styles.value}>{user?.occupation ?? "Not specified"}</Text>
-        </View>
-        <View style={styles.columnHalf}>
-          <Text style={styles.label}>Education</Text>
-          <Text style={styles.value}>{user?.education ?? "Not specified"}</Text>
-        </View>
+      <View style={[styles.twoColumnRow, styles.cardContainer]}>
+        {loading ? (
+          <View style={styles.sectionLoader}>
+            <ActivityIndicator size="small" color={Theme.colors.primary} />
+          </View>
+        ) : (
+          <>
+            <View style={styles.columnHalf}>
+              <Text style={styles.label}>Occupation</Text>
+              <Text style={styles.value}>
+                {user?.occupation ?? "Not specified"}
+              </Text>
+            </View>
+
+            <View style={styles.columnHalf}>
+              <Text style={styles.label}>Education</Text>
+              <Text style={styles.value}>
+                {user?.education ?? "Not specified"}
+              </Text>
+            </View>
+          </>
+        )}
       </View>
 
       {/* Looking For */}
@@ -118,8 +132,8 @@ export const AboutTab: React.FC<Props> = ({ userId }) => {
           <Text style={styles.value}>
             {user?.height
               ? `${Math.floor(user.height / 30.48)}'${Math.round(
-                  (user.height % 30.48) / 2.54
-                )}"`
+                (user.height % 30.48) / 2.54
+              )}"`
               : "-"}
           </Text>
         </View>
@@ -132,7 +146,7 @@ export const AboutTab: React.FC<Props> = ({ userId }) => {
           <Text style={styles.value}>
             {user?.gender
               ? user.gender.charAt(0).toUpperCase() +
-                user.gender.slice(1).toLowerCase()
+              user.gender.slice(1).toLowerCase()
               : "-"}
           </Text>
         </View>
@@ -202,25 +216,13 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
 
-  label: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 13,
-    marginBottom: 4,
-  },
-
-  value: {
-    color: Theme.colors.foreground,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-
   twoColumnRow: {
     flexDirection: "row",
     gap: 16,
     marginBottom: 16,
+    alignItems: "flex-start",
   },
 
-  columnHalf: { flex: 1 },
 
   chipsRow: {
     flexDirection: "row",
@@ -228,7 +230,19 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 20,
   },
+cardContainer: {
+  backgroundColor: Theme.colors.card,
+  paddingVertical: 16,
+  paddingHorizontal: 0,   // 👈 remove side padding
+  borderRadius: 12,
+},
 
+  sectionLoader: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 20,
+  },
   chip: {
     backgroundColor: Theme.colors.secondary,
     paddingHorizontal: 18,
@@ -258,10 +272,43 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
   },
-
+  editButtonLoader: {
+    height: 56,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 10,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    marginBottom: 24,
+  },
+  loadingText: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 14,
+    fontWeight: "500",
+  },
   interestText: {
     color: Theme.colors.foreground,
     fontSize: 14,
     fontWeight: "500",
   },
+  columnHalf: {
+  flex: 1,
+  alignItems: "flex-start",   // 👈 force left alignment
+},
+
+label: {
+  color: Theme.colors.mutedForeground,
+  fontSize: 13,
+  marginBottom: 4,
+  textAlign: "left",          // 👈 add
+},
+
+value: {
+  color: Theme.colors.foreground,
+  fontSize: 16,
+  fontWeight: "600",
+  textAlign: "left",          // 👈 add
+  width: "100%",              // 👈 prevents center compression
+},
 });

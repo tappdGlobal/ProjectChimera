@@ -43,16 +43,16 @@ export const useUserStore = create<UserState>((set, get) => ({
     try {
       set({ loading: true, error: null });
       const res = await getUserByIdApi(userId);
-      
+
       // Merge with existing profile to preserve profilePicUrl if backend doesn't return it
       const currentProfile = get().profile;
       const fetchedProfile = res.data;
-      
+
       if (fetchedProfile && currentProfile?.profilePicUrl && !fetchedProfile.profilePicUrl) {
         // Backend didn't return profilePicUrl, preserve the existing one
         fetchedProfile.profilePicUrl = currentProfile.profilePicUrl;
       }
-      
+
       set({ profile: fetchedProfile ?? null, loading: false });
     } catch (err: any) {
       set({ loading: false, error: err.message });
@@ -62,13 +62,20 @@ export const useUserStore = create<UserState>((set, get) => ({
   updateUser: async (userId, data) => {
     try {
       set({ loading: true, error: null });
+
       const res = await updateUserApi(userId, data);
-      set({ profile: res.data ?? null, loading: false });
+      console.log("UPDATE RESPONSE:", res.data);
+      // 🔥 MERGE old profile + updated fields
+      set((state) => ({
+        profile: state.profile
+          ? { ...state.profile, ...res.data }
+          : res.data,
+        loading: false,
+      }));
     } catch (err: any) {
       set({ loading: false, error: err.message });
     }
   },
-
   uploadProfilePicture: async (userId, file) => {
     try {
       set({ loading: true, error: null });

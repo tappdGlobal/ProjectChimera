@@ -152,11 +152,11 @@ export function ProfileScreen() {
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
 
   // Fetch user data on mount
-  React.useEffect(() => {
-    if (user?.id) {
-      fetchUser(user.id);
-    }
-  }, [user?.id]);
+React.useEffect(() => {
+  if (user?.id && !profile) {
+    fetchUser(user.id);
+  }
+}, [user?.id, profile]);
 
   const handleToggleSettings = async (key: string) => {
     if (!user?.id) return;

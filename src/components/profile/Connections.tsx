@@ -11,7 +11,7 @@ import {
 import { Theme } from "../../styles/Theme";
 import { useConnectionStore } from "../../store/connectionStore";
 import { ConnectionDetailModal } from "./ConnectionDetailModal";
-
+import { useFocusEffect } from "@react-navigation/native";
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
 
@@ -29,9 +29,11 @@ export const Connections = ({ defaultAvatar }: Props) => {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
 
-  useEffect(() => {
-    fetchAcceptedConnections();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchAcceptedConnections();
+    }, [fetchAcceptedConnections])
+  );
 
   const getIntentStyle = (intent: string) => {
     if (intent === "RELATIONSHIP")

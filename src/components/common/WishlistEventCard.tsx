@@ -53,7 +53,9 @@ export function WishlistEventCard({
   const time = propTime || event?.time || "";
   const location = propLocation || event?.location || "";
   const image = propImage || event?.image || "";
-  const [loading, setLoading] = React.useState(false);
+  const actionLoading = useWishlistStore(
+    (state) => state.actionLoading[event?.id || ""]
+  );
   const removeFromWishlist = useWishlistStore(
     (state) => state.removeFromWishlist
   );
@@ -79,19 +81,10 @@ export function WishlistEventCard({
       return `${date} • ${time}`;
     }
   };
-  const handleRemoveWishlist = async () => {
-    if (!event?.id || loading) return;
-
-    try {
-      setLoading(true);
-      await removeFromWishlist(event.id);
-    } catch (err) {
-      console.log("Remove wishlist error:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+ const handleRemoveWishlist = async () => {
+  if (!event?.id || actionLoading) return;
+  await removeFromWishlist(event.id);
+};
   const cardStyle: ViewStyle = {};
   const imageStyle: ImageStyle = {};
 
@@ -144,7 +137,7 @@ export function WishlistEventCard({
             <TouchableOpacity
               style={styles.wishlistButtonLarge}
               onPress={handleRemoveWishlist}
-              disabled={loading}
+              disabled={actionLoading}
             >
               <Heart
                 size={20}
@@ -183,13 +176,13 @@ export function WishlistEventCard({
               <TouchableOpacity
                 style={styles.removeWishlistButton}
                 onPress={handleRemoveWishlist}
-                disabled={loading}
+                disabled={actionLoading}
               >
-                {loading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Heart size={18} color="#fff" fill="#fff" />
-                )}
+                {actionLoading ? (
+  <ActivityIndicator size="small" color="#fff" />
+) : (
+  <Heart size={18} color="#fff" fill="#fff" />
+)}
                 <Text style={styles.removeWishlistText}>
                   Remove from Wishlist
                 </Text>
