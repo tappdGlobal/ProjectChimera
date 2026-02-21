@@ -59,8 +59,8 @@ export function EventCard({
   const cardStyle: ViewStyle = {};
   const imageStyle: ImageStyle = {};
 
-const toggleWishlist = useWishlistStore(
-  (state) => state.toggleWishlist
+const addToWishlist = useWishlistStore(
+  (state) => state.addToWishlist
 );
 
 const handleWishlistPress = async () => {
@@ -68,14 +68,13 @@ const handleWishlistPress = async () => {
 
   try {
     setLoading(true);
-    await toggleWishlist(event.id); // API call inside store
+    await addToWishlist(event.id);
   } catch (err) {
     console.log("Wishlist error:", err);
   } finally {
     setLoading(false);
   }
 };
-
 
   if (layout === "grid") {
     if (size === "small") {

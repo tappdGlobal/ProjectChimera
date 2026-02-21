@@ -13,6 +13,9 @@ interface EventCategoriesProps {
 }
 
 const categories = [
+  "Music",
+  "Sports",
+  "Comedy",
   "Date Night",
   "Pool Party",
   "House Party",

@@ -34,7 +34,8 @@ export const useFeedStore = create<FeedState>((set) => ({
     try {
       set({ loading: true, error: null });
 
-      const events = await getTrendingFeedApi(undefined, category);
+      // ✅ FIXED (removed undefined cursor)
+      const events = await getTrendingFeedApi(category);
 
       set({
         events,
@@ -43,7 +44,10 @@ export const useFeedStore = create<FeedState>((set) => ({
         loading: false,
       });
     } catch (error: any) {
-      set({ error: error.message, loading: false });
+      set({
+        error: error?.response?.data?.message || error.message,
+        loading: false,
+      });
     }
   },
 
@@ -60,7 +64,10 @@ export const useFeedStore = create<FeedState>((set) => ({
         loading: false,
       });
     } catch (error: any) {
-      set({ error: error.message, loading: false });
+      set({
+        error: error?.response?.data?.message || error.message,
+        loading: false,
+      });
     }
   },
 
@@ -77,7 +84,10 @@ export const useFeedStore = create<FeedState>((set) => ({
         loading: false,
       });
     } catch (error: any) {
-      set({ error: error.message, loading: false });
+      set({
+        error: error?.response?.data?.message || error.message,
+        loading: false,
+      });
     }
   },
 

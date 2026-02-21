@@ -7,14 +7,12 @@ import { RecommendedEvents } from "../common/RecommendedEvents";
 import { TrendingEvents } from "../common/TrendingEvents";
 import { WishlistedEvents } from "../common/WishlistedEvents";
 import { EventCategories } from "./EventCategories";
-
-import { getPopularWishlistApi } from "../../api/wishlistApi";
 import { Theme } from "../../styles/Theme";
 import {
   getRecommendedFeedApi,
   getTrendingFeedApi,
 } from "../../api/feedApi";
-
+import { useWishlistStore } from "../../store/wishlistStore";
 import { FeedEvent } from "../../types/feedTypes";
 
 import {
@@ -42,46 +40,35 @@ export function ExploreTabContent({
 
   const [recommendedData, setRecommendedData] = useState<FeedEvent[]>([]);
   const [trendingData, setTrendingData] = useState<FeedEvent[]>([]);
-  const [wishlistData, setWishlistData] = useState<FeedEvent[]>([]);
 
   const [recommendedLoading, setRecommendedLoading] = useState(true);
   const [trendingLoading, setTrendingLoading] = useState(true);
-  const [wishlistLoading, setWishlistLoading] = useState(true);
-
+  const wishlistData = useWishlistStore((state) => state.wishlist);
+  const wishlistLoading = useWishlistStore((state) => state.loading);
+  const fetchWishlist = useWishlistStore((state) => state.fetchWishlist);
   /* ================= INITIAL FEED LOAD ================= */
-const fetchAllFeeds = async () => {
+ const fetchAllFeeds = async () => {
   try {
     setRecommendedLoading(true);
     setTrendingLoading(true);
-    setWishlistLoading(true);
 
-    const [
-      recommendedResponse,
-      trendingResponse,
-      wishlistResponse,
-    ] = await Promise.all([
-      getRecommendedFeedApi(),
-      getTrendingFeedApi(),
-      getPopularWishlistApi(),
+    await Promise.all([
+      getRecommendedFeedApi().then(setRecommendedData),
+      getTrendingFeedApi().then(setTrendingData),
+      fetchWishlist(), // 🔥 from Zustand
     ]);
-
-    setRecommendedData(recommendedResponse);
-    setTrendingData(trendingResponse);
-    setWishlistData(wishlistResponse);
 
   } catch (error) {
     console.error("Error fetching feeds:", error);
   } finally {
     setRecommendedLoading(false);
     setTrendingLoading(false);
-    setWishlistLoading(false);
   }
 };
 
-
-useEffect(() => {
-  fetchAllFeeds();
-}, []);
+  useEffect(() => {
+    fetchAllFeeds();
+  }, []);
 
   /* ================= NORMAL EXPLORE VIEW ================= */
 

@@ -13,7 +13,7 @@ import { useAuthStore } from "./src/store/authStore";
 import Toast from "react-native-toast-message";
 import { PostHogProvider } from "posthog-react-native";
 import { useWarningsSuppression } from "./src/hooks/useWarningsSuppression";
-
+import { useUserStore } from "./src/store/userStore";
 export default function App() {
   const [initError, setInitError] = useState<string | null>(null);
   const socketInitialized = useRef(false);
@@ -23,10 +23,16 @@ export default function App() {
   const token = useAuthStore((s) => s.token);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const receiveMessage = useChatStore((s) => s.receiveMessage);
+  const userId = useAuthStore((s) => s.userId);
+  const fetchUser = useUserStore((s) => s.fetchUser);
 
   // Suppress non-critical warnings during app initialization
   useWarningsSuppression();
-
+  useEffect(() => {
+    if (isHydrated && isAuthenticated && userId) {
+      fetchUser(userId);
+    }
+  }, [isHydrated, isAuthenticated, userId]);
   useEffect(() => {
     hydrateAuth();
 
@@ -54,23 +60,23 @@ export default function App() {
     if (isAuthenticated && token && !socketInitialized.current) {
       console.log("[App] Connecting socket with token...");
       socketService.connect(token);
-      
+
       // Set up global message receiver
       socketService.onReceiveMessage((message) => {
         console.log("[App] Received message via socket:", message);
         receiveMessage(message);
       });
-      
+
       socketInitialized.current = true;
     }
-    
+
     // Disconnect socket when user logs out
     if (!isAuthenticated && socketInitialized.current) {
       console.log("[App] Disconnecting socket...");
       socketService.disconnect();
       socketInitialized.current = false;
     }
-    
+
     return () => {
       if (socketInitialized.current) {
         socketService.disconnect();

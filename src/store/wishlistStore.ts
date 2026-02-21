@@ -5,53 +5,42 @@ import {
     addToWishlistApi,
     removeFromWishlistApi,
     getWishlistApi,
-    checkWishlistStatusApi,
-    getPopularWishlistApi,
     WishlistEvent,
 } from "../api/wishlistApi";
 import Toast from "react-native-toast-message";
+
 interface WishlistState {
     wishlist: WishlistEvent[];
-    popularWishlist: WishlistEvent[];
-    isWishlistedMap: Record<string, boolean>;
-
     loading: boolean;
-    loadingPopular: boolean;
+    actionLoading: Record<string, boolean>;
 
-    /* Actions */
-    fetchWishlist: (page?: number, limit?: number) => Promise<void>;
-    fetchPopularWishlist: () => Promise<void>;
-    checkWishlistStatus: (eventId: string) => Promise<boolean>;
+    fetchWishlist: () => Promise<void>;
     addToWishlist: (eventId: string) => Promise<void>;
     removeFromWishlist: (eventId: string) => Promise<void>;
-    toggleWishlist: (eventId: string) => Promise<void>;
-    clearWishlist: () => void;
 }
 
 export const useWishlistStore = create<WishlistState>((set, get) => ({
     wishlist: [],
-    popularWishlist: [],
-    isWishlistedMap: {},
-
     loading: false,
-    loadingPopular: false,
+    actionLoading: {},
 
-    /* ================= FETCH USER WISHLIST ================= */
+    /* ================= FETCH ================= */
 
-    fetchWishlist: async (page = 1, limit = 20) => {
+    fetchWishlist: async () => {
         try {
             set({ loading: true });
 
-            const data = await getWishlistApi(page, limit);
+            const response = await getWishlistApi();
 
-            const wishlistMap: Record<string, boolean> = {};
-            data.forEach((event) => {
-                wishlistMap[event.id] = true;
-            });
+            const data =
+                Array.isArray(response)
+                    ? response
+                    : Array.isArray(response?.data)
+                        ? response.data
+                        : [];
 
             set({
                 wishlist: data,
-                isWishlistedMap: wishlistMap,
                 loading: false,
             });
         } catch (error) {
@@ -60,132 +49,107 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
         }
     },
 
-    /* ================= FETCH POPULAR ================= */
-
-    fetchPopularWishlist: async () => {
-        try {
-            set({ loadingPopular: true });
-
-            const data = await getPopularWishlistApi();
-
-            set({
-                popularWishlist: data,
-                loadingPopular: false,
-            });
-        } catch (error) {
-            console.error("Fetch popular wishlist error:", error);
-            set({ loadingPopular: false });
-        }
-    },
-
-    /* ================= CHECK STATUS ================= */
-
-    checkWishlistStatus: async (eventId: string) => {
-        try {
-            const isWishlisted = await checkWishlistStatusApi(eventId);
-
-            set((state) => ({
-                isWishlistedMap: {
-                    ...state.isWishlistedMap,
-                    [eventId]: isWishlisted,
-                },
-            }));
-
-            return isWishlisted;
-        } catch (error) {
-            console.error("Check wishlist status error:", error);
-            return false;
-        }
-    },
-
     /* ================= ADD ================= */
     addToWishlist: async (eventId: string) => {
         try {
-            await addToWishlistApi(eventId);
-
             set((state) => ({
-                isWishlistedMap: {
-                    ...state.isWishlistedMap,
-                    [eventId]: true,
-                },
+                actionLoading: { ...state.actionLoading, [eventId]: true },
             }));
+
+            await addToWishlistApi(eventId);
 
             Toast.show({
                 type: "success",
                 text1: "Added to wishlist",
                 position: "top",
-                visibilityTime: 1500,
             });
+
+            await get().fetchWishlist();
 
         } catch (error: any) {
 
-            if (error?.response?.status === 409) {
+            // 🔥 NORMAL CASE → ALREADY EXISTS
+            if (
+                error?.response?.status === 409 ||
+                error?.error?.code === "CONFLICT"
+            ) {
                 Toast.show({
                     type: "info",
                     text1: "Event already in wishlist",
                     position: "top",
-                    visibilityTime: 2000,
                 });
                 return;
             }
 
+            // 🚨 REAL FAILURE ONLY
+            if (__DEV__) console.error("Add wishlist error:", error);
+
             Toast.show({
                 type: "error",
-                text1: "Something went wrong",
+                text1: "Failed to add",
                 position: "top",
-                visibilityTime: 2000,
             });
 
-            console.error("Add to wishlist error:", error);
+        } finally {
+            set((state) => ({
+                actionLoading: { ...state.actionLoading, [eventId]: false },
+            }));
         }
     },
-    /* ================= REMOVE ================= */
+
     /* ================= REMOVE ================= */
 
     removeFromWishlist: async (eventId: string) => {
         try {
+            set((state) => ({
+                actionLoading: { ...state.actionLoading, [eventId]: true },
+            }));
+
             await removeFromWishlistApi(eventId);
+
+            set((state) => ({
+                wishlist: state.wishlist.filter((item) => item.id !== eventId),
+            }));
 
             Toast.show({
                 type: "success",
                 text1: "Removed from wishlist",
                 position: "top",
-                visibilityTime: 1500,
             });
-
-            // 🔥 Force fresh fetch from backend
-            await get().fetchWishlist();
 
         } catch (error: any) {
+
+            // 🔥 NORMAL CASE → ALREADY REMOVED
+            if (
+                error?.response?.status === 404 ||
+                error?.error?.code === "NOT_FOUND"
+            ) {
+                set((state) => ({
+                    wishlist: state.wishlist.filter((item) => item.id !== eventId),
+                }));
+
+                Toast.show({
+                    type: "info",
+                    text1: "Already removed from wishlist",
+                    position: "top",
+                });
+
+                return;
+            }
+
+            // 🚨 REAL FAILURE ONLY
+            if (__DEV__) console.error("Remove wishlist error:", error);
+
             Toast.show({
                 type: "error",
-                text1: "Failed to remove from wishlist",
+                text1: "Failed to remove",
                 position: "top",
-                visibilityTime: 2000,
             });
 
-            console.error("Remove from wishlist error:", error);
+        } finally {
+            set((state) => ({
+                actionLoading: { ...state.actionLoading, [eventId]: false },
+            }));
         }
-    },
-    /* ================= TOGGLE ================= */
-
-    toggleWishlist: async (eventId: string) => {
-        const { isWishlistedMap } = get();
-        const isWishlisted = isWishlistedMap[eventId];
-
-        if (isWishlisted) {
-            await get().removeFromWishlist(eventId);
-        } else {
-            await get().addToWishlist(eventId);
-        }
-    },
-
-    /* ================= CLEAR ================= */
-
-    clearWishlist: () => {
-        set({
-            wishlist: [],
-            isWishlistedMap: {},
-        });
     },
 }));
