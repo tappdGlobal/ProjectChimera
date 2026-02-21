@@ -28,11 +28,26 @@ export default function App() {
 
   // Suppress non-critical warnings during app initialization
   useWarningsSuppression();
-  useEffect(() => {
-    if (isHydrated && isAuthenticated && userId) {
-      fetchUser(userId);
-    }
-  }, [isHydrated, isAuthenticated, userId]);
+const profile = useUserStore((s) => s.profile);
+const isFetchingUserRef = useRef(false);
+
+useEffect(() => {
+  if (
+    isHydrated &&
+    isAuthenticated &&
+    userId &&
+    !profile &&            // prevents refetch
+    !isFetchingUserRef.current
+  ) {
+    isFetchingUserRef.current = true;
+
+    console.log("[App] Fetching user profile on app start...");
+
+    fetchUser(userId).finally(() => {
+      isFetchingUserRef.current = false;
+    });
+  }
+}, [isHydrated, isAuthenticated, userId, profile]);
   useEffect(() => {
     hydrateAuth();
 

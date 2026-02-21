@@ -52,7 +52,7 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
     /* ================= ADD ================= */
     addToWishlist: async (eventId: string) => {
         try {
-            set((state) => ({
+            set((state: WishlistState) => ({
                 actionLoading: { ...state.actionLoading, [eventId]: true },
             }));
 
@@ -64,11 +64,12 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
                 position: "top",
             });
 
+            // refresh wishlist from backend
             await get().fetchWishlist();
 
         } catch (error: any) {
 
-            // 🔥 NORMAL CASE → ALREADY EXISTS
+            // already exists
             if (
                 error?.response?.status === 409 ||
                 error?.error?.code === "CONFLICT"
@@ -81,7 +82,6 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
                 return;
             }
 
-            // 🚨 REAL FAILURE ONLY
             if (__DEV__) console.error("Add wishlist error:", error);
 
             Toast.show({
@@ -91,7 +91,7 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
             });
 
         } finally {
-            set((state) => ({
+            set((state: WishlistState) => ({
                 actionLoading: { ...state.actionLoading, [eventId]: false },
             }));
         }
@@ -101,14 +101,16 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
 
     removeFromWishlist: async (eventId: string) => {
         try {
-            set((state) => ({
+            set((state: WishlistState) => ({
                 actionLoading: { ...state.actionLoading, [eventId]: true },
             }));
 
             await removeFromWishlistApi(eventId);
 
-            set((state) => ({
-                wishlist: state.wishlist.filter((item) => item.id !== eventId),
+            set((state: WishlistState) => ({
+                wishlist: state.wishlist.filter(
+                    (item) => item.event?.id !== eventId
+                ),
             }));
 
             Toast.show({
@@ -119,25 +121,18 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
 
         } catch (error: any) {
 
-            // 🔥 NORMAL CASE → ALREADY REMOVED
             if (
                 error?.response?.status === 404 ||
                 error?.error?.code === "NOT_FOUND"
             ) {
-                set((state) => ({
-                    wishlist: state.wishlist.filter((item) => item.id !== eventId),
-                }));
-
                 Toast.show({
                     type: "info",
                     text1: "Already removed from wishlist",
                     position: "top",
                 });
-
                 return;
             }
 
-            // 🚨 REAL FAILURE ONLY
             if (__DEV__) console.error("Remove wishlist error:", error);
 
             Toast.show({
@@ -147,7 +142,7 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
             });
 
         } finally {
-            set((state) => ({
+            set((state: WishlistState) => ({
                 actionLoading: { ...state.actionLoading, [eventId]: false },
             }));
         }

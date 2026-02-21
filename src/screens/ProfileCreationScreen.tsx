@@ -98,17 +98,6 @@ const INTERESTS = [
   "Social",
 ];
 
-// 🔹 Loader Overlay Component
-const FullScreenLoader = ({ visible }: { visible: boolean }) => {
-  if (!visible) return null;
-
-  return (
-    <View style={styles.loaderOverlay}>
-      <ActivityIndicator size="large" color="#DB2777" />
-      <Text style={styles.loaderText}>Creating your account…</Text>
-    </View>
-  );
-};
 
 const CITIES = [
   "Bangalore",
@@ -125,6 +114,7 @@ export const ProfileCreationScreen = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const { trackEvent, trackFormSubmit, identifyUser } = useAnalytics(
     "ProfileCreationScreen",
     {
@@ -324,7 +314,7 @@ export const ProfileCreationScreen = () => {
     const hasUppercase = /[A-Z]/.test(passwordValue);
     const hasNumber = /[0-9]/.test(passwordValue);
     const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(passwordValue);
-    
+
     if (!hasLowercase) {
       return "Password must contain at least one lowercase letter";
     }
@@ -608,21 +598,21 @@ export const ProfileCreationScreen = () => {
         password,
       };
       await signupApi(signupPayload);
-      
+
       Toast.show({
         type: "success",
         text1: "Code Resent",
         text2: "A new verification code has been sent to your email.",
       });
-      
+
       // Start cooldown
       setResendCooldown(RESEND_COOLDOWN);
     } catch (error: any) {
       console.error("Resend code error:", error);
       // Check if error is because user already exists - in that case, code was resent
       const errorMessage = error?.response?.data?.message || "";
-      if (errorMessage.toLowerCase().includes("already exists") || 
-          errorMessage.toLowerCase().includes("user already")) {
+      if (errorMessage.toLowerCase().includes("already exists") ||
+        errorMessage.toLowerCase().includes("user already")) {
         // User exists, which means the backend should have resent the code
         Toast.show({
           type: "success",
@@ -657,32 +647,31 @@ export const ProfileCreationScreen = () => {
       // Step 3: Upload profile picture if selected
       let profilePicUrl = updateRes.data?.profilePicUrl;
       if (profileImage) {
-        // Fix file URI for Android - ensure it has file:// prefix
-        let fileUri = profileImage;
-        if (Platform.OS === "android" && !fileUri.startsWith("file://")) {
-          fileUri = `file://${fileUri}`;
-        }
+        setIsUploadingImage(true);   // START LOADER
 
-        const filename = profileImage.split("/").pop() || "profile.jpg";
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : `image/jpeg`;
-
-        // Create proper FormData file object for React Native
-        const fileObj = {
-          uri: fileUri,
-          name: filename,
-          type,
-        };
-
-        console.log("Uploading profile picture:", fileObj);
         try {
+          let fileUri = profileImage;
+          if (Platform.OS === "android" && !fileUri.startsWith("file://")) {
+            fileUri = `file://${fileUri}`;
+          }
+
+          const filename = profileImage.split("/").pop() || "profile.jpg";
+          const match = /\.(\w+)$/.exec(filename);
+          const type = match ? `image/${match[1]}` : `image/jpeg`;
+
+          const fileObj = {
+            uri: fileUri,
+            name: filename,
+            type,
+          };
+
           const uploadRes = await uploadProfilePictureApi(userId, fileObj);
-          console.log("Upload response:", uploadRes.data);
           profilePicUrl = uploadRes.data?.profilePicUrl;
+
         } catch (uploadErr: any) {
           console.error("Photo upload failed:", uploadErr);
-          // Don't fail the whole profile update if photo upload fails
-          // Just continue without the photo
+        } finally {
+          setIsUploadingImage(false);  // STOP LOADER
         }
       }
 
@@ -858,7 +847,7 @@ export const ProfileCreationScreen = () => {
             )}
           </TouchableOpacity>
         </View>
-        
+
         {/* Real-time password requirements */}
         {password && (
           <View style={styles.passwordRequirementsContainer}>
@@ -938,7 +927,15 @@ export const ProfileCreationScreen = () => {
       <View style={styles.avatarContainer}>
         <TouchableOpacity style={styles.avatarButton} onPress={pickImage}>
           {profileImage ? (
-            <Image source={{ uri: profileImage }} style={styles.avatarImage} />
+            <View style={{ position: "relative" }}>
+              <Image source={{ uri: profileImage }} style={styles.avatarImage} />
+
+              {isUploadingImage && (
+                <View style={styles.imageUploadOverlay}>
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                </View>
+              )}
+            </View>
           ) : (
             <View style={styles.avatarPlaceholder}>
               <Camera color="rgba(255,255,255,0.4)" size={32} />
@@ -1406,7 +1403,7 @@ export const ProfileCreationScreen = () => {
 
       <View style={{ alignItems: "center", marginTop: 20 }}>
         <Text style={styles.resendText}>Didn't receive the code?</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={handleResendCode}
           disabled={resendCooldown > 0 || isResending}
         >
@@ -1414,10 +1411,10 @@ export const ProfileCreationScreen = () => {
             styles.resendLink,
             (resendCooldown > 0 || isResending) && { opacity: 0.5 }
           ]}>
-            {isResending 
-              ? "Sending..." 
-              : resendCooldown > 0 
-                ? `Resend in ${resendCooldown}s` 
+            {isResending
+              ? "Sending..."
+              : resendCooldown > 0
+                ? `Resend in ${resendCooldown}s`
                 : "Resend Code"
             }
           </Text>
@@ -1453,7 +1450,7 @@ export const ProfileCreationScreen = () => {
 
   return (
     <LinearGradient colors={["#0A0A1F", "#1A1A3F"]} style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right","bottom"]}>
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
         <View style={styles.header}>
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <ArrowLeft color="#FFFFFF" size={24} />
@@ -2023,5 +2020,16 @@ const styles = StyleSheet.create({
   },
   requirementMetText: {
     color: "#10B981",
+  },
+  imageUploadOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    borderRadius: 50,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

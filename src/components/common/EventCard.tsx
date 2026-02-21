@@ -55,27 +55,18 @@ export function EventCard({
   const time = propTime || event?.time || "";
   const location = propLocation || event?.location || "";
   const image = propImage || event?.image || "";
-  const [loading, setLoading] = React.useState(false);
   const cardStyle: ViewStyle = {};
   const imageStyle: ImageStyle = {};
-
+  const actionLoading = useWishlistStore(
+  (state) => event?.id ? state.actionLoading[event.id] : false
+);
 const addToWishlist = useWishlistStore(
   (state) => state.addToWishlist
 );
-
 const handleWishlistPress = async () => {
-  if (!event?.id || loading) return;
-
-  try {
-    setLoading(true);
-    await addToWishlist(event.id);
-  } catch (err) {
-    console.log("Wishlist error:", err);
-  } finally {
-    setLoading(false);
-  }
+  if (!event?.id || actionLoading) return;
+  await addToWishlist(event.id);
 };
-
   if (layout === "grid") {
     if (size === "small") {
       cardStyle.width = 248;
@@ -126,9 +117,9 @@ const handleWishlistPress = async () => {
               <TouchableOpacity
                 style={styles.wishlistButtonSmall}
                 onPress={handleWishlistPress}
-                disabled={loading}
+                disabled={actionLoading}
               >
-                {loading ? (
+                {actionLoading ? (
                   <ActivityIndicator size="small" color={Theme.colors.primary} />
                 ) : (
                   <Heart
@@ -186,9 +177,9 @@ const handleWishlistPress = async () => {
           <TouchableOpacity
             style={styles.wishlistButtonLarge}
             onPress={handleWishlistPress}
-            disabled={loading}
+            disabled={actionLoading}
           >
-            {loading ? (
+            {actionLoading ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <Heart
@@ -228,9 +219,9 @@ const handleWishlistPress = async () => {
           <TouchableOpacity
             style={styles.addWishlistButton}
             onPress={handleWishlistPress}
-            disabled={loading}
+            disabled={actionLoading}
           >
-            {loading ? (
+            {actionLoading ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <Heart
