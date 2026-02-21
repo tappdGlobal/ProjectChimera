@@ -5,17 +5,14 @@ import {
   ScrollView,
   TouchableOpacity,
   FlatList,
-  Share,
-  StyleSheet,
-  RefreshControl,
-  ActivityIndicator,
-  Modal,
   TextInput,
-  KeyboardAvoidingView,
-  Platform,
+  Share,
+  Modal,
+  SafeAreaView,
+  StyleSheet,
   Alert,
+  RefreshControl,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -23,18 +20,22 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { Theme } from "../../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
-import { Plus, X, Send, Check } from "lucide-react-native";
+import {
+  Plus,
+  Heart,
+  MessageCircle,
+  MoreHorizontal,
+  Music,
+  Upload,
+} from "lucide-react-native";
 import StoryViewer from "./StoryViewer";
 import { UploadContentSheet } from "./UploadContentSheet";
 import { CreateStoryModal } from "./CreateStoryModal";
-import { FeedPostCard } from "./FeedPostCard";
 import { useStoryStore } from "../../store/storyStore";
 import { useAuthStore } from "../../store/authStore";
 import { usePostStore } from "../../store/postStore";
-import { useFriendStore } from "../../store/friendStore";
-import { useChatStore } from "../../store/chatStore";
-import { Post, Comment } from "../../api/postApi";
-import { AppStackParamList, SCREEN_NAMES } from "../../navigation/Routes";
+import { AppStackParamList } from "../../navigation/Routes";
+import { SCREEN_NAMES } from "../../navigation/Routes";
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
@@ -44,6 +45,22 @@ const DEFAULT_AVATAR =
   "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
 
 const VIEWED_STORIES_KEY = "viewedStories";
+
+const POSTS = [
+  {
+    id: "1",
+    user: { name: "Emma Johnson", avatar: "https://i.pravatar.cc/150?u=emma" },
+    time: "2h ago",
+    media: "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4",
+    likes: 127,
+    caption: "Amazing jazz performance tonight! 🎷✨",
+    comments: [
+      { username: "Michael", text: "Wow, looks amazing!", time: "1h" },
+      { username: "Sarah", text: "I wish I was there 🎷", time: "45m" },
+    ],
+    music: "Smooth Operator - Sade",
+  },
+];
 
 /* ---------------- STORY ITEM ---------------- */
 
@@ -121,6 +138,123 @@ const MyStoryBadge = ({ hasStories, thumbnailImage, viewed, onPress }: MyStoryBa
   );
 };
 
+/* ---------------- FEED POST ---------------- */
+
+const FeedPost = ({ item }: any) => {
+  const [liked, setLiked] = useState(false);
+  const [likes, setLikes] = useState(item.likes);
+  const [commentText, setCommentText] = useState("");
+  const [showInlineComments, setShowInlineComments] = useState(false);
+
+  const [comments, setComments] = useState(
+    item.comments.map((c: any, i: number) => ({
+      ...c,
+      id: i.toString(),
+      liked: false,
+      likeCount: 0,
+    }))
+  );
+
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `${item.user.name}: ${item.caption}`,
+      });
+    } catch (error) {
+      console.log("Share error:", error);
+    }
+  };
+
+  const handleLike = () => {
+    setLiked(!liked);
+    setLikes((p: number) => (liked ? p - 1 : p + 1));
+  };
+
+  const addComment = () => {
+    if (!commentText.trim()) return;
+    setComments((p: any[]) => [
+      ...p,
+      {
+        id: Date.now().toString(),
+        username: "You",
+        text: commentText,
+        time: "now",
+        liked: false,
+        likeCount: 0,
+      },
+    ]);
+    setCommentText("");
+  };
+
+  return (
+    <View style={styles.postContainer}>
+      <View style={styles.postHeader}>
+        <Image source={{ uri: item.user.avatar }} style={styles.avatar} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.userName}>{item.user.name}</Text>
+          <Text style={styles.postTime}>{item.time}</Text>
+        </View>
+        <MoreHorizontal size={20} color={Theme.colors.mutedForeground} />
+      </View>
+
+      <View style={styles.postMediaContainer}>
+        <Image source={{ uri: item.media }} style={styles.postMedia} />
+        <View style={styles.musicPill}>
+          <Music size={12} color="#c451c9" />
+          <Text style={styles.musicText}>{item.music}</Text>
+        </View>
+      </View>
+
+      <View style={styles.actionRow}>
+        <TouchableOpacity onPress={handleLike} style={styles.actionButton}>
+          <Heart
+            size={24}
+            color={liked ? "red" : Theme.colors.foreground}
+            fill={liked ? "red" : "transparent"}
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => setShowInlineComments((p) => !p)}
+          style={styles.actionButton}
+        >
+          <MessageCircle size={24} color={Theme.colors.foreground} />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
+          <Upload size={24} color={Theme.colors.foreground} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.postFooter}>
+        <Text style={styles.likesText}>{likes} likes</Text>
+
+        <Text style={styles.caption}>
+          <Text style={styles.captionUser}>{item.user.name} </Text>
+          {item.caption}
+        </Text>
+
+        {showInlineComments && (
+          <View style={{ marginTop: 12 }}>
+            <View style={styles.commentBox}>
+              <TextInput
+                placeholder="Add a comment..."
+                placeholderTextColor="#999"
+                value={commentText}
+                onChangeText={setCommentText}
+                style={styles.commentInput}
+              />
+              <TouchableOpacity onPress={addComment}>
+                <Text style={styles.postButton}>Post</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+};
+
 /* ---------------- MAIN SECTION ---------------- */
 
 export function EventInteractionSection() {
@@ -133,36 +267,9 @@ export function EventInteractionSection() {
   const [viewedStories, setViewedStories] = useState<Set<string>>(new Set());
 
   const { stories, getAllStories, deleteStory, viewStory } = useStoryStore();
-  const { 
-    feed, 
-    fetchFeed, 
-    refreshFeed, 
-    loadMoreFeed, 
-    hasMore, 
-    loading: postsLoading, 
-    likePost, 
-    unlikePost,
-    comments,
-    commentsPagination,
-    fetchPostComments,
-    addComment,
-    clearComments,
-    sharePost,
-  } = usePostStore();
+  const { feed, fetchFeed } = usePostStore();
   const { userId } = useAuthStore();
-  const { friends, getFriends } = useFriendStore();
   const [refreshing, setRefreshing] = useState(false);
-  
-  // Comments modal state
-  const [showCommentsModal, setShowCommentsModal] = useState(false);
-  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
-  const [commentText, setCommentText] = useState("");
-  const [postingComment, setPostingComment] = useState(false);
-
-  // Share with friends state
-  const [showShareFriendsModal, setShowShareFriendsModal] = useState(false);
-  const [sharePostId, setSharePostId] = useState<string | null>(null);
-  const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
 
   // Load viewed stories from AsyncStorage on mount
   useEffect(() => {
@@ -210,14 +317,8 @@ export function EventInteractionSection() {
   const onRefresh = async () => {
     setRefreshing(true);
     await getAllStories();
-    await refreshFeed();
+    await fetchFeed();
     setRefreshing(false);
-  };
-
-  const onLoadMore = async () => {
-    if (hasMore && !postsLoading) {
-      await loadMoreFeed();
-    }
   };
 
   const groupedStories = stories
@@ -290,212 +391,31 @@ export function EventInteractionSection() {
     })),
   ];
 
-  // Handle post interactions
-  const handlePostLike = (postId: string, isLiked: boolean) => {
-    if (isLiked) {
-      unlikePost(postId);
-    } else {
-      likePost(postId);
-    }
-  };
-
-  const handlePostComment = async (postId: string) => {
-    // Toggle inline comments for this post
-    if (selectedPostId === postId) {
-      setSelectedPostId(null);
-      clearComments();
-    } else {
-      setSelectedPostId(postId);
-      await fetchPostComments(postId, 1, 20);
-    }
-  };
-
-  const handleInlineCommentSubmit = async (postId: string, text: string) => {
-    try {
-      await addComment(postId, { text });
-    } catch (error) {
-      console.error("Failed to post comment:", error);
-    }
-  };
-
-  const handleLoadMoreComments = async (postId: string) => {
-    if (commentsPagination && commentsPagination.page < commentsPagination.totalPages) {
-      await fetchPostComments(postId, commentsPagination.page + 1, 20);
-    }
-  };
-
-  const handleCloseComments = () => {
-    setShowCommentsModal(false);
-    setSelectedPostId(null);
-    setCommentText("");
-    clearComments();
-  };
-
-  const handleSubmitComment = async () => {
-    if (!selectedPostId || !commentText.trim()) return;
-    
-    setPostingComment(true);
-    try {
-      await addComment(selectedPostId, { text: commentText.trim() });
-      setCommentText("");
-    } catch (error) {
-      console.error("Failed to post comment:", error);
-    } finally {
-      setPostingComment(false);
-    }
-  };
-
-  const renderCommentItem = ({ item }: { item: Comment }) => (
-    <View style={commentStyles.commentItem}>
-      <Image
-        source={{
-          uri: item.user?.profilePicUrl || DEFAULT_AVATAR,
-        }}
-        style={commentStyles.commentAvatar}
-        contentFit="cover"
-      />
-      <View style={commentStyles.commentContent}>
-        <Text style={commentStyles.commentUsername}>{item.user?.username || "Unknown"}</Text>
-        <Text style={commentStyles.commentText}>{item.text}</Text>
-        <Text style={commentStyles.commentTime}>
-          {new Date(item.createdAt).toLocaleDateString()}
-        </Text>
-      </View>
-    </View>
-  );
-
-  const handlePostShare = (post: Post) => {
-    console.log("General share post:", post.id);
-    // General share is handled in FeedPostCard
-  };
-
-  const handleShareWithFriends = async (postId: string) => {
-    setSharePostId(postId);
-    setSelectedFriends(new Set());
-    await getFriends();
-    setShowShareFriendsModal(true);
-  };
-
-  const handleCloseShareFriends = () => {
-    setShowShareFriendsModal(false);
-    setSharePostId(null);
-    setSelectedFriends(new Set());
-  };
-
-  const toggleFriendSelection = (friendId: string) => {
-    setSelectedFriends((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(friendId)) {
-        newSet.delete(friendId);
-      } else {
-        newSet.add(friendId);
-      }
-      return newSet;
-    });
-  };
-
-  const handleSendShare = async () => {
-    if (!sharePostId || selectedFriends.size === 0) return;
-    
-    // Close modal immediately for better UX
-    handleCloseShareFriends();
-    
-    const post = feed.find(p => p.id === sharePostId);
-    if (!post) return;
-    
-    // Create share message with post ID for clickable link
-    const shareMessage = `📤 Shared a post by ${post.user?.username || "someone"}: "${post.caption || "Check out this post!"}" [POST_ID:${sharePostId}]`;
-    
-    // Run all operations in parallel for better performance
-    const friendIds = Array.from(selectedFriends);
-    
-    // Share post via API
-    sharePost(sharePostId, { friendIds }).catch(err => 
-      console.error("Share API error:", err)
-    );
-    
-    // Send messages to all friends in parallel
-    const messagePromises = friendIds.map(async (friendId) => {
-      try {
-        await useChatStore.getState().sendMessage({
-          receiverId: friendId,
-          content: shareMessage,
-          messageType: "text",
-        });
-      } catch (chatError) {
-        console.error(`Failed to send message to ${friendId}:`, chatError);
-      }
-    });
-    
-    // Wait for all messages to be sent
-    await Promise.all(messagePromises);
-  };
-
-  const renderFriendItem = ({ item }: { item: any }) => {
-    const friendId = item.user?.id || item.userId;
-    const isSelected = selectedFriends.has(friendId);
-    return (
-      <TouchableOpacity
-        style={[shareFriendStyles.friendItem, isSelected && shareFriendStyles.friendItemSelected]}
-        onPress={() => toggleFriendSelection(friendId)}
-      >
-        <Image
-          source={{
-            uri: item.user?.profilePicUrl || item.user?.avatar || DEFAULT_AVATAR,
-          }}
-          style={shareFriendStyles.friendAvatar}
-          contentFit="cover"
-        />
-        <Text style={shareFriendStyles.friendName}>
-          {item.user?.username || item.user?.name || "Unknown"}
-        </Text>
-        {isSelected && (
-          <View style={shareFriendStyles.checkmark}>
-            <Check size={16} color="#fff" />
-          </View>
-        )}
-      </TouchableOpacity>
-    );
-  };
-
-  const handleUserPress = (userId: string) => {
-    console.log("Navigate to user profile:", userId);
-    // TODO: Navigate to user profile
-  };
-
-  const handleDeletePost = async (postId: string) => {
-    try {
-      await usePostStore.getState().deletePost(postId);
-      // Refresh feed after deletion
-      await refreshFeed();
-    } catch (error) {
-      console.error("Failed to delete post:", error);
-      Alert.alert("Error", "Failed to delete post. Please try again.");
-    }
-  };
+  // Transform API posts to match FeedPost expected format
+  const displayPosts = feed.length > 0 
+    ? feed.map((post: any) => ({
+        id: post.id,
+        user: { 
+          name: post.user?.username || post.user?.name || "Unknown", 
+          avatar: post.user?.profilePicUrl || DEFAULT_AVATAR 
+        },
+        time: new Date(post.createdAt).toLocaleDateString(),
+        media: post.media?.[0]?.url 
+          ? `https://tappd-backend-main.onrender.com/${post.media[0].url}`
+          : "",
+        likes: post.likesCount || 0,
+        caption: post.caption || "",
+        comments: [],
+        music: "",
+      }))
+    : []; // Show empty feed if API fails, not mock data
 
   return (
     <View style={styles.container}>
       <FlatList
-        data={feed}
+        data={displayPosts}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <FeedPostCard
-            post={item}
-            comments={selectedPostId === item.id ? comments : []}
-            currentUserAvatar={undefined}
-            currentUserId={userId || undefined}
-            onLike={handlePostLike}
-            onComment={handlePostComment}
-            onShare={handlePostShare}
-            onUserPress={handleUserPress}
-            onSubmitComment={handleInlineCommentSubmit}
-            onLoadMoreComments={handleLoadMoreComments}
-            showCommentsInline={selectedPostId === item.id}
-            onShareWithFriends={handleShareWithFriends}
-            onDelete={handleDeletePost}
-          />
-        )}
+        renderItem={({ item }) => <FeedPost item={item} />}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -503,26 +423,15 @@ export function EventInteractionSection() {
             tintColor={Theme.colors.primary}
           />
         }
-        onEndReached={onLoadMore}
-        onEndReachedThreshold={0.5}
-        ListFooterComponent={
-          postsLoading && feed.length > 0 ? (
-            <View style={{ padding: 20, alignItems: "center" }}>
-              <ActivityIndicator size="small" color={Theme.colors.primary} />
-            </View>
-          ) : null
-        }
         ListEmptyComponent={
-          !postsLoading ? (
-            <View style={{ padding: 40, alignItems: "center" }}>
-              <Text style={{ color: Theme.colors.mutedForeground, fontSize: 16 }}>
-                No posts yet
-              </Text>
-              <Text style={{ color: Theme.colors.mutedForeground, fontSize: 14, marginTop: 8 }}>
-                Be the first to share something!
-              </Text>
-            </View>
-          ) : null
+          <View style={{ padding: 40, alignItems: "center" }}>
+            <Text style={{ color: Theme.colors.mutedForeground, fontSize: 16 }}>
+              No posts yet
+            </Text>
+            <Text style={{ color: Theme.colors.mutedForeground, fontSize: 14, marginTop: 8 }}>
+              Be the first to share something!
+            </Text>
+          </View>
         }
         ListHeaderComponent={
           <ScrollView horizontal style={{ padding: 16 }}>
@@ -630,120 +539,6 @@ export function EventInteractionSection() {
         }}
         onSuccess={getAllStories}
       />
-
-      {/* Comments Modal */}
-      <Modal
-        visible={showCommentsModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={handleCloseComments}
-      >
-        <SafeAreaView style={commentStyles.modalContainer}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={commentStyles.keyboardView}
-          >
-            <View style={commentStyles.modalContent}>
-              {/* Header */}
-              <View style={commentStyles.modalHeader}>
-                <Text style={commentStyles.modalTitle}>Comments</Text>
-                <TouchableOpacity onPress={handleCloseComments} style={commentStyles.closeButton}>
-                  <X size={24} color={Theme.colors.foreground} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Comments List */}
-              <FlatList
-                data={comments}
-                keyExtractor={(item) => item.id}
-                renderItem={renderCommentItem}
-                contentContainerStyle={commentStyles.commentsList}
-                ListEmptyComponent={
-                  <View style={commentStyles.emptyComments}>
-                    <Text style={commentStyles.emptyText}>No comments yet</Text>
-                    <Text style={commentStyles.emptySubtext}>Be the first to comment!</Text>
-                  </View>
-                }
-              />
-
-              {/* Comment Input */}
-              <View style={commentStyles.inputContainer}>
-                <TextInput
-                  style={commentStyles.input}
-                  placeholder="Add a comment..."
-                  placeholderTextColor={Theme.colors.mutedForeground}
-                  value={commentText}
-                  onChangeText={setCommentText}
-                  multiline
-                  maxLength={2200}
-                />
-                <TouchableOpacity
-                  onPress={handleSubmitComment}
-                  disabled={!commentText.trim() || postingComment}
-                  style={[
-                    commentStyles.sendButton,
-                    (!commentText.trim() || postingComment) && commentStyles.sendButtonDisabled,
-                  ]}
-                >
-                  {postingComment ? (
-                    <ActivityIndicator size="small" color={Theme.colors.primary} />
-                  ) : (
-                    <Send size={20} color={Theme.colors.primary} />
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </KeyboardAvoidingView>
-        </SafeAreaView>
-      </Modal>
-
-      {/* Share with Friends Modal */}
-      <Modal
-        visible={showShareFriendsModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={handleCloseShareFriends}
-      >
-        <View style={shareFriendStyles.modalContainer}>
-          <SafeAreaView style={shareFriendStyles.modalContent} edges={["bottom"]}>
-            {/* Header */}
-            <View style={shareFriendStyles.modalHeader}>
-              <Text style={shareFriendStyles.modalTitle}>Share with Friends</Text>
-              <TouchableOpacity onPress={handleCloseShareFriends} style={shareFriendStyles.closeButton}>
-                <X size={24} color="#fff" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Friends List */}
-            <FlatList
-              data={friends}
-              keyExtractor={(item: any) => item.user?.id || item.friendshipId || String(Math.random())}
-              renderItem={renderFriendItem}
-              contentContainerStyle={shareFriendStyles.friendsList}
-              ListEmptyComponent={
-                <View style={shareFriendStyles.emptyFriends}>
-                  <Text style={shareFriendStyles.emptyText}>No friends yet</Text>
-                  <Text style={shareFriendStyles.emptySubtext}>Add friends to share posts with them</Text>
-                </View>
-              }
-            />
-
-            {/* Send Button */}
-            {selectedFriends.size > 0 && (
-              <View style={shareFriendStyles.sendButtonContainer}>
-                <TouchableOpacity
-                  style={shareFriendStyles.sendButton}
-                  onPress={handleSendShare}
-                >
-                  <Text style={shareFriendStyles.sendButtonText}>
-                    Send to {selectedFriends.size} friend{selectedFriends.size > 1 ? 's' : ''}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </SafeAreaView>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -828,220 +623,90 @@ const styles = StyleSheet.create({
     fontSize: 8,
     marginLeft: 1,
   },
-});
 
-/* ---------------- COMMENT STYLES ---------------- */
+  postContainer: { marginBottom: 24 },
+  postHeader: { flexDirection: "row", padding: 16 },
+  avatar: { width: 32, height: 32, borderRadius: 16, marginRight: 10 },
+  userName: { color: Theme.colors.foreground, fontWeight: "600" },
+  postTime: { color: Theme.colors.mutedForeground, fontSize: 12 },
 
-const commentStyles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  postMediaContainer: { aspectRatio: 4 / 5 },
+  postMedia: { width: "100%", height: "100%" },
+  musicPill: {
+    position: "absolute",
+    bottom: 12,
+    left: 12,
+    flexDirection: "row",
   },
-  keyboardView: {
+  musicText: { color: "#c451c9", marginLeft: 6 },
+
+  actionRow: { flexDirection: "row", paddingHorizontal: 16, paddingTop: 14 },
+  actionButton: { marginRight: 16 },
+
+  postFooter: { paddingHorizontal: 16 },
+  likesText: { fontWeight: "700", color: Theme.colors.foreground },
+  caption: { color: Theme.colors.foreground },
+  captionUser: { fontWeight: "600" },
+
+  viewAllComments: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 13,
+    marginTop: 2,
+  },
+
+  commentRow: { flexDirection: "row", marginBottom: 16, flex: 1 },
+  commentAvatar: { width: 32, height: 32, borderRadius: 16, marginRight: 10 },
+  commentBubble: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+    padding: 10,
+    borderRadius: 12,
+  },
+  commentText: { color: Theme.colors.foreground },
+  commentActions: { flexDirection: "row", gap: 12, marginTop: 4 },
+  commentTime: { fontSize: 12, color: Theme.colors.mutedForeground },
+  replyText: { fontSize: 12, color: Theme.colors.mutedForeground },
+
+  commentBox: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
+  commentInput: {
     flex: 1,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    color: Theme.colors.foreground,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  postButton: { marginLeft: 8, color: Theme.colors.primary },
+
+  modalHeader: { flexDirection: "row", padding: 16 },
+  modalTitle: { color: Theme.colors.foreground, fontSize: 16 },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "flex-end",
   },
-  modalContent: {
+
+  bottomSheet: {
+    height: "65%",
     backgroundColor: Theme.colors.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    flex: 1,
-    maxHeight: "80%",
+    overflow: "hidden",
   },
-  modalHeader: {
-    flexDirection: "row",
+
+  bottomSheetHeader: {
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Theme.colors.border,
+    borderBottomColor: Theme.colors.muted,
   },
-  modalTitle: {
-    color: Theme.colors.foreground,
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  closeButton: {
-    padding: 4,
-  },
-  commentsList: {
-    padding: 16,
-    flexGrow: 1,
-  },
-  commentItem: {
-    flexDirection: "row",
-    marginBottom: 16,
-  },
-  commentAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Theme.colors.muted,
-  },
-  commentContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  commentUsername: {
-    color: Theme.colors.foreground,
-    fontWeight: "600",
-    fontSize: 14,
-    marginBottom: 2,
-  },
-  commentText: {
-    color: Theme.colors.foreground,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  commentTime: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 12,
-    marginTop: 4,
-  },
-  emptyComments: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 40,
-  },
-  emptyText: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 16,
-  },
-  emptySubtext: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 14,
-    marginTop: 4,
-  },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: Theme.colors.border,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    color: Theme.colors.foreground,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    maxHeight: 100,
-    fontSize: 14,
-  },
-  sendButton: {
-    marginLeft: 12,
-    padding: 8,
-  },
-  sendButtonDisabled: {
-    opacity: 0.5,
-  },
-});
 
-/* ---------------- SHARE FRIENDS STYLES ---------------- */
+  dragHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Theme.colors.mutedForeground,
+    marginBottom: 6,
+  },
 
-const shareFriendStyles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: Theme.colors.background,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    maxHeight: "85%",
-    flexShrink: 1,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(255, 255, 255, 0.1)",
-  },
-  modalTitle: {
-    color: Theme.colors.foreground,
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  closeButton: {
-    padding: 4,
-  },
-  friendsList: {
-    padding: 16,
-    paddingBottom: 20,
-  },
-  friendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
-  },
-  friendItemSelected: {
-    backgroundColor: "rgba(217, 70, 239, 0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(217, 70, 239, 0.5)",
-  },
-  friendAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Theme.colors.muted,
-  },
-  friendName: {
-    color: Theme.colors.foreground,
-    fontSize: 16,
-    fontWeight: "500",
-    marginLeft: 12,
-    flex: 1,
-  },
-  checkmark: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#D946EF",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  emptyFriends: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 60,
-  },
-  emptyText: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 16,
-  },
-  emptySubtext: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 14,
-    marginTop: 4,
-  },
-  sendButtonContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: Theme.colors.background,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
-    marginBottom: Platform.OS === "android" ? 16 : 0,
-  },
-  sendButton: {
-    backgroundColor: "#7C3AED",
-    borderRadius: 24,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  sendButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
 });

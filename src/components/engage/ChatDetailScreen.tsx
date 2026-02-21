@@ -9,7 +9,6 @@ import {
   TextInput,
   Pressable,
   Alert,
-  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Theme } from "../../styles/Theme";
@@ -95,40 +94,6 @@ export function ChatDetailScreen() {
     setInput("");
   };
 
-  // Parse message text to extract post ID if present
-  const parseMessageText = (text: string) => {
-    const postIdMatch = text.match(/\[POST_ID:([^\]]+)\]/);
-    if (postIdMatch) {
-      const postId = postIdMatch[1];
-      const cleanText = text.replace(/\[POST_ID:[^\]]+\]/, "").trim();
-      return { cleanText, postId };
-    }
-    return { cleanText: text, postId: null };
-  };
-
-  const handlePostLinkPress = (postId: string) => {
-    // Navigate to post detail screen
-    navigation.navigate(SCREEN_NAMES.EVENT_DETAILS_SCREEN);
-  };
-
-  const renderMessageContent = (text: string, isMe: boolean) => {
-    const { cleanText, postId } = parseMessageText(text);
-    
-    return (
-      <View>
-        <Text style={isMe ? styles.textMe : styles.textOther}>{cleanText}</Text>
-        {postId && (
-          <TouchableOpacity 
-            onPress={() => handlePostLinkPress(postId)}
-            style={styles.postLinkContainer}
-          >
-            <Text style={styles.postLinkText}>👆 View Post</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    );
-  };
-
   const renderItem = ({ item }: any) => (
     <View
       style={[
@@ -141,12 +106,12 @@ export function ChatDetailScreen() {
           colors={["#D946EF", "#A855F7"]}
           style={styles.bubbleMe}
         >
-          {renderMessageContent(item.text, true)}
+          <Text style={styles.textMe}>{item.text}</Text>
           <Text style={styles.timeMe}>{item.time}</Text>
         </LinearGradient>
       ) : (
         <View style={styles.bubbleOther}>
-          {renderMessageContent(item.text, false)}
+          <Text style={styles.textOther}>{item.text}</Text>
           <Text style={styles.timeOther}>{item.time}</Text>
         </View>
       )}
@@ -397,18 +362,5 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
-  },
-  postLinkContainer: {
-    marginTop: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderRadius: 12,
-    alignSelf: "flex-start",
-  },
-  postLinkText: {
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: "600",
   },
 });

@@ -27,7 +27,6 @@ export interface Post {
   viewsCount: number;
   isCarousel: boolean;
   allowComments: boolean;
-  isLiked?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -77,20 +76,8 @@ export const createPostApi = (
 
 /* ================= GET FEED ================= */
 
-export interface GetFeedParams {
-  cursor?: string;
-  limit?: number;
-}
-
-export const getFeedPostsApi = (
-  cursor?: string,
-  limit?: number
-): Promise<ApiResponse<Post[]>> => {
-  const params: GetFeedParams = {};
-  if (cursor) params.cursor = cursor;
-  if (limit) params.limit = limit;
-  
-  return apiClient.get("/posts", { params });
+export const getFeedPostsApi = (): Promise<ApiResponse<Post[]>> => {
+  return apiClient.get("/posts");
 };
 
 /* ================= GET POST BY ID ================= */
@@ -132,130 +119,4 @@ export const getPostsByUserApi = (
   userId: string
 ): Promise<ApiResponse<Post[]>> => {
   return apiClient.get(`/posts/user/${userId}`);
-};
-
-/* ================= LIKE / UNLIKE ================= */
-
-export interface LikeResponse {
-  liked: boolean;
-  likesCount: number;
-}
-
-export const likePostApi = (
-  postId: string
-): Promise<ApiResponse<LikeResponse>> => {
-  return apiClient.post(`/posts/${postId}/like`);
-};
-
-export const unlikePostApi = (
-  postId: string
-): Promise<ApiResponse<LikeResponse>> => {
-  return apiClient.delete(`/posts/${postId}/like`);
-};
-
-export const getPostLikeStatusApi = (
-  postId: string
-): Promise<ApiResponse<LikeResponse>> => {
-  return apiClient.get(`/posts/${postId}/like`);
-};
-
-/* ================= COMMENTS ================= */
-
-export interface Comment {
-  id: string;
-  postId: string;
-  userId: string;
-  text: string;
-  likesCount: number;
-  user: {
-    id: string;
-    username: string;
-    profilePicUrl: string | null;
-  };
-  createdAt: string;
-  updatedAt?: string;
-}
-
-export interface CommentsPagination {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-  pages?: number;
-}
-
-export interface CommentsResponse {
-  comments: Comment[];
-  pagination: CommentsPagination;
-}
-
-export interface AddCommentPayload {
-  text: string;
-}
-
-export const getPostCommentsApi = (
-  postId: string,
-  page?: number,
-  limit?: number
-): Promise<ApiResponse<CommentsResponse>> => {
-  const params: { page?: number; limit?: number } = {};
-  if (page) params.page = page;
-  if (limit) params.limit = limit;
-  return apiClient.get(`/posts/${postId}/comments`, { params });
-};
-
-export const addCommentApi = (
-  postId: string,
-  payload: AddCommentPayload
-): Promise<ApiResponse<Comment>> => {
-  return apiClient.post(`/posts/${postId}/comments`, payload);
-};
-
-/* ================= SHARE ================= */
-
-export interface SharePayload {
-  friendIds: string[];
-}
-
-export interface ShareItem {
-  id: string;
-  postId: string;
-  sharedByUserId: string;
-  sharedWithUserId: string;
-  createdAt: string;
-  sharedWith: {
-    id: string;
-    username: string;
-    profilePicUrl: string | null;
-  };
-}
-
-export interface ShareResponse {
-  shares: ShareItem[];
-  sharesCount: number;
-}
-
-export interface ShareListResponse {
-  sharedWith: Array<{
-    id: string;
-    sharedWithUserId: string;
-    sharedWith: {
-      id: string;
-      username: string;
-      profilePicUrl: string | null;
-    };
-  }>;
-}
-
-export const sharePostApi = (
-  postId: string,
-  payload: SharePayload
-): Promise<ApiResponse<ShareResponse>> => {
-  return apiClient.post(`/posts/${postId}/share`, payload);
-};
-
-export const getPostSharesApi = (
-  postId: string
-): Promise<ApiResponse<ShareListResponse>> => {
-  return apiClient.get(`/posts/${postId}/share`);
 };
