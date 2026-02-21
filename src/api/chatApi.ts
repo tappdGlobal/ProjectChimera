@@ -50,12 +50,12 @@ export const sendMessageApi = (
 };
 
 /**
- * GET /api/v1/chat/list
+ * GET /chat/list
  * Get chat list with conversations and last message preview
  * Response: 200 - Chat list fetched with conversations sorted by most recent
  */
 export const getChatListApi = (): Promise<ApiResponse<ChatListItem[]>> => {
-  return apiClient.get("/api/v1/chat/list");
+  return apiClient.get("/chat/list");
 };
 
 /* ============================================================
