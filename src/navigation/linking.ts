@@ -19,6 +19,7 @@ export const linking = {
         },
       },
       EditProfile: 'edit-profile',
+      EventDetailsScreen: 'post/:postId',
     },
   },
 };
