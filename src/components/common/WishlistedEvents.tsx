@@ -26,45 +26,8 @@ export function WishlistedEvents({
 }: WishlistedEventsProps) {
 
   /* ================= DATE FORMATTER ================= */
+  
 
-  const formatEventDateTime = (
-    dateStr: string,
-    timeStr?: string
-  ) => {
-    try {
-      let dateObj: Date;
-
-      if (dateStr.includes("T")) {
-        dateObj = new Date(dateStr);
-      } else if (timeStr) {
-        dateObj = new Date(`${dateStr}T${timeStr}`);
-      } else {
-        dateObj = new Date(dateStr);
-      }
-
-      if (isNaN(dateObj.getTime())) {
-        return dateStr;
-      }
-
-      const month = dateObj.toLocaleString("en-US", {
-        month: "short",
-      });
-
-      const day = dateObj.getDate();
-
-      const time = dateObj
-        .toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        })
-        .toUpperCase();
-
-      return `${month} ${day} · ${time}`;
-    } catch {
-      return dateStr;
-    }
-  };
 
   /* ================= SAFE FILTER ================= */
 
@@ -84,7 +47,7 @@ export function WishlistedEvents({
         </View>
         <View style={styles.loaderContainer}>
           <ActivityIndicator
-            size="small"
+            size="large"
             color={Theme.colors.primary}
           />
         </View>
@@ -99,7 +62,7 @@ export function WishlistedEvents({
   }
 
   /* ================= RENDER ================= */
-
+  console.log("🖼 First wishlist image:", events[0]?.event?.images);
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -115,16 +78,14 @@ export function WishlistedEvents({
           <WishlistEventCard
             key={event.id}
             event={{
-              id: event.id,
-              title: event.eventName,
-              date: formatEventDateTime(
-                event.eventDate,
-                event.eventTime
-              ),
-              time: "",
-              location: event.location,
-              image: event.images?.[0] || "",
+              id: event.event.id,
+              title: event.event.eventName,
+              date: event.event.eventDate,
+              time: event.event.eventTime,
+              location: event.event.location || event.event.venue,
+              image: event.event.images?.[0],
             }}
+            showWishlist
             onClick={() => onEventSelect?.(event)}
           />
         ))}

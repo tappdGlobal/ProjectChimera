@@ -1,95 +1,117 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { Theme } from "../../styles/Theme";
-
-const transactions = [
-  {
-    title: "Rooftop Jazz Night",
-    txnId: "TXN1234567890",
-    date: "12/1/2024",
-    type: "VIP",
-    qty: 1,
-    amount: 1500,
-  },
-  {
-    title: "Tech Startup Pitch Night",
-    txnId: "TXN0987654321",
-    date: "11/20/2024",
-    type: "Standard",
-    qty: 1,
-    amount: 500,
-  },
-  {
-    title: "Summer Food Festival",
-    txnId: "TXN1122334455",
-    date: "11/28/2024",
-    type: "Premium",
-    qty: 1,
-    amount: 800,
-  },
-  {
-    title: "Indie Music Concert",
-    txnId: "TXN6677889900",
-    date: "10/15/2024",
-    type: "Standard",
-    qty: 2,
-    amount: 1000,
-  },
-  {
-    title: "Designers Meetup",
-    txnId: "TXN5566778899",
-    date: "09/30/2024",
-    type: "VIP",
-    qty: 1,
-    amount: 700,
-  },
-];
-
+import { useBookingStore } from "../../store/bookingStore";
+import { ActivityIndicator } from "react-native";
 export function TransactionTabContent() {
-  const total = transactions.reduce((sum, t) => sum + t.amount, 0);
+  const { bookings, fetchMyBookings, loading } = useBookingStore();
+
+  useEffect(() => {
+    fetchMyBookings();
+  }, []);
+
+  // Only successful bookings
+  const completedBookings = bookings?.filter(
+    (b) => b && b.ticket && b.event && b.status !== "CANCELLED"
+  );
+
+  const total = completedBookings?.reduce(
+    (sum, b) => sum + (b.ticket?.price ?? 0),
+    0
+  );
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+  style={styles.container}
+  contentContainerStyle={{
+    paddingBottom: Theme.spacing.xl,
+    flexGrow: 1,
+  }}
+>
+  {/* 🔥 LOADER */}
+  {loading && (
+    <View style={styles.loaderContainer}>
+      <ActivityIndicator
+        size="large"
+        color={Theme.colors.primary}
+      />
+    </View>
+  )}
+
+  {/* 🔥 CONTENT AFTER LOADING */}
+  {!loading && (
+    <>
+      {/* TOTAL SPENT CARD */}
       <View style={styles.totalCard}>
         <Text style={styles.totalLabel}>Total Spent</Text>
-        <Text style={styles.totalAmount}>₹{total.toLocaleString()}</Text>
+        <Text style={styles.totalAmount}>
+          ₹{(total ?? 0).toLocaleString()}
+        </Text>
       </View>
 
-      {transactions.map((item, index) => (
-        <View key={index} style={styles.txnCard}>
-          <View style={styles.txnHeader}>
-            <Text style={styles.txnTitle}>{item.title}</Text>
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusText}>completed</Text>
+      {completedBookings?.length === 0 && (
+        <Text style={styles.emptyText}>
+          No transactions found
+        </Text>
+      )}
+
+      {completedBookings?.map((booking) => {
+        const event = booking.event!;
+        const ticket = booking.ticket!;
+
+        return (
+          <View key={booking.id} style={styles.txnCard}>
+            <View style={styles.txnHeader}>
+              <Text style={styles.txnTitle}>
+                {event.eventName}
+              </Text>
+
+              <View style={styles.statusBadge}>
+                <Text style={styles.statusText}>
+                  completed
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.txnId}>
+              Transaction ID: {booking.id}
+            </Text>
+
+            <View style={styles.divider} />
+
+            <View style={styles.row}>
+              <Text style={styles.label}>Date:</Text>
+              <Text style={styles.value}>
+                {new Date(
+                  booking.createdAt
+                ).toLocaleDateString()}
+              </Text>
+            </View>
+
+            <View style={styles.row}>
+              <Text style={styles.label}>Ticket Type:</Text>
+              <Text style={styles.value}>
+                {ticket.ticketLabel}
+              </Text>
+            </View>
+
+            <View style={styles.row}>
+              <Text style={styles.label}>Quantity:</Text>
+              <Text style={styles.value}>1</Text>
+            </View>
+
+            <View style={styles.row}>
+              <Text style={styles.label}>Amount:</Text>
+              <Text style={styles.amount}>
+                ₹{ticket.price}
+              </Text>
             </View>
           </View>
-
-          <Text style={styles.txnId}>Transaction ID: {item.txnId}</Text>
-
-          <View style={styles.divider} />
-
-          <View style={styles.row}>
-            <Text style={styles.label}>Date:</Text>
-            <Text style={styles.value}>{item.date}</Text>
-          </View>
-
-          <View style={styles.row}>
-            <Text style={styles.label}>Ticket Type:</Text>
-            <Text style={styles.value}>{item.type}</Text>
-          </View>
-
-          <View style={styles.row}>
-            <Text style={styles.label}>Quantity:</Text>
-            <Text style={styles.value}>{item.qty}</Text>
-          </View>
-
-          <View style={styles.row}>
-            <Text style={styles.label}>Amount:</Text>
-            <Text style={styles.amount}>₹{item.amount}</Text>
-          </View>
-        </View>
-      ))}
-    </ScrollView>
+        );
+      })}
+    </>
+  )}
+</ScrollView>
   );
 }
 
@@ -110,7 +132,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.12)",
   },
-
+  emptyText: {
+  color: Theme.colors.mutedForeground,
+  textAlign: "center",
+  marginTop: 40,
+},
   totalLabel: {
     color: Theme.colors.mutedForeground,
     fontSize: 16,
@@ -194,5 +220,11 @@ statusText: {
     fontSize: 17,
     fontWeight: "600",
   },
+  loaderContainer: {
+  flex: 1,
+  justifyContent: "center",
+  alignItems: "center",
+  marginTop: 60,
+},
 });
 

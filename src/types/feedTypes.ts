@@ -1,6 +1,13 @@
+/* ================= TICKET ================= */
+
 export interface FeedTicket {
+  id: string; 
+
   ticketLabel: string;
-  ticketType: "Paid" | "Free";
+
+  // Backend returns: "PAID" | "FREE"
+  ticketType: "PAID" | "FREE";
+
   price?: number;
   currency?: string;
 
@@ -12,9 +19,14 @@ export interface FeedTicket {
   quantitySold: number;
 }
 
+/* ================= EVENT ================= */
+
 export interface FeedEvent {
   id: string;
+
   eventName: string;
+  description: string;
+
   genre: string;
   category: string;
 
@@ -34,6 +46,8 @@ export interface FeedEvent {
 
   maxCapacity: number;
 
+  genderAllowance?: "ALL" | "MALE" | "FEMALE";
+
   ageLimit:
     | "SIXTEEN_PLUS"
     | "EIGHTEEN_PLUS"
@@ -45,8 +59,6 @@ export interface FeedEvent {
   allowAlcohol: boolean;
   allowSmokingAreas: boolean;
 
-  description: string;
-
   images: string[];
 
   tickets: FeedTicket[];
@@ -55,8 +67,12 @@ export interface FeedEvent {
   interestedCount?: number;
   isUserAttending?: boolean;
   isUserInterested?: boolean;
+
   createdAt?: string;
+  updatedAt?: string;
 }
+
+/* ================= RESPONSE ================= */
 
 export interface FeedResponse {
   success: boolean;

@@ -18,7 +18,6 @@ interface TrendingEventsProps {
   onEventSelect?: (event: FeedEvent) => void;
   searchQuery?: string;
 }
-
 export function TrendingEvents({
   events,
   loading = false,
@@ -26,22 +25,9 @@ export function TrendingEvents({
   searchQuery = "",
 }: TrendingEventsProps) {
 
-  /* ================= LOADING ================= */
-
-  if (loading) {
-    return (
-      <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color={Theme.colors.primary} />
-      </View>
-    );
-  }
-
   /* ================= DATE FORMATTER ================= */
 
-  const formatEventDateTime = (
-    dateStr: string,
-    timeStr?: string
-  ) => {
+  const formatEventDateTime = (dateStr: string, timeStr?: string) => {
     try {
       let dateObj: Date;
 
@@ -53,14 +39,9 @@ export function TrendingEvents({
         dateObj = new Date(dateStr);
       }
 
-      if (isNaN(dateObj.getTime())) {
-        return dateStr;
-      }
+      if (isNaN(dateObj.getTime())) return dateStr;
 
-      const month = dateObj.toLocaleString("en-US", {
-        month: "short",
-      });
-
+      const month = dateObj.toLocaleString("en-US", { month: "short" });
       const day = dateObj.getDate();
 
       const time = dateObj
@@ -82,19 +63,11 @@ export function TrendingEvents({
   const filteredEvents = (events ?? []).filter(
     (event) =>
       searchQuery === "" ||
-      event.eventName
-        ?.toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
-      event.city
-        ?.toLowerCase()
-        .includes(searchQuery.toLowerCase())
+      event.eventName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      event.city?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (searchQuery && filteredEvents.length === 0) {
-    return null;
-  }
-
-  if (!filteredEvents || filteredEvents.length === 0) {
     return null;
   }
 
@@ -102,45 +75,57 @@ export function TrendingEvents({
 
   return (
     <View style={styles.container}>
+      {/* 🔥 TITLE ALWAYS VISIBLE */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>
           Trending in Your Area
         </Text>
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {filteredEvents.map((event) => (
-          <EventCard
-            key={event.id}
-            event={{
-              id: event.id,
-              title: event.eventName,
-              date: formatEventDateTime(
-                event.eventDate,
-                event.eventTime
-              ),
-              time: "", // already combined
-              location: `${event.venue}, ${event.city}`,
-              image: event.images?.[0] ?? "",
-            }}
-            size="small"
-            onClick={() => onEventSelect?.(event)}
-          />
-        ))}
-      </ScrollView>
+      {/* 🔥 CONTENT AREA ONLY LOADING */}
+      {loading ? (
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color={Theme.colors.primary} />
+        </View>
+      ) : !filteredEvents || filteredEvents.length === 0 ? (
+        <Text style={styles.emptyText}>
+          No trending events right now
+        </Text>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {filteredEvents.map((event) => (
+            <EventCard
+              key={event.id}
+              event={{
+                id: event.id,
+                title: event.eventName,
+                date: formatEventDateTime(event.eventDate, event.eventTime),
+                time: "",
+                location: `${event.venue}, ${event.city}`,
+                image: event.images?.[0] ?? "",
+              }}
+              size="small"
+              onClick={() => onEventSelect?.(event)}
+            />
+          ))}
+        </ScrollView>
+      )}
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     paddingVertical: 24,
   },
-
+  emptyText: {
+    color: Theme.colors.mutedForeground,
+    paddingHorizontal: 16,
+    marginTop: 10,
+  },
   loaderContainer: {
     paddingVertical: 40,
     justifyContent: "center",

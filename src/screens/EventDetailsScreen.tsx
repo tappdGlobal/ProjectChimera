@@ -8,6 +8,7 @@ import {
   Image,
   Dimensions,
 } from "react-native";
+import { useBookingStore } from "../store/bookingStore";
 import { LinearGradient } from "expo-linear-gradient";
 import { GRADIENT_COLORS } from "../styles/Theme";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -25,7 +26,7 @@ import {
   useRoute,
   RouteProp,
 } from "@react-navigation/native";
-
+import { ActivityIndicator } from "react-native";
 import { Theme } from "../styles/Theme";
 import { Card, CardContent } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
@@ -36,6 +37,8 @@ import {
 } from "../navigation/Routes";
 
 import { FeedEvent } from "../types/feedTypes";
+import Toast from "react-native-toast-message";
+
 
 /* ================= ROUTE TYPE ================= */
 
@@ -75,10 +78,47 @@ export function EventDetailsScreen() {
   const [activeTab, setActiveTab] = useState<
     "Availability" | "Details" | "Reviews"
   >("Details");
-
+  const [bookingLoading, setBookingLoading] = useState<string | null>(null);
   const { width } = Dimensions.get("window");
+  const { createBooking } = useBookingStore();
+  const handleBookNow = async (ticket: any) => {
+    if (!event?.id || !ticket?.id) {
+      return;
+    }
 
-  const genderPreference = "Mixed Gender";
+    try {
+      setBookingLoading(ticket.id); // 🔥 start loader
+
+      const payload = {
+        eventId: event.id,
+        ticketId: ticket.id,
+      };
+
+      const result = await createBooking(payload);
+
+      if (result.success) {
+        Toast.show({
+          type: "success",
+          text1: "Booking Reserved 🎉",
+          text2: result.message, // ✅ dynamic success message
+        });
+      } else {
+        Toast.show({
+          type: "error",
+          text1: "Booking Failed",
+          text2: result.message, // ✅ backend validation message
+        });
+      }
+    } catch (error) {
+      Toast.show({
+        type: "error",
+        text1: "Something went wrong",
+        text2: "Please try again.",
+      });
+    } finally {
+      setBookingLoading(null); // 🔥 stop loader
+    }
+  };
   const handleAddToCalendar = async () => {
     try {
       // 1️⃣ Parse ISO date directly
@@ -154,7 +194,12 @@ export function EventDetailsScreen() {
           <Calendar size={20} color={Theme.colors.primary} />
           <View style={{ marginLeft: 10 }}>
             <Text style={styles.detailItemTitle}>
-              {new Date(event.eventDate).toDateString()}
+              {new Date(event.eventDate).toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
             </Text>
             <Text style={styles.detailItemSubtitle}>
               {event.eventTime}
@@ -210,10 +255,10 @@ export function EventDetailsScreen() {
         <Users size={20} color={Theme.colors.primary} />
         <View style={{ marginLeft: 10 }}>
           <Text style={styles.detailItemSubtitle}>
-            Gender Preference
+            Gender Allowance
           </Text>
           <Text style={styles.detailItemTitle}>
-            {genderPreference}
+            {event?.genderAllowance}
           </Text>
         </View>
       </View>
@@ -226,7 +271,7 @@ export function EventDetailsScreen() {
             Age Restrictions
           </Text>
           <Text style={styles.detailItemTitle}>
-            {event.ageLimit ?? "Not specified"}
+            {event.ageLimit ?? "Not specified"}+
           </Text>
         </View>
       </View>
@@ -275,21 +320,27 @@ export function EventDetailsScreen() {
               </Text>
 
               <TouchableOpacity
-                disabled={available === 0}
+                disabled={available === 0 || bookingLoading === ticket.id}
                 activeOpacity={0.9}
+                onPress={() => handleBookNow(ticket)}
               >
                 <LinearGradient
                   colors={GRADIENT_COLORS.primary as [string, string]}
                   style={[
                     styles.bookButton,
-                    available === 0 && { opacity: 0.5 },
+                    (available === 0 || bookingLoading === ticket.id) && { opacity: 0.7 },
                   ]}
                 >
-                  <Text style={styles.bookButtonText}>
-                    {available === 0
-                      ? "Sold Out"
-                      : "Book Now"}
-                  </Text>
+                  {bookingLoading === ticket.id ? (
+                    <ActivityIndicator
+                      size="small"
+                      color={Theme.colors.primaryForeground}
+                    />
+                  ) : (
+                    <Text style={styles.bookButtonText}>
+                      {available === 0 ? "Sold Out" : "Book Now"}
+                    </Text>
+                  )}
                 </LinearGradient>
               </TouchableOpacity>
             </CardContent>

@@ -6,28 +6,22 @@ import { FeedEvent } from "../types/feedTypes";
 export interface FilterFeedResponse {
   success: boolean;
   data: FeedEvent[];
-  nextCursor?: string;
 }
 
 /* ================= TRENDING FEED ================= */
 
 export const getTrendingFeedApi = async (
-  cursor?: string,
   category?: string
 ): Promise<FeedEvent[]> => {
   try {
-
     const response = await apiClient.get<FeedEvent[]>(
       "/events/feed/trending",
       {
         params: {
-          cursor,
           category,
         },
       }
     );
-
-  
 
     return response.data;
   } catch (error) {
@@ -37,24 +31,19 @@ export const getTrendingFeedApi = async (
 
 /* ================= RECOMMENDED FEED ================= */
 
-export const getRecommendedFeedApi = async (
-  cursor?: string
-): Promise<FeedEvent[]> => {
+export const getRecommendedFeedApi = async (): Promise<FeedEvent[]> => {
   try {
+    console.log("📡 Calling Recommended Feed API...");
 
     const response = await apiClient.get<FeedEvent[]>(
-      "/events/feed/recommended",
-      {
-        params: {
-          cursor,
-        },
-      }
+      "/events/feed/recommended"
     );
 
-   
+    
 
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
+    console.log("❌ FEED API ERROR:", error?.response?.data || error);
     throw error;
   }
 };
@@ -62,29 +51,19 @@ export const getRecommendedFeedApi = async (
 /* ================= FILTER BY CATEGORY ================= */
 
 export const getFilteredFeedApi = async (
-  category: string,
-  cursor?: string
+  category: string
 ): Promise<FeedEvent[]> => {
   try {
 
-    const response = await apiClient.get<FilterFeedResponse>(
+    const response = await apiClient.get<FeedEvent[]>(
       "/events/feed/filter",
       {
-        params: {
-          category,
-          cursor,
-        },
+        params: { category },
       }
     );
-
-    // Swagger returns wrapped response
-    if (response.data.success) {
-      return response.data.data;
-    }
-
-    return [];
+    return response.data; 
   } catch (error) {
-
+    console.error("Filter API Error:", error);
     throw error;
   }
 };

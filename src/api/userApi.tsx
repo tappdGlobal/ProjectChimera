@@ -12,8 +12,7 @@ export const getUserByIdApi = async (
   try {
     const res = await apiClient.get(`/users/${userId}`);
 
-    console.log("✅ [API] getUserByIdApi success");
-    console.log("📦 response data:", res.data);
+   
 
     return res;
   } catch (error: any) {

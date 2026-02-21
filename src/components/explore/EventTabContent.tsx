@@ -12,144 +12,182 @@ import { Theme, GRADIENT_COLORS } from "../../styles/Theme";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { TicketDetailModal } from "./TicketDetailModal";
-
-const events = [
-  {
-    title: "Rooftop Jazz Night",
-    location: "Sky Lounge, Mumbai",
-    date: "12/15/2024",
-    time: "8:00 PM",
-    status: "upcoming",
-    image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4",
-  },
-  {
-    title: "Tech Startup Pitch Night",
-    location: "Innovation Hub, Bangalore",
-    date: "11/28/2024",
-    time: "6:30 PM",
-    status: "completed",
-    rating: 5,
-    image: "https://images.unsplash.com/photo-1522199710521-72d69614c702",
-  },
-  {
-    title: "Summer Food Festival",
-    location: "Central Plaza, Delhi",
-    date: "12/5/2024",
-    time: "12:00 PM",
-    status: "ongoing",
-    image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
-  },
-  {
-    title: "AI Developers Meetup",
-    location: "Cyber Hub, Gurugram",
-    date: "12/18/2024",
-    time: "5:00 PM",
-    status: "upcoming",
-    image: "https://images.unsplash.com/photo-1551836022-d5d88e9218df",
-  },
-  {
-    title: "Indie Music Concert",
-    location: "Phoenix Mall, Pune",
-    date: "11/10/2024",
-    time: "7:30 PM",
-    status: "completed",
-    rating: 4,
-    image: "https://images.unsplash.com/photo-1518972559570-7cc1309f3229",
-  },
-];
-
+import { useEffect } from "react";
+import { useBookingStore } from "../../store/bookingStore";
+import { ActivityIndicator } from "react-native";
 export function EventTabContent() {
   const [showTicketModal, setShowTicketModal] = useState(false);
+  const { bookings, fetchMyBookings, loading } = useBookingStore();
 
+  useEffect(() => {
+    fetchMyBookings();
+  }, []);
+
+  const getEventStatus = (eventDate: string, eventTime: string) => {
+    const now = new Date();
+
+    const eventDateTime = new Date(eventDate);
+
+    // merge time manually (important)
+    const [hours, minutes] = eventTime.split(":").map(Number);
+    eventDateTime.setHours(hours);
+    eventDateTime.setMinutes(minutes);
+    eventDateTime.setSeconds(0);
+
+    const eventEndTime = new Date(eventDateTime.getTime() + 2 * 60 * 60 * 1000); // assume 2 hour duration
+
+    if (now < eventDateTime) return "upcoming";
+    if (now >= eventDateTime && now <= eventEndTime) return "ongoing";
+    return "completed";
+  };
   return (
     <>
-      <ScrollView style={styles.container}>
-        {events.map((item, index) => (
-          <View key={index} style={styles.card}>
-            {/* TOP */}
-            <View style={styles.topRow}>
-              {/* 🔥 IMAGE (ONLY REAL CHANGE) */}
-              <Image
-                source={{ uri: item.image }}
-                style={styles.imagePlaceholder}
-                resizeMode="cover"
-              />
-
-              <View style={styles.info}>
-                <View style={styles.titleRow}>
-                  <Text style={styles.title} numberOfLines={1}>
-                    {item.title}
-                  </Text>
-
-                  <View
-                    style={[
-                      styles.badge,
-                      item.status === "upcoming" && styles.upcomingBadge,
-                      item.status === "ongoing" && styles.ongoingBadge,
-                      item.status === "completed" && styles.completedBadge,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.badgeText,
-                        item.status === "upcoming" && styles.upcomingText,
-                        item.status === "ongoing" && styles.ongoingText,
-                        item.status === "completed" && styles.completedText,
-                      ]}
-                    >
-                      {item.status}
-                    </Text>
-                  </View>
-                </View>
-
-                <Text style={styles.location}>{item.location}</Text>
-
-                <View style={styles.metaRow}>
-                  <Ionicons
-                    name="calendar-outline"
-                    size={15}
-                    color={Theme.colors.mutedForeground}
-                  />
-                  <Text style={styles.metaText}>{item.date}</Text>
-
-                  <Ionicons
-                    name="time-outline"
-                    size={15}
-                    color={Theme.colors.mutedForeground}
-                    style={{ marginLeft: 14 }}
-                  />
-                  <Text style={styles.metaText}>{item.time}</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* BUTTON */}
-            <Pressable onPress={() => setShowTicketModal(true)}>
-              <LinearGradient
-                colors={GRADIENT_COLORS.primary as [string, string]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.button}
-              >
-                <Ionicons
-                  name="ticket-outline"
-                  size={18}
-                  color={Theme.colors.primaryForeground}
-                  style={{ marginRight: 10 }}
-                />
-                <Text style={styles.buttonText}>View Ticket</Text>
-              </LinearGradient>
-            </Pressable>
-
-            {/* RATING */}
-            {item.rating && (
-              <View style={styles.ratingRow}>
-                <Ionicons name="star" size={18} color="#facc15" />
-                <Text style={styles.ratingText}>{item.rating}</Text>
-              </View>
-            )}
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{
+          paddingBottom: Theme.spacing.xl,
+          flexGrow: 1,
+        }}
+      >
+        {/* 🔥 LOADER */}
+        {loading && (
+          <View style={styles.loaderContainer}>
+            <ActivityIndicator
+              size="large"
+              color={Theme.colors.primary}
+            />
           </View>
-        ))}
+        )}
+
+        {/* 🔥 EMPTY STATE */}
+        {!loading && bookings?.length === 0 && (
+          <Text style={styles.emptyText}>
+            No bookings yet
+          </Text>
+        )}
+
+        {/* 🔥 BOOKINGS LIST */}
+        {!loading &&
+          bookings
+            ?.filter((booking) => booking && booking.event)
+            .map((booking) => {
+              const event = booking.event!;
+
+              const status = getEventStatus(
+                event.eventDate,
+                event.eventTime
+              );
+
+              return (
+                <View key={booking.id} style={styles.card}>
+                  {/* TOP ROW */}
+                  <View style={styles.topRow}>
+                    <Image
+                      source={{
+                        uri:
+                          event.images?.[0] ??
+                          "https://via.placeholder.com/150",
+                      }}
+                      style={styles.imagePlaceholder}
+                      resizeMode="cover"
+                    />
+
+                    <View style={styles.info}>
+                      <View style={styles.titleRow}>
+                        <Text
+                          style={styles.title}
+                          numberOfLines={1}
+                        >
+                          {event.eventName}
+                        </Text>
+
+                        <View
+                          style={[
+                            styles.badge,
+                            status === "upcoming" &&
+                            styles.upcomingBadge,
+                            status === "ongoing" &&
+                            styles.ongoingBadge,
+                            status === "completed" &&
+                            styles.completedBadge,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.badgeText,
+                              status === "upcoming" &&
+                              styles.upcomingText,
+                              status === "ongoing" &&
+                              styles.ongoingText,
+                              status === "completed" &&
+                              styles.completedText,
+                            ]}
+                          >
+                            {status}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <Text style={styles.location}>
+                        {event.venue}, {event.city}
+                      </Text>
+
+                      <View style={styles.metaRow}>
+                        <Ionicons
+                          name="calendar-outline"
+                          size={15}
+                          color={Theme.colors.mutedForeground}
+                        />
+                        <Text style={styles.metaText}>
+                          {new Date(
+                            event.eventDate
+                          ).toLocaleDateString()}
+                        </Text>
+
+                        <Ionicons
+                          name="time-outline"
+                          size={15}
+                          color={Theme.colors.mutedForeground}
+                          style={{ marginLeft: 14 }}
+                        />
+                        <Text style={styles.metaText}>
+                          {event.eventTime}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* BUTTON */}
+                  <Pressable
+                    onPress={() => setShowTicketModal(true)}
+                  >
+                    <LinearGradient
+                      colors={
+                        GRADIENT_COLORS.primary as [
+                          string,
+                          string
+                        ]
+                      }
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.button}
+                    >
+                      <Ionicons
+                        name="ticket-outline"
+                        size={18}
+                        color={
+                          Theme.colors.primaryForeground
+                        }
+                        style={{ marginRight: 10 }}
+                      />
+                      <Text style={styles.buttonText}>
+                        View Ticket
+                      </Text>
+                    </LinearGradient>
+                  </Pressable>
+                </View>
+              );
+            })}
       </ScrollView>
 
       <Modal
@@ -169,6 +207,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Theme.colors.background,
     paddingHorizontal: Theme.spacing.m,
+    paddingBottom: Theme.spacing.l * 2,
   },
 
   card: {
@@ -289,5 +328,17 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     marginLeft: 6,
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 60,
+  },
+
+  emptyText: {
+    color: Theme.colors.mutedForeground,
+    textAlign: "center",
+    marginTop: 60,
   },
 });

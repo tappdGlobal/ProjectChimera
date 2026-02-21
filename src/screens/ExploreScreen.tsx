@@ -139,14 +139,7 @@ export function ExploreScreen() {
           <ExploreTab
             activeTab={activeTab}
             onChange={(tab) => {
-              if (
-                tab === "map" ||
-                tab === "bookings"
-              ) {
-                setShowComingSoon(true);
-              } else {
-                setActiveTab(tab);
-              }
+              setActiveTab(tab);
             }}
           />
         </View>

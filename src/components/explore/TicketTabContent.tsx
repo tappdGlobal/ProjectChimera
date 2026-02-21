@@ -1,113 +1,195 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Modal } from "react-native";
+import React, { useEffect, useState } from "react";
+import {
+    View,
+    Text,
+    StyleSheet,
+    ScrollView,
+    Modal,
+    Pressable,
+} from "react-native";
 import { Theme, GRADIENT_COLORS } from "../../styles/Theme";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { TicketDetailModal } from "./TicketDetailModal";
-
-
-
-const tickets = [
-    {
-        title: "Rooftop Jazz Night",
-        type: "VIP",
-        code: "VIP-001",
-        date: "12/15/2024",
-        time: "8:00 PM",
-        location: "Sky Lounge, Mumbai",
-        status: "upcoming",
-    },
-    {
-        title: "Summer Food Festival",
-        type: "Premium",
-        code: "PRM-023",
-        date: "12/5/2024",
-        time: "12:00 PM",
-        location: "Central Plaza, Delhi",
-        status: "ongoing",
-    },
-];
-
+import { useBookingStore } from "../../store/bookingStore";
+import { ActivityIndicator } from "react-native";
 export function TicketTabContent() {
-    const [showModal, setShowModal] = useState(false);
+    const { bookings, fetchMyBookings, loading } = useBookingStore();
+    const [selectedBooking, setSelectedBooking] = useState<any>(null);
+
+    useEffect(() => {
+        fetchMyBookings();
+    }, []);
+
+    const getEventStatus = (eventDate: string, eventTime: string) => {
+        const now = new Date();
+        const eventDateTime = new Date(eventDate);
+
+        const [hours, minutes] = eventTime.split(":").map(Number);
+        eventDateTime.setHours(hours);
+        eventDateTime.setMinutes(minutes);
+        eventDateTime.setSeconds(0);
+
+        const eventEndTime = new Date(
+            eventDateTime.getTime() + 2 * 60 * 60 * 1000
+        );
+
+        if (now < eventDateTime) return "upcoming";
+        if (now <= eventEndTime) return "ongoing";
+        return "completed";
+    };
 
     return (
-        <ScrollView style={styles.container}>
-            {tickets.map((ticket, index) => (
-                <View key={index} style={styles.ticketCard}>
-                    <View style={styles.headerRow}>
-                        <Text style={styles.title}>{ticket.title}</Text>
-
-                        <View
-                            style={[
-                                styles.statusBadge,
-                                ticket.status === "upcoming"
-                                    ? styles.upcomingBadge
-                                    : styles.ongoingBadge,
-                            ]}
-                        >
-                            <Text
-                                style={[
-                                    styles.statusText,
-                                    ticket.status === "upcoming"
-                                        ? styles.upcomingText
-                                        : styles.ongoingText,
-                                ]}
-                            >
-                                {ticket.status}
-                            </Text>
-                        </View>
-                    </View>
-
-                    <Text style={styles.subTitle}>
-                        {ticket.type} - {ticket.code}
-                    </Text>
-
-                    <View style={styles.row}>
-                        <Text style={styles.label}>Date:</Text>
-                        <Text style={styles.value}>{ticket.date}</Text>
-                    </View>
-
-                    <View style={styles.row}>
-                        <Text style={styles.label}>Time:</Text>
-                        <Text style={styles.value}>{ticket.time}</Text>
-                    </View>
-
-                    <View style={styles.row}>
-                        <Text style={styles.label}>Location:</Text>
-                        <Text style={styles.value}>{ticket.location}</Text>
-                    </View>
-
-                    <LinearGradient
-                        colors={GRADIENT_COLORS.primary as [string, string]}
-                        style={styles.qrButton}
-                    >
-                        <Ionicons
-                            name="ticket-outline"
-                            size={20}
-                            color={Theme.colors.primaryForeground}
-                            style={{ marginRight: 8 }}
+        <>
+            <ScrollView
+                style={styles.container}
+                contentContainerStyle={{
+                    paddingBottom: Theme.spacing.xl,
+                    flexGrow: 1,
+                }}
+            >
+                {/* 🔥 LOADER */}
+                {loading && (
+                    <View style={styles.loaderContainer}>
+                        <ActivityIndicator
+                            size="large"
+                            color={Theme.colors.primary}
                         />
-                        <Text
-                            style={styles.qrText}
-                            onPress={() => setShowModal(true)}
-                        >
-                            View QR Code
-                        </Text>
-                    </LinearGradient>
+                    </View>
+                )}
 
-                </View>
-            ))}
+                {/* 🔥 EMPTY STATE */}
+                {!loading && bookings?.length === 0 && (
+                    <Text style={styles.emptyText}>
+                        No tickets available
+                    </Text>
+                )}
+
+                {/* 🔥 BOOKINGS LIST */}
+                {!loading &&
+                    bookings
+                        ?.filter((b) => b && b.event && b.ticket)
+                        .map((booking) => {
+                            const event = booking.event!;
+                            const ticket = booking.ticket!;
+                            const status = getEventStatus(
+                                event.eventDate,
+                                event.eventTime
+                            );
+
+                            return (
+                                <View key={booking.id} style={styles.ticketCard}>
+                                    <View style={styles.headerRow}>
+                                        <Text style={styles.title}>
+                                            {event.eventName}
+                                        </Text>
+
+                                        <View
+                                            style={[
+                                                styles.statusBadge,
+                                                status === "upcoming" &&
+                                                styles.upcomingBadge,
+                                                status === "ongoing" &&
+                                                styles.ongoingBadge,
+                                                status === "completed" &&
+                                                styles.completedBadge,
+                                            ]}
+                                        >
+                                            <Text
+                                                style={[
+                                                    styles.statusText,
+                                                    status === "upcoming" &&
+                                                    styles.upcomingText,
+                                                    status === "ongoing" &&
+                                                    styles.ongoingText,
+                                                    status === "completed" &&
+                                                    styles.completedText,
+                                                ]}
+                                            >
+                                                {status}
+                                            </Text>
+                                        </View>
+                                    </View>
+
+                                    <Text style={styles.subTitle}>
+                                        {ticket.ticketLabel} • {ticket.currency}{" "}
+                                        {ticket.price}
+                                    </Text>
+
+                                    <View style={styles.row}>
+                                        <Text style={styles.label}>Date:</Text>
+                                        <Text style={styles.value}>
+                                            {new Date(
+                                                event.eventDate
+                                            ).toLocaleDateString()}
+                                        </Text>
+                                    </View>
+
+                                    <View style={styles.row}>
+                                        <Text style={styles.label}>Time:</Text>
+                                        <Text style={styles.value}>
+                                            {event.eventTime}
+                                        </Text>
+                                    </View>
+
+                                    <View style={styles.row}>
+                                        <Text style={styles.label}>Location:</Text>
+                                        <Text style={styles.value}>
+                                            {event.venue}, {event.city}
+                                        </Text>
+                                    </View>
+
+                                    <Pressable
+                                        onPress={() =>
+                                            setSelectedBooking(booking)
+                                        }
+                                    >
+                                        <LinearGradient
+                                            colors={
+                                                GRADIENT_COLORS.primary as [
+                                                    string,
+                                                    string
+                                                ]
+                                            }
+                                            style={styles.qrButton}
+                                        >
+                                            <Ionicons
+                                                name="ticket-outline"
+                                                size={20}
+                                                color={
+                                                    Theme.colors
+                                                        .primaryForeground
+                                                }
+                                                style={{
+                                                    marginRight: 8,
+                                                }}
+                                            />
+                                            <Text style={styles.qrText}>
+                                                View QR Code
+                                            </Text>
+                                        </LinearGradient>
+                                    </Pressable>
+                                </View>
+                            );
+                        })}
+            </ScrollView>
+
             <Modal
-                visible={showModal}
+                visible={!!selectedBooking}
                 transparent
                 animationType="slide"
+                onRequestClose={() =>
+                    setSelectedBooking(null)
+                }
             >
-                <TicketDetailModal onClose={() => setShowModal(false)} />
+                <TicketDetailModal
+                    booking={selectedBooking}
+                    onClose={() =>
+                        setSelectedBooking(null)
+                    }
+                />
             </Modal>
-
-        </ScrollView>
-
+        </>
     );
 }
 
@@ -209,4 +291,24 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "600",
     },
+    completedBadge: {
+        backgroundColor: "rgba(255,255,255,0.08)",
+        borderColor: "rgba(255,255,255,0.25)",
+    },
+
+    completedText: {
+        color: Theme.colors.mutedForeground,
+    },
+
+    emptyText: {
+        color: Theme.colors.mutedForeground,
+        textAlign: "center",
+        marginTop: 40,
+    },
+    loaderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 60,
+},
 });
