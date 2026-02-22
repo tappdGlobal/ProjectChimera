@@ -9,6 +9,7 @@ import {
   RefreshControl,
   TextInput,
 } from "react-native";
+import { KeyboardAvoidingView, Platform } from "react-native";
 import { Image } from "expo-image";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -226,19 +227,27 @@ export default function ChatListScreen({ embedded = false }: { embedded?: boolea
     </>
   );
 
-  if (embedded) {
-    return (
-      <View style={styles.container}>
-        {mainContent}
-      </View>
-    );
-  }
-
+if (embedded) {
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
       {mainContent}
-    </SafeAreaView>
+    </KeyboardAvoidingView>
   );
+}
+return (
+  <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+    >
+      {mainContent}
+    </KeyboardAvoidingView>
+  </SafeAreaView>
+);
 }
 
 const styles = StyleSheet.create({

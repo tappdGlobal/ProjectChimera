@@ -1270,28 +1270,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  profileCard: {
-    width: "92%",              // 👈 sweet spot
-    borderRadius: 30,
-    backgroundColor: "#2C1F3F",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    paddingVertical: 40,
-    paddingHorizontal: 28,
-    alignItems: "center",
-  },
+profileCard: {
+  width: "84%",          // earlier 92%
+  borderRadius: 26,
+  backgroundColor: "#2C1F3F",
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.18)",
+  paddingVertical: 28,   // earlier 40
+  paddingHorizontal: 20, // earlier 28
+  alignItems: "center",
+},
 
 
-
-
-  profileImage: {
-    width: 190,
-    height: 190,
-    borderRadius: 95,
-    borderWidth: 3,
-    borderColor: "rgba(255,255,255,0.25)",
-    marginBottom: 26,
-  },
+profileImage: {
+  width: 110,   // was 140
+  height: 110,
+  borderRadius: 55,
+  borderWidth: 2,
+  borderColor: "rgba(255,255,255,0.25)",
+  marginBottom: 14,
+},
 
 
   profileName: {
@@ -1321,37 +1319,37 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.8)",
   },
 
-  tapInstruction: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.6)",
-    marginBottom: 26,
-  },
+tapInstruction: {
+  fontSize: 11,
+  color: "rgba(255,255,255,0.6)",
+  marginBottom: 18, // earlier 26
+},
 
-  actionButtons: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 28,
-    marginBottom: 18,
-  },
+actionButtons: {
+  flexDirection: "row",
+  justifyContent: "center",
+  alignItems: "center",
+  gap: 20,          // earlier 28
+  marginBottom: 12,
+},
 
 
-  declineButtonCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.4)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+declineButtonCircle: {
+  width: 48,   // earlier 56
+  height: 48,
+  borderRadius: 24,
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.4)",
+  alignItems: "center",
+  justifyContent: "center",
+},
 
-  acceptButtonCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    overflow: "hidden",
-  },
+acceptButtonCircle: {
+  width: 48,
+  height: 48,
+  borderRadius: 24,
+  overflow: "hidden",
+},
 
   acceptButtonGradientCircle: {
     flex: 1,
