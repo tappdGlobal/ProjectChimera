@@ -16,7 +16,7 @@ import { X, ArrowLeft, MessageCircle, UserMinus, AlertTriangle } from "lucide-re
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useConnectionStore } from "../../store/connectionStore";
 
-const { height } = Dimensions.get("window");
+const { height, width } = Dimensions.get("window");
 
 interface Props {
   visible: boolean;
@@ -94,6 +94,8 @@ export const ConnectionDetailModal = ({
   const [tab, setTab] = useState<"about" | "photos">("about");
   const [isRemoving, setIsRemoving] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number>(0);
   const { unfriendConnection } = useConnectionStore();
 
   if (!user) return null;
@@ -114,6 +116,24 @@ export const ConnectionDetailModal = ({
     }
     // Error is handled silently - could add a toast notification here
   };
+
+  const PhotoViewer = () => (
+    <Modal
+      isVisible={!!selectedPhoto}
+      animationIn="fadeIn"
+      animationOut="fadeOut"
+      backdropOpacity={0.9}
+      onBackdropPress={() => setSelectedPhoto(null)}
+      style={styles.photoViewerModal}
+    >
+      <View style={styles.photoViewerContainer}>
+        <Image source={{ uri: selectedPhoto || undefined }} style={styles.photoViewerImage} />
+        <TouchableOpacity style={styles.photoViewerClose} onPress={() => setSelectedPhoto(null)}>
+          <X size={20} color="#fff" />
+        </TouchableOpacity>
+      </View>
+    </Modal>
+  );
 
   return (
     <Modal
@@ -140,14 +160,21 @@ export const ConnectionDetailModal = ({
           </View>
         </LinearGradient>
 
-        {/* AVATAR */}
+        {/* AVATAR (with gradient ring) */}
         <View style={styles.avatarWrapper}>
-          <Image
-            source={{
-              uri: user.profilePicUrl || "https://via.placeholder.com/150",
-            }}
-            style={styles.avatar}
-          />
+          <LinearGradient
+            colors={GRADIENT_COLORS.primary}
+            start={[0, 0]}
+            end={[1, 1]}
+            style={styles.avatarGradient}
+          >
+            <View style={styles.avatarInnerBorder}>
+              <Image
+                source={{ uri: user.profilePicUrl || "https://via.placeholder.com/150" }}
+                style={styles.avatar}
+              />
+            </View>
+          </LinearGradient>
         </View>
 
         {/* CONTENT */}
@@ -168,12 +195,25 @@ export const ConnectionDetailModal = ({
 
           {/* ACTION BUTTONS WITH ICONS */}
           <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.messageBtn}>
-              <MessageCircle size={18} color={Theme.colors.primaryForeground} />
-              <Text style={styles.messageText}>Message</Text>
+            <TouchableOpacity
+              style={styles.messageWrapper}
+              activeOpacity={0.85}
+              onPress={() => {
+                /* open chat - keep behavior as before (handled by parent if needed) */
+              }}
+            >
+              <LinearGradient
+                colors={GRADIENT_COLORS.primary}
+                start={[0, 0]}
+                end={[1, 1]}
+                style={styles.messageGradient}
+              >
+                <MessageCircle size={18} color={Theme.colors.primaryForeground} />
+                <Text style={styles.messageText}>Message</Text>
+              </LinearGradient>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.removeBtn, isRemoving && styles.removeBtnDisabled]}
               onPress={handleRemovePress}
               disabled={isRemoving}
@@ -224,22 +264,61 @@ export const ConnectionDetailModal = ({
           {tab === "about" ? (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>About</Text>
-              <Text style={styles.bio}>
-                {user.bio || "No bio available."}
-              </Text>
+              <Text style={styles.bio}>{user.bio || "No bio available."}</Text>
+
+              {/* Occupation / Education two-column row */}
+              <View style={styles.twoColumnRow}>
+                <View style={styles.columnItem}>
+                  <Text style={styles.infoLabel}>Occupation</Text>
+                  <Text style={styles.infoValue}>{user.occupation || "-"}</Text>
+                </View>
+
+                <View style={styles.columnItem}>
+                  <Text style={styles.infoLabel}>Education</Text>
+                  <Text style={styles.infoValue}>{user.education || "-"}</Text>
+                </View>
+              </View>
+
+              {/* Location */}
+              <View style={[styles.section, { paddingTop: 6 }]}>
+                <Text style={styles.infoLabel}>Location</Text>
+                <Text style={styles.infoValue}>{user.location || "-"}</Text>
+              </View>
+
+              {/* Interests */}
+              <View style={[styles.section, { paddingTop: 6 }]}>
+                <Text style={styles.infoLabel}>Interests</Text>
+                <View style={styles.interestRow}>
+                  {(user.interests || []).length === 0 ? (
+                    <Text style={styles.infoValue}>No interests listed.</Text>
+                  ) : (
+                    (user.interests || []).map((it: string, idx: number) => (
+                      <View key={`${it}-${idx}`} style={styles.interestChip}>
+                        <Text style={styles.interestText}>{it}</Text>
+                      </View>
+                    ))
+                  )}
+                </View>
+              </View>
             </View>
           ) : (
-            <View style={styles.photoGrid}>
+            <View style={styles.photoGridNoAdd}>
               {user.photos?.map((photo: string, index: number) => (
-                <Image
+                <TouchableOpacity
                   key={index}
-                  source={{ uri: photo }}
-                  style={styles.photo}
-                />
+                  onPress={() => {
+                    setSelectedPhotoIndex(index);
+                    setSelectedPhoto(photo);
+                  }}
+                  activeOpacity={0.9}
+                >
+                  <Image source={{ uri: photo }} style={styles.photoGridImage} />
+                </TouchableOpacity>
               ))}
             </View>
           )}
         </ScrollView>
+        {PhotoViewer()}
       </SafeAreaView>
 
       {/* Confirmation Modal */}
@@ -265,8 +344,8 @@ const styles = StyleSheet.create({
 
   /* HEADER */
   header: {
-    height: height * 0.32,
-    paddingTop: 16, // 👈 buttons higher now
+    height: height * 0.25,
+    paddingTop: 16,
     paddingHorizontal: 20,
   },
 
@@ -278,26 +357,26 @@ const styles = StyleSheet.create({
   /* AVATAR */
   avatarWrapper: {
     alignItems: "center",
-    marginTop: -70,
+    marginTop: -48,
   },
 
   avatar: {
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    borderWidth: 4,
-    borderColor: Theme.colors.background,
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    overflow: "hidden",
   },
 
   /* CONTENT */
   content: {
     alignItems: "center",
     paddingHorizontal: 20,
+    paddingTop: 56,
     paddingBottom: 40,
   },
 
   name: {
-    marginTop: 16,
+    marginTop: 12,
     fontSize: 22,
     fontWeight: "700",
     color: Theme.colors.foreground,
@@ -307,15 +386,15 @@ const styles = StyleSheet.create({
   age: {
     color: Theme.colors.mutedForeground,
     fontSize: 14,
-    marginTop: 4,
+    marginTop: 2,
     textAlign: "center",
   },
 
   friendPill: {
-    marginTop: 10,
-    paddingHorizontal: 14,
+    marginTop: 8,
+    paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: 16,
     backgroundColor: "#2563EB",
   },
 
@@ -330,14 +409,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
     width: "100%",
-    marginTop: 24,
+    marginTop: 16,
   },
 
-  messageBtn: {
+  /* Message button (gradient) */
+  messageWrapper: {
     flex: 1,
+  },
+
+  messageGradient: {
     paddingVertical: 14,
     borderRadius: 14,
-    backgroundColor: Theme.colors.primary,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
@@ -347,7 +429,7 @@ const styles = StyleSheet.create({
   messageText: {
     color: Theme.colors.primaryForeground,
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "700",
   },
 
   removeBtn: {
@@ -375,7 +457,7 @@ const styles = StyleSheet.create({
   /* TABS */
   tabs: {
     flexDirection: "row",
-    marginTop: 30,
+    marginTop: 24,
     borderTopWidth: 1,
     borderTopColor: Theme.colors.border,
     width: "100%",
@@ -387,28 +469,101 @@ const styles = StyleSheet.create({
 
   tabText: {
     textAlign: "center",
-    paddingVertical: 14,
+    paddingVertical: 12,
     color: Theme.colors.mutedForeground,
     fontSize: 15,
   },
 
   activeTab: {
     color: Theme.colors.foreground,
-    borderBottomWidth: 2,
-    borderBottomColor: Theme.colors.primary,
+    borderWidth: 1,
+    borderColor: GRADIENT_COLORS.primary[0],
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: "transparent",
+  },
+
+  /* Avatar gradient ring */
+  avatarGradient: {
+    width: 126,
+    height: 126,
+    borderRadius: 63,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+
+  avatarInnerBorder: {
+    width: 116,
+    height: 116,
+    borderRadius: 58,
+    backgroundColor: Theme.colors.background,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  /* About info layout */
+  twoColumnRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    marginTop: 12,
+    gap: 16,
+  },
+
+  columnItem: {
+    flex: 1,
+  },
+
+  infoLabel: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 13,
+    marginBottom: 6,
+  },
+
+  infoValue: {
+    color: Theme.colors.foreground,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+
+  interestRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8,
+  },
+
+  interestChip: {
+    backgroundColor: "rgba(255,255,255,0.04)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+
+  interestText: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 13,
   },
 
   /* SECTIONS */
   section: {
     width: "100%",
-    marginTop: 20,
+    marginTop: 16,
   },
 
   sectionTitle: {
     fontSize: 16,
     fontWeight: "700",
     color: Theme.colors.foreground,
-    marginBottom: 8,
+    marginBottom: 6,
   },
 
   bio: {
@@ -429,6 +584,53 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 12,
+  },
+
+  /* Connection photo grid (no add) */
+  photoGridNoAdd: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    width: "100%",
+    marginTop: 14,
+    gap: 10,
+  },
+
+  photoGridImage: {
+    width: (width - 60) / 2,
+    height: (width - 60) / 2,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+
+  /* Photo viewer modal */
+  photoViewerModal: {
+    margin: 0,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  photoViewerContainer: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.9)",
+  },
+
+  photoViewerImage: {
+    width: "100%",
+    height: "80%",
+    resizeMode: "contain",
+  },
+
+  photoViewerClose: {
+    position: "absolute",
+    top: 40,
+    right: 20,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    padding: 8,
+    borderRadius: 20,
   },
 
   /* CONFIRMATION MODAL */
