@@ -23,12 +23,13 @@ type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
 interface RouteParams {
   imageUri: string;
+  mediaType?: 'image' | 'video';
 }
 
 export default function CreatePostScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute();
-  const { imageUri } = route.params as RouteParams;
+  const { imageUri, mediaType = 'image' } = route.params as RouteParams;
   const { createPost, loading } = usePostStore();
 
   const [caption, setCaption] = useState("");
@@ -36,12 +37,19 @@ export default function CreatePostScreen() {
 
   const handlePublish = async () => {
     try {
-      console.log("Publishing post with:", { imageUri, caption, music });
+      console.log("Publishing post with:", { imageUri, mediaType, caption, music });
 
       // Extract filename and type from URI
       const filename = imageUri.split('/').pop() || 'post.jpg';
       const match = /\.([\w]+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : 'image/jpeg';
+      
+      // Determine the correct MIME type based on mediaType
+      let type: string;
+      if (mediaType === 'video') {
+        type = match ? `video/${match[1]}` : 'video/mp4';
+      } else {
+        type = match ? `image/${match[1]}` : 'image/jpeg';
+      }
 
       // Create post payload
       const postData = {

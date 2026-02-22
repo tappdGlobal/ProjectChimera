@@ -15,6 +15,9 @@ import { Theme, GRADIENT_COLORS } from "../../styles/Theme";
 import { X, ArrowLeft, MessageCircle, UserMinus, AlertTriangle } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useConnectionStore } from "../../store/connectionStore";
+import { useNavigation } from "@react-navigation/native";
+import { SCREEN_NAMES } from "../../navigation/Routes";
+import { useAppNavigation } from "../../hooks/useAppNavigation";
 
 const { height, width } = Dimensions.get("window");
 
@@ -97,6 +100,7 @@ export const ConnectionDetailModal = ({
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number>(0);
   const { unfriendConnection } = useConnectionStore();
+  const navigation = useAppNavigation();
 
   if (!user) return null;
 
@@ -199,7 +203,14 @@ export const ConnectionDetailModal = ({
               style={styles.messageWrapper}
               activeOpacity={0.85}
               onPress={() => {
-                /* open chat - keep behavior as before (handled by parent if needed) */
+                onClose();
+                // Navigate to Chat Detail through the root navigator
+                // CHAT_DETAIL is registered in AppStackParamList
+                navigation.navigate(SCREEN_NAMES.CHAT_DETAIL, {
+                  chatId: user.id,
+                  name: user.name,
+                  avatar: user.profilePicUrl || "https://via.placeholder.com/150",
+                });
               }}
             >
               <LinearGradient
