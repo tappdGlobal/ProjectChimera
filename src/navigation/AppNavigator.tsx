@@ -18,6 +18,7 @@ import { BottomNavigation } from "./BottomNavigation";
 import { EditProfileScreen } from "../screens/EditProfileScreen";
 import { EventDetailsScreen } from "../screens/EventDetailsScreen";
 import CreatePostScreen from "../screens/CreatePostScreen";
+import { SettingsScreen } from "../screens/SettingsScreen";
 import ExploreStack from "./ExploreStack";
 import EngageStack from "./EngageStack";
 
