@@ -27,11 +27,7 @@ export interface CreateEventPayload {
 
   maxCapacity: number;
 
-  ageLimit:
-  | "SIXTEEN_PLUS"
-  | "EIGHTEEN_PLUS"
-  | "TWENTY_ONE_PLUS"
-  | "TWENTY_FIVE_PLUS";
+  ageLimit: number; // 16, 18, 21, or 25
 
   allowance: "PUBLIC" | "PRIVATE";
 
@@ -59,18 +55,42 @@ const buildEventFormData = (
   const formData = new FormData();
 
   Object.entries(payload).forEach(([key, value]) => {
+    // Skip only undefined and null, but keep false, 0, and empty strings
     if (value === undefined || value === null) return;
 
     if (key === "images") {
-      (value as ImageFile[]).forEach((file) => {
+      const images = value as ImageFile[];
+      if (images.length === 0) {
+        console.warn("⚠️ No images provided in payload");
+      }
+      images.forEach((file, index) => {
+        console.log(`📎 Appending image ${index}:`, file.name, file.type);
         formData.append("images", file as any);
       });
     } else if (key === "tickets") {
-      formData.append("tickets", JSON.stringify(value));
+      const ticketsJson = JSON.stringify(value);
+      console.log("🎟️ Tickets JSON:", ticketsJson);
+      formData.append("tickets", ticketsJson);
+    } else if (typeof value === "boolean") {
+      // Explicitly convert booleans to strings
+      formData.append(key, value ? "true" : "false");
     } else {
       formData.append(key, String(value));
     }
   });
+
+  // Debug: Log all form data entries
+  console.log("📋 FormData entries:");
+  const entries: Record<string, any> = {};
+  formData.forEach((value, key) => {
+    if (key === "images") {
+      entries[key] = entries[key] || [];
+      entries[key].push("[File object]");
+    } else {
+      entries[key] = value;
+    }
+  });
+  console.log(JSON.stringify(entries, null, 2));
 
   return formData;
 };
