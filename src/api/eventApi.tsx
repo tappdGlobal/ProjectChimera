@@ -3,6 +3,13 @@ import { Event, Ticket } from "../types/eventTypes";
 
 /* ================= TYPES ================= */
 
+// File object structure for React Native image uploads
+export interface ImageFile {
+  uri: string;
+  name: string;
+  type: string;
+}
+
 export interface CreateEventPayload {
   eventName: string;
   genre: string;
@@ -36,7 +43,7 @@ export interface CreateEventPayload {
   latitude?: number;
   longitude?: number;
 
-  images: File[]; // multipart
+  images: ImageFile[]; // multipart - React Native file format
   tickets: Ticket[];
 }
 
@@ -55,7 +62,7 @@ const buildEventFormData = (
     if (value === undefined || value === null) return;
 
     if (key === "images") {
-      (value as File[]).forEach((file) => {
+      (value as ImageFile[]).forEach((file) => {
         formData.append("images", file as any);
       });
     } else if (key === "tickets") {

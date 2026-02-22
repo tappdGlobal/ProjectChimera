@@ -535,10 +535,22 @@ export function HostScreen({ route }: any) {
 
 
   const uriToFile = (uri: string, index: number) => {
+    // Extract file extension from URI
+    const match = /\.([\w]+)$/.exec(uri);
+    const ext = match ? match[1].toLowerCase() : 'jpg';
+    
+    // Determine mime type based on extension
+    let type = 'image/jpeg';
+    if (ext === 'png') type = 'image/png';
+    else if (ext === 'gif') type = 'image/gif';
+    else if (ext === 'webp') type = 'image/webp';
+    
+    // For React Native FormData, we need to return the object directly
+    // The apiClient will handle the file upload properly
     return {
       uri,
-      name: `event-image-${index}.jpg`,
-      type: "image/jpeg",
+      name: `event-image-${index}.${ext}`,
+      type,
     };
   };
   const buildDraftPayload = () => {
@@ -2898,18 +2910,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
-  },
-
-  rideTitle: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-
-  rideSubtitle: {
-    color: "#A1A1AA",
-    fontSize: 14,
-    marginTop: 2,
   },
 
   rideButton: {
