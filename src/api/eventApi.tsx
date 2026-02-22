@@ -148,29 +148,31 @@ export const eventApi = {
   },
 
 
-  // ✅ Draft create (multipart, no required fields)
+  // ✅ Draft create (JSON to preserve number types)
   saveDraft: (
     payload: DraftEventPayload
   ): Promise<Event> => {
-    const formData = buildEventFormData(payload);
-
-    return apiClient.post("/events/drafts", formData, {
+    // Send as JSON to preserve number types (ageLimit, maxCapacity, etc.)
+    const { images, ...jsonPayload } = payload;
+    
+    return apiClient.post("/events/drafts", jsonPayload, {
       headers: {
-        "Content-Type": "multipart/form-data",
+        "Content-Type": "application/json",
       },
     });
   },
 
-  // ✅ Draft update (multipart)
+  // ✅ Draft update (JSON to preserve number types)
   updateDraft: (
     draftId: string,
     payload: DraftEventPayload
   ): Promise<Event> => {
-    const formData = buildEventFormData(payload);
-
-    return apiClient.put(`/events/drafts/${draftId}`, formData, {
+    // Send as JSON to preserve number types (ageLimit, maxCapacity, etc.)
+    const { images, ...jsonPayload } = payload;
+    
+    return apiClient.put(`/events/drafts/${draftId}`, jsonPayload, {
       headers: {
-        "Content-Type": "multipart/form-data",
+        "Content-Type": "application/json",
       },
     });
   },

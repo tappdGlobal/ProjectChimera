@@ -23,6 +23,7 @@ import {
   SharePayload,
   ShareListResponse,
 } from "../api/postApi";
+import { useUserStore } from "./userStore";
 
 interface PostState {
   feed: Post[];
@@ -367,8 +368,27 @@ export const usePostStore = create<PostState>((set, get) => ({
       set({ loading: true, error: null });
       const res = await addCommentApi(postId, payload);
       
+      // Get current user info to populate the comment
+      const currentUser = useUserStore.getState().profile;
+      const newComment = res.data as Comment;
+      
+      // If the API doesn't return user data, populate it from user store
+      if (!newComment.user || !newComment.user.username) {
+        newComment.user = {
+          id: currentUser?.id || newComment.userId,
+          username: currentUser?.username || currentUser?.name || "Unknown",
+          profilePicUrl: currentUser?.profilePicUrl || null,
+        };
+      }
+      
+      // Handle different field names for comment text (backend might return 'content' instead of 'text')
+      const commentData = res.data as any;
+      if (!newComment.text && commentData.content) {
+        newComment.text = commentData.content;
+      }
+      
       set((state) => ({
-        comments: [res.data as Comment, ...state.comments],
+        comments: [newComment, ...state.comments],
         feed: state.feed.map((p) =>
           p.id === postId
             ? { ...p, commentsCount: p.commentsCount + 1 }
