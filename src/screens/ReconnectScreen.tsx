@@ -1058,7 +1058,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 0, // ❌ remove padding
+    paddingHorizontal: 0,
+    marginTop: 20, // Add margin to prevent overlap with top buttons
   },
 
 

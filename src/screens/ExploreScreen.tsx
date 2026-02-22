@@ -119,7 +119,7 @@ export function ExploreScreen() {
           onSettingsClick={() =>
             navigation
               .getParent()
-              ?.navigate(SCREEN_NAMES.PROFILE)
+              ?.navigate(SCREEN_NAMES.PROFILE, { showSettings: true })
           }
           onNotificationClick={() =>
             navigation
