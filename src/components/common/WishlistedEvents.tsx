@@ -26,7 +26,7 @@ export function WishlistedEvents({
 }: WishlistedEventsProps) {
 
   /* ================= DATE FORMATTER ================= */
-  
+
 
 
   /* ================= SAFE FILTER ================= */
@@ -86,9 +86,10 @@ export function WishlistedEvents({
               image: event.event.images?.[0],
             }}
             showWishlist
-            onClick={() => onEventSelect?.(event)}
+            onClick={() => onEventSelect?.(event.event)}
           />
         ))}
+
       </ScrollView>
     </View>
   );

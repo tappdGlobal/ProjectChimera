@@ -139,9 +139,15 @@ export function ExploreScreen() {
           <ExploreTab
             activeTab={activeTab}
             onChange={(tab) => {
+              if (tab === "map") {
+                setShowComingSoon(true);   // 🔥 open modal
+                return;                    // 🔥 prevent tab change
+              }
+
               setActiveTab(tab);
             }}
           />
+
         </View>
 
         <View style={{ flex: 1 }}>
@@ -155,9 +161,9 @@ export function ExploreScreen() {
             />
           )}
 
-          {activeTab === "map" && (
+          {/* {activeTab === "map" && (
             <MapTabContent />
-          )}
+          )} */}
 
           {activeTab === "bookings" && (
             <BookingTabContent />

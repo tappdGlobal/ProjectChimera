@@ -757,19 +757,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
   },
-  gradientButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: Theme.radius.md,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+gradientButton: {
+  paddingHorizontal: 10,   // reduce horizontal size
+  paddingVertical: 6,
+  borderRadius: Theme.radius.md,
+  justifyContent: "center",
+  alignItems: "center",
+  alignSelf: "flex-start", // prevents stretching
+  minWidth: 0,             // important
+},
 
-  gradientButtonText: {
-    color: Theme.colors.primaryForeground,
-    fontSize: 14,
-    fontWeight: "600",
-  },
+
+gradientButtonText: {
+  color: Theme.colors.primaryForeground,
+  fontSize: 12,   // ↓ smaller text
+  fontWeight: "600",
+},
+
   reviewCardNew: {
     backgroundColor: Theme.colors.card,
     borderRadius: Theme.radius.lg,

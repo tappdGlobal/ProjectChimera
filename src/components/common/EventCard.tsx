@@ -57,15 +57,21 @@ export function EventCard({
   const image = propImage || event?.image || "";
   const cardStyle: ViewStyle = {};
   const imageStyle: ImageStyle = {};
-  const actionLoading = useWishlistStore(
-  (state) => event?.id ? state.actionLoading[event.id] : false
+const wishlistLoadingMap = useWishlistStore(
+  (state) => state.wishlistLoadingMap
 );
-const addToWishlist = useWishlistStore(
-  (state) => state.addToWishlist
+
+const toggleWishlist = useWishlistStore(
+  (state) => state.toggleWishlist
 );
+
+const actionLoading = event?.id
+  ? wishlistLoadingMap?.[event.id]
+  : false;
+
 const handleWishlistPress = async () => {
   if (!event?.id || actionLoading) return;
-  await addToWishlist(event.id);
+  await toggleWishlist(event.id);
 };
   if (layout === "grid") {
     if (size === "small") {

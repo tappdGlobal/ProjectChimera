@@ -53,14 +53,30 @@ export function WishlistEventCard({
   const time = propTime || event?.time || "";
   const location = propLocation || event?.location || "";
   const image = propImage || event?.image || "";
-  const actionLoading = useWishlistStore(
-    (state) => state.actionLoading[event?.id || ""]
-  );
-  const removeFromWishlist = useWishlistStore(
-    (state) => state.removeFromWishlist
-  );
+
+  /* 🔥 NEW STORE STRUCTURE */
+const wishlistLoadingMap = useWishlistStore(
+  (state) => state.wishlistLoadingMap ?? {}
+);
+
+const removeFromWishlist = useWishlistStore(
+  (state) => state.removeFromWishlist
+);
+
+const actionLoading =
+  event?.id && wishlistLoadingMap
+    ? wishlistLoadingMap[event.id] ?? false
+    : false;
+
+  const handleRemoveWishlist = async () => {
+    if (!event?.id || actionLoading) return;
+    await removeFromWishlist(event.id);
+  };
+
   const formatDateTime = () => {
     try {
+      if (!date) return "Date TBA";
+
       const dateObj = new Date(date);
 
       if (isNaN(dateObj.getTime())) return `${date} • ${time}`;
@@ -81,10 +97,7 @@ export function WishlistEventCard({
       return `${date} • ${time}`;
     }
   };
- const handleRemoveWishlist = async () => {
-  if (!event?.id || actionLoading) return;
-  await removeFromWishlist(event.id);
-};
+
   const cardStyle: ViewStyle = {};
   const imageStyle: ImageStyle = {};
 
@@ -139,11 +152,11 @@ export function WishlistEventCard({
               onPress={handleRemoveWishlist}
               disabled={actionLoading}
             >
-              <Heart
-                size={20}
-                color={Theme.colors.primary}
-                fill="none"
-              />
+              {actionLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Heart size={20} color={Theme.colors.primary} fill="none" />
+              )}
             </TouchableOpacity>
           )}
         </View>
@@ -179,10 +192,10 @@ export function WishlistEventCard({
                 disabled={actionLoading}
               >
                 {actionLoading ? (
-  <ActivityIndicator size="small" color="#fff" />
-) : (
-  <Heart size={18} color="#fff" fill="#fff" />
-)}
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Heart size={18} color="#fff" fill="#fff" />
+                )}
                 <Text style={styles.removeWishlistText}>
                   Remove from Wishlist
                 </Text>
