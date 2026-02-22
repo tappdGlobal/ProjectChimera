@@ -8,22 +8,23 @@ import { TicketTabContent } from "./TicketTabContent";
 import { EventTabContent } from "./EventTabContent";
 import { useBookingStore } from "../../store/bookingStore";
 import { useEffect } from "react";
+import { useNavigation, useRoute } from "@react-navigation/native";
 
 type BookingInnerTab = "events" | "tickets" | "transactions";
 
-export function BookingTabContent() {
+export function BookingTabContent({ onBack }: { onBack?: () => void }) {
     const [activeTab, setActiveTab] = useState<BookingInnerTab>("events");
     const { bookings } = useBookingStore();
 
     const bookedCount =
         bookings?.filter(
-            (b) => b.status !== "CANCELLED"
+            (b) => b && b.status !== "CANCELLED"
         ).length ?? 0;
 
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Pressable>
+                <Pressable onPress={onBack}>
                     <Ionicons
                         name="arrow-back"
                         size={22}

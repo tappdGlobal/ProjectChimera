@@ -63,7 +63,7 @@ export function DraftEventsScreen() {
   };
 
   const DraftCard = ({ draft }: { draft: any }) => (
-    <View style={styles.card}>
+    <View key={draft.id} style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>

@@ -127,6 +127,8 @@ export function ProfileScreen() {
   React.useEffect(() => {
     if (route.params?.showSettings) {
       setShowSettings(true);
+      // Reset the param after opening settings to allow reopening on next navigation
+      navigation.setParams({ showSettings: false } as any);
     }
   }, [route.params?.showSettings]);
   const [showOnlineStatus, setShowOnlineStatus] = useState(false);

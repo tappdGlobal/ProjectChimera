@@ -166,7 +166,7 @@ export function ExploreScreen() {
           )} */}
 
           {activeTab === "bookings" && (
-            <BookingTabContent />
+            <BookingTabContent onBack={() => setActiveTab("explore")} />
           )}
         </View>
       </ScrollView>

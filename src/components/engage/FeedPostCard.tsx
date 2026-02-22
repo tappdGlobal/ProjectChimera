@@ -458,8 +458,8 @@ export const FeedPostCard: React.FC<FeedPostCardProps> = ({
           {/* Comments List */}
           {displayComments.length > 0 && (
             <View style={styles.commentsList}>
-              {displayComments.map((comment) => (
-                <View key={comment.id} style={styles.commentItem}>
+              {displayComments.map((comment, index) => (
+                <View key={comment.id || `comment-${index}`} style={styles.commentItem}>
                   <Image
                     source={{
                       uri: comment.user?.profilePicUrl
