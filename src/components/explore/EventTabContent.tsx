@@ -79,113 +79,98 @@ export function EventTabContent() {
               );
 
               return (
-                <View key={booking.id} style={styles.card}>
-                  {/* TOP ROW */}
-                  <View style={styles.topRow}>
-                    <Image
-                      source={{
-                        uri:
-                          event.images?.[0] ??
-                          "https://via.placeholder.com/150",
-                      }}
-                      style={styles.imagePlaceholder}
-                      resizeMode="cover"
-                    />
+               <View key={booking.id} style={styles.card}>
 
-                    <View style={styles.info}>
-                      <View style={styles.titleRow}>
-                        <Text
-                          style={styles.title}
-                          numberOfLines={1}
-                        >
-                          {event.eventName}
-                        </Text>
+  {/* 🔥 STATUS BADGE (TOP RIGHT CORNER) */}
+  <View
+    style={[
+      styles.badge,
+      status === "upcoming" && styles.upcomingBadge,
+      status === "ongoing" && styles.ongoingBadge,
+      status === "completed" && styles.completedBadge,
+    ]}
+  >
+    <Text
+      style={[
+        styles.badgeText,
+        status === "upcoming" && styles.upcomingText,
+        status === "ongoing" && styles.ongoingText,
+        status === "completed" && styles.completedText,
+      ]}
+    >
+      {status}
+    </Text>
+  </View>
 
-                        <View
-                          style={[
-                            styles.badge,
-                            status === "upcoming" &&
-                            styles.upcomingBadge,
-                            status === "ongoing" &&
-                            styles.ongoingBadge,
-                            status === "completed" &&
-                            styles.completedBadge,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.badgeText,
-                              status === "upcoming" &&
-                              styles.upcomingText,
-                              status === "ongoing" &&
-                              styles.ongoingText,
-                              status === "completed" &&
-                              styles.completedText,
-                            ]}
-                          >
-                            {status}
-                          </Text>
-                        </View>
-                      </View>
+  {/* 🔥 CONTENT STARTS BELOW BADGE */}
+  <View style={styles.cardContent}>
 
-                      <Text style={styles.location}>
-                        {event.venue}, {event.city}
-                      </Text>
+    {/* IMAGE */}
+    <Image
+      source={{
+        uri: event.images?.[0] ?? "https://via.placeholder.com/150",
+      }}
+      style={styles.image}
+      resizeMode="cover"
+    />
 
-                      <View style={styles.metaRow}>
-                        <Ionicons
-                          name="calendar-outline"
-                          size={15}
-                          color={Theme.colors.mutedForeground}
-                        />
-                        <Text style={styles.metaText}>
-                          {new Date(
-                            event.eventDate
-                          ).toLocaleDateString()}
-                        </Text>
+    {/* TITLE */}
+    <Text style={styles.title}>
+      {event.eventName}
+    </Text>
 
-                        <Ionicons
-                          name="time-outline"
-                          size={15}
-                          color={Theme.colors.mutedForeground}
-                          style={{ marginLeft: 14 }}
-                        />
-                        <Text style={styles.metaText}>
-                          {event.eventTime}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
+    {/* LOCATION */}
+    <Text style={styles.location}>
+      {event.venue}, {event.city}
+    </Text>
 
-                  {/* BUTTON */}
-                  <Pressable
-                    onPress={() => setShowTicketModal(true)}
-                  >
-                    <LinearGradient
-                      colors={
-                        GRADIENT_COLORS.primary as [
-                          string,
-                          string
-                        ]
-                      }
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.button}
-                    >
-                      <Ionicons
-                        name="ticket-outline"
-                        size={18}
-                        color={
-                          Theme.colors.primaryForeground
-                        }
-                        style={{ marginRight: 10 }}
-                      />
-                      <Text style={styles.buttonText}>
-                        View Ticket
-                      </Text>
-                    </LinearGradient>
-                  </Pressable>
-                </View>
+    {/* DATE + TIME */}
+    <View style={styles.metaRow}>
+      <Ionicons
+        name="calendar-outline"
+        size={15}
+        color={Theme.colors.mutedForeground}
+      />
+      <Text style={styles.metaText}>
+        {new Date(event.eventDate).toLocaleDateString()}
+      </Text>
+
+      <Ionicons
+        name="time-outline"
+        size={15}
+        color={Theme.colors.mutedForeground}
+        style={{ marginLeft: 14 }}
+      />
+      <Text style={styles.metaText}>
+        {event.eventTime}
+      </Text>
+    </View>
+
+  </View>
+
+  {/* 🔥 BUTTON */}
+  <Pressable onPress={() => setShowTicketModal(true)}>
+    <LinearGradient
+      colors={GRADIENT_COLORS.primary as [string, string]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.button}
+    >
+      <Ionicons
+        name="ticket-outline"
+        size={18}
+        color={Theme.colors.primaryForeground}
+        style={{ marginRight: 10 }}
+      />
+      <Text style={styles.buttonText}>
+        View Ticket
+      </Text>
+    </LinearGradient>
+  </Pressable>
+
+</View>
+
+
               );
             })}
       </ScrollView>
@@ -210,6 +195,7 @@ const styles = StyleSheet.create({
     paddingBottom: Theme.spacing.l * 2,
   },
 
+  /* CARD */
   card: {
     marginTop: Theme.spacing.l,
     padding: Theme.spacing.l,
@@ -217,62 +203,24 @@ const styles = StyleSheet.create({
     borderRadius: Theme.radius.lg,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.12)",
+    position: "relative",
   },
 
-  topRow: {
-    flexDirection: "row",
-    marginBottom: Theme.spacing.l,
-  },
-
-  imagePlaceholder: {
-    width: 64,
-    height: 64,
-    borderRadius: Theme.radius.md,
-    marginRight: Theme.spacing.m,
-    backgroundColor: "rgba(255,255,255,0.15)",
-  },
-
-  info: {
-    flex: 1,
-  },
-
-  titleRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-
-  title: {
-    color: Theme.colors.foreground,
-    fontSize: 18,
-    fontWeight: "600",
-    flex: 1,
-    marginRight: 8,
-  },
-
-  location: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 15,
-    marginTop: 4,
-  },
-
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 8,
-  },
-
-  metaText: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 14,
-    marginLeft: 6,
-  },
-
+  /* STATUS BADGE */
   badge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 20,
+    position: "absolute",
+    top: 8,
+    right: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 14,
     borderWidth: 1,
+  },
+
+  badgeText: {
+    fontSize: 11,
+    fontWeight: "600",
+    textTransform: "capitalize",
   },
 
   upcomingBadge: {
@@ -290,16 +238,50 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.25)",
   },
 
-  badgeText: {
-    fontSize: 13,
-    fontWeight: "600",
-    textTransform: "capitalize",
-  },
-
   upcomingText: { color: "#60a5fa" },
   ongoingText: { color: "#22c55e" },
   completedText: { color: Theme.colors.mutedForeground },
 
+  /* CONTENT BELOW BADGE */
+  cardContent: {
+    marginTop: 24,
+  },
+
+  /* IMAGE */
+  image: {
+    width: "100%",
+    height: 150,
+    borderRadius: Theme.radius.md,
+    marginBottom: 12,
+  },
+
+  /* TEXT */
+  title: {
+    color: Theme.colors.foreground,
+    fontSize: 18,
+    fontWeight: "600",
+  },
+
+  location: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 15,
+    marginTop: 4,
+  },
+
+  /* DATE + TIME */
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+  },
+
+  metaText: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 14,
+    marginLeft: 6,
+  },
+
+  /* BUTTON */
   button: {
     marginTop: Theme.spacing.m,
     flexDirection: "row",
@@ -308,7 +290,6 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 28,
     borderRadius: Theme.radius.lg,
-    marginLeft: 64 + Theme.spacing.m,
   },
 
   buttonText: {
@@ -317,18 +298,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  ratingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: Theme.spacing.m,
-  },
-
-  ratingText: {
-    color: Theme.colors.foreground,
-    fontSize: 15,
-    fontWeight: "600",
-    marginLeft: 6,
-  },
+  /* LOADER + EMPTY */
   loaderContainer: {
     flex: 1,
     justifyContent: "center",
@@ -342,3 +312,4 @@ const styles = StyleSheet.create({
     marginTop: 60,
   },
 });
+

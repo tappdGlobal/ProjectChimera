@@ -1476,6 +1476,7 @@ export const ProfileCreationScreen = () => {
               style={[styles.nextButton, loading && { opacity: 0.7 }]}
               disabled={loading}
             >
+
               <LinearGradient
                 colors={["#C026D3", "#DB2777"]}
                 style={styles.gradientButton}
@@ -1501,7 +1502,6 @@ export const ProfileCreationScreen = () => {
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
-      <FullScreenLoader visible={loading && currentStep === 5} />
       <TermsOfServiceModal
         visible={showTermsModal}
         onClose={() => setShowTermsModal(false)}
@@ -1510,7 +1510,12 @@ export const ProfileCreationScreen = () => {
         visible={showPrivacyModal}
         onClose={() => setShowPrivacyModal(false)}
       />
-
+      {loading && (
+        <View style={styles.loaderOverlay}>
+          <ActivityIndicator size="large" color="#DB2777" />
+          <Text style={styles.loaderText}>Please wait...</Text>
+        </View>
+      )}
     </LinearGradient>
   );
 };

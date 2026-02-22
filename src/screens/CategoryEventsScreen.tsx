@@ -28,8 +28,8 @@ export function CategoryEventsScreen({ route, navigation }: Props) {
   const toggleWishlist = useWishlistStore((state) => state.toggleWishlist);
   const isWishlistedMap = useWishlistStore((state) => state.isWishlistedMap);
   const wishlistLoadingMap = useWishlistStore(
-  (state) => state.wishlistLoadingMap
-);
+    (state) => state.wishlistLoadingMap
+  );
   useEffect(() => {
     const fetchFiltered = async () => {
       try {
@@ -71,7 +71,10 @@ export function CategoryEventsScreen({ route, navigation }: Props) {
               color={Theme.colors.primary}
             />
             <Text style={styles.metaText}>
-              {new Date(item.eventDate).toDateString()} • {item.eventTime}
+              {item?.eventDate
+                ? new Date(item.eventDate).toDateString()
+                : "Date TBA"}{" "}
+              • {item?.eventTime || "Time TBA"}
             </Text>
           </View>
 
@@ -94,23 +97,25 @@ export function CategoryEventsScreen({ route, navigation }: Props) {
               e.stopPropagation();
               toggleWishlist(item.id);
             }}
-            disabled={wishlistLoadingMap[item.id]}
+            disabled={wishlistLoadingMap?.[item.id]}
           >
-            {wishlistLoadingMap[item.id] ? (
+            {wishlistLoadingMap?.[item.id] ? (
               <ActivityIndicator size="small" color={Theme.colors.primary} />
             ) : (
               <>
                 <Ionicons
-                  name={isWishlistedMap[item.id] ? "heart" : "heart-outline"}
+                  name={isWishlistedMap?.[item.id] ? "heart" : "heart-outline"}
                   size={18}
                   color={
-                    isWishlistedMap[item.id]
+                    isWishlistedMap?.[item.id]
                       ? Theme.colors.primary
                       : Theme.colors.primaryForeground
                   }
                 />
                 <Text style={styles.wishlistText}>
-                  {isWishlistedMap[item.id] ? "Wishlisted" : "Add to Wishlist"}
+                  {isWishlistedMap?.[item.id]
+                    ? "Wishlisted"
+                    : "Add to Wishlist"}
                 </Text>
               </>
             )}

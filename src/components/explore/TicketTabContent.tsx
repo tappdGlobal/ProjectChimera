@@ -79,37 +79,34 @@ export function TicketTabContent() {
 
                             return (
                                 <View key={booking.id} style={styles.ticketCard}>
-                                    <View style={styles.headerRow}>
+                                    {/* 🔥 CORNER BADGE */}
+                                    <View
+                                        style={[
+                                            styles.statusBadge,
+                                            status === "upcoming" && styles.upcomingBadge,
+                                            status === "ongoing" && styles.ongoingBadge,
+                                            status === "completed" && styles.completedBadge,
+                                        ]}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.statusText,
+                                                status === "upcoming" && styles.upcomingText,
+                                                status === "ongoing" && styles.ongoingText,
+                                                status === "completed" && styles.completedText,
+                                            ]}
+                                        >
+                                            {status}
+                                        </Text>
+                                    </View>
+
+                                    {/* CONTENT STARTS BELOW BADGE */}
+                                    <View style={styles.cardContent}>
                                         <Text style={styles.title}>
                                             {event.eventName}
                                         </Text>
-
-                                        <View
-                                            style={[
-                                                styles.statusBadge,
-                                                status === "upcoming" &&
-                                                styles.upcomingBadge,
-                                                status === "ongoing" &&
-                                                styles.ongoingBadge,
-                                                status === "completed" &&
-                                                styles.completedBadge,
-                                            ]}
-                                        >
-                                            <Text
-                                                style={[
-                                                    styles.statusText,
-                                                    status === "upcoming" &&
-                                                    styles.upcomingText,
-                                                    status === "ongoing" &&
-                                                    styles.ongoingText,
-                                                    status === "completed" &&
-                                                    styles.completedText,
-                                                ]}
-                                            >
-                                                {status}
-                                            </Text>
-                                        </View>
                                     </View>
+
 
                                     <Text style={styles.subTitle}>
                                         {ticket.ticketLabel} • {ticket.currency}{" "}
@@ -203,11 +200,14 @@ const styles = StyleSheet.create({
     ticketCard: {
         marginTop: Theme.spacing.l,
         padding: Theme.spacing.l,
+        paddingTop: Theme.spacing.l,
         backgroundColor: "rgba(255,255,255,0.06)",
         borderRadius: Theme.radius.lg,
         borderWidth: 1,
         borderColor: "rgba(255,255,255,0.12)",
+        position: "relative",
     },
+
 
     headerRow: {
         flexDirection: "row",
@@ -247,11 +247,15 @@ const styles = StyleSheet.create({
     },
 
     statusBadge: {
-        paddingHorizontal: 14,
-        paddingVertical: 6,
-        borderRadius: 20,
+        position: "absolute",
+        top: 6,
+        right: 6,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 14,
         borderWidth: 1,
     },
+
 
     upcomingBadge: {
         backgroundColor: "rgba(59,130,246,0.12)",
@@ -272,10 +276,11 @@ const styles = StyleSheet.create({
     },
 
     statusText: {
-        fontSize: 13,
+        fontSize: 11,
         fontWeight: "600",
         textTransform: "capitalize",
     },
+
 
     qrButton: {
         marginTop: Theme.spacing.l,
@@ -306,9 +311,13 @@ const styles = StyleSheet.create({
         marginTop: 40,
     },
     loaderContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 60,
-},
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        marginTop: 60,
+    },
+    cardContent: {
+        marginTop: 30,
+    },
+
 });

@@ -47,24 +47,24 @@ export function ExploreTabContent({
   const wishlistLoading = useWishlistStore((state) => state.loading);
   const fetchWishlist = useWishlistStore((state) => state.fetchWishlist);
   /* ================= INITIAL FEED LOAD ================= */
- const fetchAllFeeds = async () => {
-  try {
-    setRecommendedLoading(true);
-    setTrendingLoading(true);
+  const fetchAllFeeds = async () => {
+    try {
+      setRecommendedLoading(true);
+      setTrendingLoading(true);
 
-    await Promise.all([
-      getRecommendedFeedApi().then(setRecommendedData),
-      getTrendingFeedApi().then(setTrendingData),
-      fetchWishlist(), // 🔥 from Zustand
-    ]);
+      await Promise.all([
+        getRecommendedFeedApi().then(setRecommendedData),
+        getTrendingFeedApi().then(setTrendingData),
+        fetchWishlist(), // 🔥 from Zustand
+      ]);
 
-  } catch (error) {
-    console.error("Error fetching feeds:", error);
-  } finally {
-    setRecommendedLoading(false);
-    setTrendingLoading(false);
-  }
-};
+    } catch (error) {
+      console.error("Error fetching feeds:", error);
+    } finally {
+      setRecommendedLoading(false);
+      setTrendingLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchAllFeeds();
@@ -99,10 +99,12 @@ export function ExploreTabContent({
       <WishlistedEvents
         events={wishlistData}
         loading={wishlistLoading}
-        onEventSelect={onEventSelect}
-        onExploreAllClick={onExploreAllClick}
+        onEventSelect={(event) => {
+          navigation.navigate(SCREEN_NAMES.EVENT_DETAIL, { event });
+        }}
         searchQuery={searchQuery}
       />
+
     </View>
   );
 }
