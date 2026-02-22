@@ -122,13 +122,6 @@ export function ProfileScreen() {
   }, [route.params?.initialTab]);
 
   const [showSettings, setShowSettings] = useState(false);
-
-  // Open settings dialog when showSettings param is passed
-  React.useEffect(() => {
-    if (route.params?.showSettings) {
-      setShowSettings(true);
-    }
-  }, [route.params?.showSettings]);
   const [showOnlineStatus, setShowOnlineStatus] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number>(0);

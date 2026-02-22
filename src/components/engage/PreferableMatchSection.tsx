@@ -10,7 +10,8 @@ import {
 } from "react-native";
 import { Theme } from "../../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
-import ComingSoon from "../common/ComingSoon";
+import MatchProfile from "./MatchProfile";
+import { Ionicons } from "@expo/vector-icons";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 
@@ -111,7 +112,7 @@ const ProfileCard = ({ item, onPress }: any) => (
 
 /* ---------------- MAIN ---------------- */
 export function PreferableMatchSection() {
-  const [showComingSoon, setShowComingSoon] = useState(false);
+  const [selectedProfile, setSelectedProfile] = useState<any>(null);
   const [showFilter, setShowFilter] = useState(false);
 
   /* Toggle-style filters */
@@ -138,6 +139,25 @@ export function PreferableMatchSection() {
       return true;
     });
   }, [filters]);
+
+  if (selectedProfile) {
+    return (
+      <MatchProfile
+        images={selectedProfile.images}
+        name={selectedProfile.name}
+        age={selectedProfile.age}
+        title={selectedProfile.role}
+        tag={selectedProfile.category}
+        about="Explorer at heart."
+        height="5'6"
+        fitness="Active"
+        diet="Vegetarian"
+        smoking="No"
+        drinking="Occasionally"
+        onReject={() => setSelectedProfile(null)}
+      />
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -196,15 +216,10 @@ export function PreferableMatchSection() {
         renderItem={({ item }) => (
           <ProfileCard
             item={item}
-            onPress={() => setShowComingSoon(true)}
+            onPress={() => setSelectedProfile(item)}
           />
         )}
         showsVerticalScrollIndicator={false}
-      />
-
-      <ComingSoon
-        visible={showComingSoon}
-        onClose={() => setShowComingSoon(false)}
       />
     </View>
   );
