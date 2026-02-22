@@ -616,7 +616,7 @@ export function EventInteractionSection() {
         }}
         onCreatePost={(uri, type) => {
           setShowUpload(false);
-          navigation.navigate(SCREEN_NAMES.CREATE_POST, { imageUri: uri });
+          navigation.navigate(SCREEN_NAMES.CREATE_POST, { imageUri: uri, mediaType: type });
         }}
       />
 

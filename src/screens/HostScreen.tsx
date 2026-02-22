@@ -287,18 +287,18 @@ export function HostScreen({ route }: any) {
     return new Date(`${yyyy}-${mm}-${dd}T${time}:00Z`).toISOString();
   };
 
-  const mapAgeLimit = (age: string): "SIXTEEN_PLUS" | "EIGHTEEN_PLUS" | "TWENTY_ONE_PLUS" | "TWENTY_FIVE_PLUS" => {
+  const mapAgeLimit = (age: string): number => {
     switch (age) {
       case "16+":
-        return "SIXTEEN_PLUS";
+        return 16;
       case "18+":
-        return "EIGHTEEN_PLUS";
+        return 18;
       case "21+":
-        return "TWENTY_ONE_PLUS";
+        return 21;
       case "25+":
-        return "TWENTY_FIVE_PLUS";
+        return 25;
       default:
-        return "EIGHTEEN_PLUS";
+        return 18;
     }
   };
 
@@ -535,10 +535,22 @@ export function HostScreen({ route }: any) {
 
 
   const uriToFile = (uri: string, index: number) => {
+    // Extract file extension from URI
+    const match = /\.([\w]+)$/.exec(uri);
+    const ext = match ? match[1].toLowerCase() : 'jpg';
+    
+    // Determine mime type based on extension
+    let type = 'image/jpeg';
+    if (ext === 'png') type = 'image/png';
+    else if (ext === 'gif') type = 'image/gif';
+    else if (ext === 'webp') type = 'image/webp';
+    
+    // For React Native FormData, we need to return the object directly
+    // The apiClient will handle the file upload properly
     return {
       uri,
-      name: `event-image-${index}.jpg`,
-      type: "image/jpeg",
+      name: `event-image-${index}.${ext}`,
+      type,
     };
   };
   const buildDraftPayload = () => {
@@ -582,7 +594,7 @@ export function HostScreen({ route }: any) {
     if (localFormData.tickets.length > 0) {
       payload.tickets = localFormData.tickets.map((t) => ({
         ticketLabel: t.name,
-        ticketType: "PAID",
+        ticketType: "PAID" as const,
         price: t.price,
         currency: "INR",
         serviceChargePercentage: SERVICE_CHARGE_PERCENT,
@@ -599,9 +611,15 @@ export function HostScreen({ route }: any) {
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length > 0) {
+      // Get the first few error messages to show to the user
+      const errorMessages = Object.values(validationErrors).slice(0, 2);
+      const errorText = errorMessages.join("\n");
+      
       Toast.show({
         type: "error",
-        text1: "Please fix the errors before publishing.",
+        text1: "Please fix the errors before publishing",
+        text2: errorText,
+        visibilityTime: 4000,
       });
       return;
     }
@@ -612,6 +630,24 @@ export function HostScreen({ route }: any) {
           uriToFile(uri, index)
         )
       );
+      // Validate tickets before creating payload
+      if (localFormData.tickets.length === 0) {
+        Toast.show({
+          type: "error",
+          text1: "At least one ticket is required",
+        });
+        return;
+      }
+
+      // Validate at least one image
+      if (localFormData.photos.length === 0) {
+        Toast.show({
+          type: "error",
+          text1: "At least one event photo is required",
+        });
+        return;
+      }
+
       const payload = {
         eventName: localFormData.name,
         genre: localFormData.genre,
@@ -645,7 +681,7 @@ export function HostScreen({ route }: any) {
 
         tickets: localFormData.tickets.map((t) => ({
           ticketLabel: t.name,
-          ticketType: "PAID",
+          ticketType: "PAID" as const,
           price: t.price,
           currency: "INR",
           serviceChargePercentage: SERVICE_CHARGE_PERCENT,
@@ -653,11 +689,43 @@ export function HostScreen({ route }: any) {
         })),
       };
 
+      // Debug: Log the payload being sent
+      console.log("📤 Event payload:", JSON.stringify({
+        ...payload,
+        images: `${imageFiles.length} image(s)`, // Don't log full image data
+      }, null, 2));
 
-      const response = draftId
-        ? await publishDraft(draftId)
-        : await createEvent(payload);
+      // Check for any undefined values in required fields
+      const requiredFields = [
+        'eventName', 'genre', 'category', 'eventType', 'eventDate', 
+        'eventTime', 'location', 'address', 'city', 'country', 'venue',
+        'maxCapacity', 'ageLimit', 'allowance', 'description'
+      ];
+      const missingFields = requiredFields.filter(field => {
+        const value = (payload as any)[field];
+        return value === undefined || value === null || value === '';
+      });
+      if (missingFields.length > 0) {
+        console.error("❌ Missing required fields:", missingFields);
+        Toast.show({
+          type: "error",
+          text1: "Missing required fields",
+          text2: missingFields.join(", "),
+        });
+        return;
+      }
 
+
+      let response;
+      if (draftId) {
+        // If editing a draft, first update it with current form data, then publish
+        console.log("Updating draft before publish:", draftId);
+        await updateDraft(draftId, payload);
+        response = await publishDraft(draftId);
+      } else {
+        // Creating a new event directly
+        response = await createEvent(payload);
+      }
 
       // ✅ SUCCESS FEEDBACK FROM BACKEND
       Toast.show({
@@ -672,10 +740,27 @@ export function HostScreen({ route }: any) {
     } catch (err: any) {
       console.error("Create event error:", err);
 
+      // Extract detailed error message from Axios response or fallback to generic message
+      let errorMessage = "Something went wrong";
+      if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err?.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+
+      // Log detailed error for debugging
+      console.error("Error details:", {
+        message: err?.message,
+        response: err?.response?.data,
+        status: err?.response?.status,
+      });
+
       Toast.show({
         type: "error",
         text1: "Failed to create event",
-        text2: err?.message || "Something went wrong",
+        text2: errorMessage,
       });
     }
   };
@@ -2898,18 +2983,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
-  },
-
-  rideTitle: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-
-  rideSubtitle: {
-    color: "#A1A1AA",
-    fontSize: 14,
-    marginTop: 2,
   },
 
   rideButton: {

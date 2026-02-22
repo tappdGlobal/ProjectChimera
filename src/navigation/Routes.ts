@@ -80,6 +80,7 @@ export type AppStackParamList = {
   [SCREEN_NAMES.EVENT_DETAILS_SCREEN]: undefined;
   [SCREEN_NAMES.CREATE_POST]: {
     imageUri: string;
+    mediaType?: 'image' | 'video';
   };
 };
 

@@ -206,21 +206,44 @@ export const FeedPostCard: React.FC<FeedPostCardProps> = ({
     return `${BASE_URL}/${url}`;
   };
 
+  const [isVideoFullscreen, setIsVideoFullscreen] = useState(false);
+  const [fullscreenVideoUri, setFullscreenVideoUri] = useState<string | null>(null);
+
+  const handleExpandVideo = (uri: string) => {
+    setFullscreenVideoUri(uri);
+    setIsVideoFullscreen(true);
+  };
+
+  const handleCloseFullscreen = () => {
+    setIsVideoFullscreen(false);
+    setFullscreenVideoUri(null);
+  };
+
   const renderMedia = (media: PostMedia, index: number) => {
     const mediaUrl = getMediaUrl(media.url);
     const isVideo = media.type === "VIDEO";
 
     if (isVideo) {
       return (
-        <Video
-          key={media.id}
-          source={{ uri: mediaUrl }}
-          style={styles.mediaItem}
-          resizeMode={ResizeMode.COVER}
-          isLooping
-          shouldPlay={index === currentMediaIndex}
-          useNativeControls
-        />
+        <View key={media.id} style={styles.mediaItem}>
+          <Video
+            source={{ uri: mediaUrl }}
+            style={styles.videoPlayer}
+            resizeMode={ResizeMode.COVER}
+            isLooping
+            shouldPlay={index === currentMediaIndex}
+            useNativeControls={false}
+          />
+          {/* Expand/Fullscreen Button */}
+          <TouchableOpacity
+            style={styles.expandButton}
+            onPress={() => handleExpandVideo(mediaUrl)}
+          >
+            <View style={styles.expandButtonInner}>
+              <Text style={styles.expandButtonText}>⛶</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
       );
     }
 
@@ -500,6 +523,33 @@ export const FeedPostCard: React.FC<FeedPostCardProps> = ({
         </View>
       )}
 
+      {/* Fullscreen Video Modal */}
+      <Modal
+        visible={isVideoFullscreen}
+        animationType="fade"
+        transparent={false}
+        onRequestClose={handleCloseFullscreen}
+      >
+        <View style={fullscreenStyles.container}>
+          <TouchableOpacity
+            style={fullscreenStyles.closeButton}
+            onPress={handleCloseFullscreen}
+          >
+            <X size={28} color="#fff" />
+          </TouchableOpacity>
+          {fullscreenVideoUri && (
+            <Video
+              source={{ uri: fullscreenVideoUri }}
+              style={fullscreenStyles.video}
+              resizeMode={ResizeMode.CONTAIN}
+              isLooping
+              shouldPlay
+              useNativeControls
+            />
+          )}
+        </View>
+      </Modal>
+
       {/* Share Options Modal */}
       <Modal
         visible={showShareModal}
@@ -607,6 +657,29 @@ const styles = StyleSheet.create({
   mediaItem: {
     width: "100%",
     height: "100%",
+    position: "relative",
+  },
+  videoPlayer: {
+    width: "100%",
+    height: "100%",
+  },
+  expandButton: {
+    position: "absolute",
+    bottom: 16,
+    right: 16,
+    zIndex: 10,
+  },
+  expandButtonInner: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  expandButtonText: {
+    color: "#fff",
+    fontSize: 20,
   },
   indicatorsContainer: {
     position: "absolute",
@@ -925,6 +998,27 @@ const confirmStyles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     letterSpacing: 0.5,
+  },
+});
+
+// Fullscreen Video Styles
+const fullscreenStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#000",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  video: {
+    width: "100%",
+    height: "100%",
+  },
+  closeButton: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    padding: 10,
   },
 });
 

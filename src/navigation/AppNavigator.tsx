@@ -21,6 +21,7 @@ import CreatePostScreen from "../screens/CreatePostScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import ExploreStack from "./ExploreStack";
 import EngageStack from "./EngageStack";
+import ChatDetailScreen from "../screens/ChatDetailScreen";
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const Stack = createStackNavigator<AppStackParamList>();
@@ -90,6 +91,12 @@ const AppNavigator = () => {
       <Stack.Screen
         name={SCREEN_NAMES.CREATE_POST}
         component={CreatePostScreen}
+      />
+
+      {/* Chat Detail - accessible from anywhere */}
+      <Stack.Screen
+        name={SCREEN_NAMES.CHAT_DETAIL}
+        component={ChatDetailScreen}
       />
     </Stack.Navigator>
   );

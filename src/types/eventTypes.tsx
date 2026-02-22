@@ -33,11 +33,7 @@ export interface Event {
 
   maxCapacity: number;
 
-  ageLimit:
-    | "SIXTEEN_PLUS"
-    | "EIGHTEEN_PLUS"
-    | "TWENTY_ONE_PLUS"
-    | "TWENTY_FIVE_PLUS";
+  ageLimit: number; // 16, 18, 21, or 25
 
   allowance: "PUBLIC" | "PRIVATE";
 

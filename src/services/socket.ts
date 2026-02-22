@@ -13,6 +13,11 @@ class SocketService {
   private messageCallbacks: ((message: LegacyMessage) => void)[] = [];
   private isConnecting: boolean = false;
 
+  private connectionAttempts: number = 0;
+  private maxConnectionAttempts: number = 3;
+  private lastConnectionAttempt: number = 0;
+  private connectionCooldown: number = 30000; // 30 seconds cooldown
+
   connect(token: string) {
     // Prevent multiple simultaneous connection attempts
     if (this.socket?.connected || this.isConnecting) {
@@ -26,7 +31,20 @@ class SocketService {
       return;
     }
 
+    // Check if we've exceeded max attempts and need to cooldown
+    const now = Date.now();
+    if (this.connectionAttempts >= this.maxConnectionAttempts) {
+      if (now - this.lastConnectionAttempt < this.connectionCooldown) {
+        console.log("Socket connection cooldown active, skipping connection attempt");
+        return;
+      }
+      // Reset attempts after cooldown
+      this.connectionAttempts = 0;
+    }
+
     this.isConnecting = true;
+    this.connectionAttempts++;
+    this.lastConnectionAttempt = now;
 
     try {
       this.socket = io(SOCKET_URL, {
@@ -34,9 +52,7 @@ class SocketService {
           token: token,
         },
         transports: ["websocket", "polling"], // Allow fallback to polling
-        reconnection: true,
-        reconnectionAttempts: 3, // Reduced attempts
-        reconnectionDelay: 2000,
+        reconnection: false, // Disable auto-reconnection - we'll handle it manually
         timeout: 10000, // 10 second timeout
         autoConnect: true,
       });
@@ -44,6 +60,7 @@ class SocketService {
       this.socket.on("connect", () => {
         console.log("✅ Socket connected:", this.socket?.id);
         this.isConnecting = false;
+        this.connectionAttempts = 0; // Reset attempts on successful connection
       });
 
       this.socket.on("disconnect", (reason) => {
@@ -52,11 +69,15 @@ class SocketService {
       });
 
       this.socket.on("connect_error", (error: any) => {
-        console.error("Socket connection error:", error.message || error);
+        // Only log if it's not a timeout error to avoid spam
+        if (error.message !== "timeout") {
+          console.warn("Socket connection error:", error.message || error);
+        }
         this.isConnecting = false;
-        // Don't spam reconnection attempts
+        // Don't spam reconnection attempts - close socket on error
         if (this.socket) {
           this.socket.close();
+          this.socket = null;
         }
       });
 
@@ -94,6 +115,7 @@ class SocketService {
       this.socket = null;
       this.messageCallbacks = [];
       this.isConnecting = false;
+      this.connectionAttempts = 0; // Reset attempts on manual disconnect
     }
   }
 
