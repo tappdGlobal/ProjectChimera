@@ -15,10 +15,11 @@ import { TicketDetailModal } from "./TicketDetailModal";
 import { useEffect } from "react";
 import { useBookingStore } from "../../store/bookingStore";
 import { ActivityIndicator } from "react-native";
+import ComingSoon from "../common/ComingSoon";
 export function EventTabContent() {
   const [showTicketModal, setShowTicketModal] = useState(false);
   const { bookings, fetchMyBookings, loading } = useBookingStore();
-
+  const [showComingSoon, setShowComingSoon] = useState(false);
   useEffect(() => {
     fetchMyBookings();
   }, []);
@@ -79,110 +80,106 @@ export function EventTabContent() {
               );
 
               return (
-               <View key={booking.id} style={styles.card}>
+                <View key={booking.id} style={styles.card}>
 
-  {/* 🔥 STATUS BADGE (TOP RIGHT CORNER) */}
-  <View
-    style={[
-      styles.badge,
-      status === "upcoming" && styles.upcomingBadge,
-      status === "ongoing" && styles.ongoingBadge,
-      status === "completed" && styles.completedBadge,
-    ]}
-  >
-    <Text
-      style={[
-        styles.badgeText,
-        status === "upcoming" && styles.upcomingText,
-        status === "ongoing" && styles.ongoingText,
-        status === "completed" && styles.completedText,
-      ]}
-    >
-      {status}
-    </Text>
-  </View>
+                  {/* 🔥 STATUS BADGE (TOP RIGHT CORNER) */}
+                  <View
+                    style={[
+                      styles.badge,
+                      status === "upcoming" && styles.upcomingBadge,
+                      status === "ongoing" && styles.ongoingBadge,
+                      status === "completed" && styles.completedBadge,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.badgeText,
+                        status === "upcoming" && styles.upcomingText,
+                        status === "ongoing" && styles.ongoingText,
+                        status === "completed" && styles.completedText,
+                      ]}
+                    >
+                      {status}
+                    </Text>
+                  </View>
 
-  {/* 🔥 CONTENT STARTS BELOW BADGE */}
-  <View style={styles.cardContent}>
+                  {/* 🔥 CONTENT STARTS BELOW BADGE */}
+                  <View style={styles.cardContent}>
 
-    {/* IMAGE */}
-    <Image
-      source={{
-        uri: event.images?.[0] ?? "https://via.placeholder.com/150",
-      }}
-      style={styles.image}
-      resizeMode="cover"
-    />
+                    {/* IMAGE */}
+                    <Image
+                      source={{
+                        uri: event.images?.[0] ?? "https://via.placeholder.com/150",
+                      }}
+                      style={styles.image}
+                      resizeMode="cover"
+                    />
 
-    {/* TITLE */}
-    <Text style={styles.title}>
-      {event.eventName}
-    </Text>
+                    {/* TITLE */}
+                    <Text style={styles.title}>
+                      {event.eventName}
+                    </Text>
 
-    {/* LOCATION */}
-    <Text style={styles.location}>
-      {event.venue}, {event.city}
-    </Text>
+                    {/* LOCATION */}
+                    <Text style={styles.location}>
+                      {event.venue}, {event.city}
+                    </Text>
 
-    {/* DATE + TIME */}
-    <View style={styles.metaRow}>
-      <Ionicons
-        name="calendar-outline"
-        size={15}
-        color={Theme.colors.mutedForeground}
-      />
-      <Text style={styles.metaText}>
-        {new Date(event.eventDate).toLocaleDateString()}
-      </Text>
+                    {/* DATE + TIME */}
+                    <View style={styles.metaRow}>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={15}
+                        color={Theme.colors.mutedForeground}
+                      />
+                      <Text style={styles.metaText}>
+                        {new Date(event.eventDate).toLocaleDateString()}
+                      </Text>
 
-      <Ionicons
-        name="time-outline"
-        size={15}
-        color={Theme.colors.mutedForeground}
-        style={{ marginLeft: 14 }}
-      />
-      <Text style={styles.metaText}>
-        {event.eventTime}
-      </Text>
-    </View>
+                      <Ionicons
+                        name="time-outline"
+                        size={15}
+                        color={Theme.colors.mutedForeground}
+                        style={{ marginLeft: 14 }}
+                      />
+                      <Text style={styles.metaText}>
+                        {event.eventTime}
+                      </Text>
+                    </View>
 
-  </View>
+                  </View>
 
-  {/* 🔥 BUTTON */}
-  <Pressable onPress={() => setShowTicketModal(true)}>
-    <LinearGradient
-      colors={GRADIENT_COLORS.primary as [string, string]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.button}
-    >
-      <Ionicons
-        name="ticket-outline"
-        size={18}
-        color={Theme.colors.primaryForeground}
-        style={{ marginRight: 10 }}
-      />
-      <Text style={styles.buttonText}>
-        View Ticket
-      </Text>
-    </LinearGradient>
-  </Pressable>
+                  {/* 🔥 BUTTON */}
+                  <Pressable onPress={() => setShowComingSoon(true)}>
+                    <LinearGradient
+                      colors={GRADIENT_COLORS.primary as [string, string]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.button}
+                    >
+                      <Ionicons
+                        name="ticket-outline"
+                        size={18}
+                        color={Theme.colors.primaryForeground}
+                        style={{ marginRight: 10 }}
+                      />
+                      <Text style={styles.buttonText}>
+                        View Ticket
+                      </Text>
+                    </LinearGradient>
+                  </Pressable>
 
-</View>
+                </View>
 
 
               );
             })}
       </ScrollView>
 
-      <Modal
-        visible={showTicketModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowTicketModal(false)}
-      >
-        <TicketDetailModal onClose={() => setShowTicketModal(false)} />
-      </Modal>
+      <ComingSoon
+        visible={showComingSoon}
+        onClose={() => setShowComingSoon(false)}
+      />
     </>
   );
 }

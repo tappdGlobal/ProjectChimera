@@ -446,7 +446,7 @@ export function HostScreen({ route }: any) {
     const newTicket: TicketType = {
       id: `ticket-${Date.now()}`,
       name: "",
-      price: 500,
+      price: 0,
       quantityTotal: 100,
     };
 
@@ -469,6 +469,10 @@ export function HostScreen({ route }: any) {
   );
 
   const calculateServiceCharge = (price: number) => {
+    if (price <= 0) {
+      return { serviceCharge: 0, hostReceives: 0 };
+    }
+
     const serviceCharge = Math.round(price * (SERVICE_CHARGE_PERCENT / 100));
     const hostReceives = price - serviceCharge;
 
@@ -494,8 +498,8 @@ export function HostScreen({ route }: any) {
     data.tickets.forEach((ticket, index) => {
       if (!ticket.name.trim())
         newErrors[`ticket_name_${index}`] = "Ticket name is required";
-      if (ticket.price < 500)
-        newErrors[`ticket_price_${index}`] = "Minimum ticket price is ₹500";
+      if (ticket.price < 0)
+        newErrors[`ticket_price_${index}`] = "Ticket price cannot be negative";
     });
 
     return newErrors;
@@ -538,13 +542,13 @@ export function HostScreen({ route }: any) {
     // Extract file extension from URI
     const match = /\.([\w]+)$/.exec(uri);
     const ext = match ? match[1].toLowerCase() : 'jpg';
-    
+
     // Determine mime type based on extension
     let type = 'image/jpeg';
     if (ext === 'png') type = 'image/png';
     else if (ext === 'gif') type = 'image/gif';
     else if (ext === 'webp') type = 'image/webp';
-    
+
     // For React Native FormData, we need to return the object directly
     // The apiClient will handle the file upload properly
     return {
@@ -614,7 +618,7 @@ export function HostScreen({ route }: any) {
       // Get the first few error messages to show to the user
       const errorMessages = Object.values(validationErrors).slice(0, 2);
       const errorText = errorMessages.join("\n");
-      
+
       Toast.show({
         type: "error",
         text1: "Please fix the errors before publishing",
@@ -697,7 +701,7 @@ export function HostScreen({ route }: any) {
 
       // Check for any undefined values in required fields
       const requiredFields = [
-        'eventName', 'genre', 'category', 'eventType', 'eventDate', 
+        'eventName', 'genre', 'category', 'eventType', 'eventDate',
         'eventTime', 'location', 'address', 'city', 'country', 'venue',
         'maxCapacity', 'ageLimit', 'allowance', 'description'
       ];
@@ -1188,10 +1192,24 @@ export function HostScreen({ route }: any) {
 
                   return (
                     <View key={ticket.id} style={{ marginBottom: 18 }}>
-                      <View key={ticket.id} style={styles.ticketCard}>
-                        <Text style={styles.ticketTitle}>
-                          Ticket Type {index + 1}
-                        </Text>
+                      <View style={styles.ticketCard}>
+
+                        {/* 🔴 HEADER WITH DELETE BUTTON */}
+                        <View style={styles.ticketHeaderRow}>
+                          <Text style={styles.ticketTitle}>
+                            Ticket Type {index + 1}
+                          </Text>
+
+                          {localFormData.tickets.length > 1 && (
+                            <TouchableOpacity
+                              onPress={() => removeTicket(ticket.id)}
+                              style={styles.ticketDeleteButton}
+                              activeOpacity={0.8}
+                            >
+                              <X size={14} color="#FFFFFF" />
+                            </TouchableOpacity>
+                          )}
+                        </View>
 
                         <View style={styles.grid2Col}>
                           <View>
@@ -1228,8 +1246,7 @@ export function HostScreen({ route }: any) {
                           <View style={styles.serviceChargeHeader}>
                             <Info size={16} color="#E879F9" />
                             <Text style={styles.serviceChargeTitle}>
-                              Service Charge Breakdown (Fixed{" "}
-                              {SERVICE_CHARGE_PERCENT}%)
+                              Service Charge Breakdown (Fixed {SERVICE_CHARGE_PERCENT}%)
                             </Text>
                           </View>
 
@@ -1262,6 +1279,7 @@ export function HostScreen({ route }: any) {
                             </Text>
                           </View>
                         </LinearGradient>
+
                       </View>
                     </View>
                   );
@@ -1831,153 +1849,153 @@ export function HostScreen({ route }: any) {
   };
 
   const AnalyticsContent = () => (
-  <ScrollView
-    style={{ flex: 1 }}
-    contentContainerStyle={{ padding: 4, paddingBottom: 24 }}
-    showsVerticalScrollIndicator={false}
-  >
-    {/* ===== STATS CARDS ===== */}
-    <View style={styles.statsCardsRow}>
-      <View style={styles.statsCard}>
-        <Users size={24} color="#C026D3" style={{ marginBottom: 8 }} />
-        <Text style={styles.statsCardNumber}>15</Text>
-        <Text style={styles.statsCardLabel}>Booked</Text>
-      </View>
-
-      <View style={styles.statsCard}>
-        <CheckCircle2 size={24} color="#22c55e" style={{ marginBottom: 8 }} />
-        <Text style={styles.statsCardNumber}>7</Text>
-        <Text style={styles.statsCardLabel}>Showed Up</Text>
-      </View>
-
-      <View style={styles.statsCard}>
-        <Clock size={24} color="#facc15" style={{ marginBottom: 8 }} />
-        <Text style={styles.statsCardNumber}>8</Text>
-        <Text style={styles.statsCardLabel}>Remaining</Text>
-      </View>
-    </View>
-
-    {/* ===== ATTENDANCE RATE ===== */}
-    <View style={styles.analyticsCard}>
-      <View style={styles.analyticsHeader}>
-        <TrendingUp
-          size={18}
-          color={Theme.colors.foreground}
-          style={{ marginRight: 8 }}
-        />
-        <Text style={styles.analyticsTitle}>Attendance Rate</Text>
-      </View>
-
-      <View style={styles.flexRowSpaceBetweenMb2}>
-        <Text style={styles.analyticsLabelSmall}>Current Check-ins</Text>
-        <Text style={styles.analyticsValueSmall}>47%</Text>
-      </View>
-
-      <View style={styles.progressBarContainer}>
-        <LinearGradient
-          colors={["#C026D3", "#DB2777"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={{ width: "47%", height: "100%" }}
-        />
-      </View>
-    </View>
-
-    {/* ===== TICKET TYPE BREAKDOWN ===== */}
-    <View style={styles.analyticsCard}>
-      <Text style={[styles.analyticsTitle, { marginBottom: 16 }]}>
-        Ticket Type Breakdown
-      </Text>
-
-      {/* VIP */}
-      <View style={styles.mb4}>
-        <View style={styles.flexRowSpaceBetweenMb2}>
-          <Text style={styles.analyticsLabel}>VIP</Text>
-          <Text style={styles.analyticsValue}>3 / 5</Text>
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={{ padding: 4, paddingBottom: 24 }}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* ===== STATS CARDS ===== */}
+      <View style={styles.statsCardsRow}>
+        <View style={styles.statsCard}>
+          <Users size={24} color="#C026D3" style={{ marginBottom: 8 }} />
+          <Text style={styles.statsCardNumber}>15</Text>
+          <Text style={styles.statsCardLabel}>Booked</Text>
         </View>
+
+        <View style={styles.statsCard}>
+          <CheckCircle2 size={24} color="#22c55e" style={{ marginBottom: 8 }} />
+          <Text style={styles.statsCardNumber}>7</Text>
+          <Text style={styles.statsCardLabel}>Showed Up</Text>
+        </View>
+
+        <View style={styles.statsCard}>
+          <Clock size={24} color="#facc15" style={{ marginBottom: 8 }} />
+          <Text style={styles.statsCardNumber}>8</Text>
+          <Text style={styles.statsCardLabel}>Remaining</Text>
+        </View>
+      </View>
+
+      {/* ===== ATTENDANCE RATE ===== */}
+      <View style={styles.analyticsCard}>
+        <View style={styles.analyticsHeader}>
+          <TrendingUp
+            size={18}
+            color={Theme.colors.foreground}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={styles.analyticsTitle}>Attendance Rate</Text>
+        </View>
+
+        <View style={styles.flexRowSpaceBetweenMb2}>
+          <Text style={styles.analyticsLabelSmall}>Current Check-ins</Text>
+          <Text style={styles.analyticsValueSmall}>47%</Text>
+        </View>
+
         <View style={styles.progressBarContainer}>
           <LinearGradient
             colors={["#C026D3", "#DB2777"]}
-            style={{ width: "60%", height: "100%" }}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={{ width: "47%", height: "100%" }}
           />
         </View>
       </View>
 
-      {/* Premium */}
-      <View style={styles.mb4}>
-        <View style={styles.flexRowSpaceBetweenMb2}>
-          <Text style={styles.analyticsLabel}>Premium</Text>
-          <Text style={styles.analyticsValue}>3 / 5</Text>
-        </View>
-        <View style={styles.progressBarContainer}>
-          <LinearGradient
-            colors={["#C026D3", "#DB2777"]}
-            style={{ width: "60%", height: "100%" }}
-          />
-        </View>
-      </View>
+      {/* ===== TICKET TYPE BREAKDOWN ===== */}
+      <View style={styles.analyticsCard}>
+        <Text style={[styles.analyticsTitle, { marginBottom: 16 }]}>
+          Ticket Type Breakdown
+        </Text>
 
-      {/* Standard */}
-      <View style={styles.mb4}>
-        <View style={styles.flexRowSpaceBetweenMb2}>
-          <Text style={styles.analyticsLabel}>Standard</Text>
-          <Text style={styles.analyticsValue}>1 / 5</Text>
-        </View>
-        <View style={styles.progressBarContainer}>
-          <LinearGradient
-            colors={["#C026D3", "#DB2777"]}
-            style={{ width: "20%", height: "100%" }}
-          />
-        </View>
-      </View>
-    </View>
-
-    {/* ===== RECENT CHECK-INS ===== */}
-    <View style={styles.analyticsCard}>
-      <View style={styles.analyticsHeader}>
-        <Eye size={18} color={Theme.colors.foreground} style={{ marginRight: 8 }} />
-        <Text style={styles.analyticsTitle}>Recent Check-ins</Text>
-      </View>
-
-      {[
-        { name: "Ava Garcia", type: "Premium", time: "9:00 PM" },
-        { name: "Daniel Brown", type: "Premium", time: "8:45 PM" },
-        { name: "Sophia Lee", type: "Premium", time: "8:30 PM" },
-        { name: "Priya Sharma", type: "VIP", time: "8:15 PM" },
-        { name: "Lisa Anderson", type: "VIP", time: "8:00 PM" },
-      ].map((item, index) => (
-        <View key={index} style={styles.recentCheckInRow}>
-          <View>
-            <Text style={styles.checkInName}>{item.name}</Text>
-            <Text style={styles.checkInType}>{item.type}</Text>
+        {/* VIP */}
+        <View style={styles.mb4}>
+          <View style={styles.flexRowSpaceBetweenMb2}>
+            <Text style={styles.analyticsLabel}>VIP</Text>
+            <Text style={styles.analyticsValue}>3 / 5</Text>
           </View>
-          <Text style={styles.checkInTime}>{item.time}</Text>
-        </View>
-      ))}
-    </View>
-
-    {/* ===== RIDE BOOKING ===== */}
-    <View style={styles.rideCard}>
-      <View style={styles.rideHeader}>
-        <View style={styles.rideIconWrapper}>
-          <Car size={18} color="#000000" />
+          <View style={styles.progressBarContainer}>
+            <LinearGradient
+              colors={["#C026D3", "#DB2777"]}
+              style={{ width: "60%", height: "100%" }}
+            />
+          </View>
         </View>
 
-        <View style={{ flex: 1 }}>
-          <Text style={styles.rideTitle}>Need to get to the venue?</Text>
-          <Text style={styles.rideSubtitle}>
-            Book a ride to manage your event
-          </Text>
+        {/* Premium */}
+        <View style={styles.mb4}>
+          <View style={styles.flexRowSpaceBetweenMb2}>
+            <Text style={styles.analyticsLabel}>Premium</Text>
+            <Text style={styles.analyticsValue}>3 / 5</Text>
+          </View>
+          <View style={styles.progressBarContainer}>
+            <LinearGradient
+              colors={["#C026D3", "#DB2777"]}
+              style={{ width: "60%", height: "100%" }}
+            />
+          </View>
+        </View>
+
+        {/* Standard */}
+        <View style={styles.mb4}>
+          <View style={styles.flexRowSpaceBetweenMb2}>
+            <Text style={styles.analyticsLabel}>Standard</Text>
+            <Text style={styles.analyticsValue}>1 / 5</Text>
+          </View>
+          <View style={styles.progressBarContainer}>
+            <LinearGradient
+              colors={["#C026D3", "#DB2777"]}
+              style={{ width: "20%", height: "100%" }}
+            />
+          </View>
         </View>
       </View>
 
-      <TouchableOpacity style={styles.rideButton}>
-        <Car size={16} color="#000000" />
-        <Text style={styles.rideButtonText}>Book Ride</Text>
-      </TouchableOpacity>
-    </View>
-  </ScrollView>
-);
+      {/* ===== RECENT CHECK-INS ===== */}
+      <View style={styles.analyticsCard}>
+        <View style={styles.analyticsHeader}>
+          <Eye size={18} color={Theme.colors.foreground} style={{ marginRight: 8 }} />
+          <Text style={styles.analyticsTitle}>Recent Check-ins</Text>
+        </View>
+
+        {[
+          { name: "Ava Garcia", type: "Premium", time: "9:00 PM" },
+          { name: "Daniel Brown", type: "Premium", time: "8:45 PM" },
+          { name: "Sophia Lee", type: "Premium", time: "8:30 PM" },
+          { name: "Priya Sharma", type: "VIP", time: "8:15 PM" },
+          { name: "Lisa Anderson", type: "VIP", time: "8:00 PM" },
+        ].map((item, index) => (
+          <View key={index} style={styles.recentCheckInRow}>
+            <View>
+              <Text style={styles.checkInName}>{item.name}</Text>
+              <Text style={styles.checkInType}>{item.type}</Text>
+            </View>
+            <Text style={styles.checkInTime}>{item.time}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* ===== RIDE BOOKING ===== */}
+      <View style={styles.rideCard}>
+        <View style={styles.rideHeader}>
+          <View style={styles.rideIconWrapper}>
+            <Car size={18} color="#000000" />
+          </View>
+
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rideTitle}>Need to get to the venue?</Text>
+            <Text style={styles.rideSubtitle}>
+              Book a ride to manage your event
+            </Text>
+          </View>
+        </View>
+
+        <TouchableOpacity style={styles.rideButton}>
+          <Car size={16} color="#000000" />
+          <Text style={styles.rideButtonText}>Book Ride</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
 
 
   // --- MAIN RENDER ---
@@ -3363,5 +3381,20 @@ const styles = StyleSheet.create({
   },
   ticketCardWrapper: {
     paddingBottom: 16,
+  },
+  ticketHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+
+  ticketDeleteButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Theme.colors.destructive,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

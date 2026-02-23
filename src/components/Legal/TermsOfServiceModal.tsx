@@ -27,6 +27,8 @@ export function TermsOfServiceModal({
             visible={visible}
             animationType="slide"
             transparent
+            hardwareAccelerated
+            statusBarTranslucent
         >
             <View style={styles.overlay}>
                 <SafeAreaView style={styles.container}>
@@ -50,8 +52,10 @@ export function TermsOfServiceModal({
 
                     <ScrollView
                         style={styles.scrollView}
-                        showsVerticalScrollIndicator
                         contentContainerStyle={styles.content}
+                        nestedScrollEnabled
+                        showsVerticalScrollIndicator
+                        keyboardShouldPersistTaps="handled"
                     >
                         {/* Intro */}
                         <LinearGradient
@@ -209,6 +213,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: Theme.colors.background,
+        maxHeight: "100%",
     },
 
     header: {

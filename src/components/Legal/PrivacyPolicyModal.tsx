@@ -10,7 +10,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Shield, ChevronLeft, X } from "lucide-react-native";
 import { Theme } from "../../styles/Theme";
-import { SafeAreaView} from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 interface PrivacyPolicyModalProps {
   visible: boolean;
   onClose: () => void;
@@ -21,7 +21,13 @@ export const PrivacyPolicyModal = ({
   onClose,
 }: PrivacyPolicyModalProps) => {
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      hardwareAccelerated
+      statusBarTranslucent
+    >
       <View style={styles.overlay}>
         <SafeAreaView style={styles.container}>
           {/* Header */}
@@ -40,7 +46,13 @@ export const PrivacyPolicyModal = ({
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.content}
+            nestedScrollEnabled
+            showsVerticalScrollIndicator
+            keyboardShouldPersistTaps="handled"
+          >
             {/* Intro */}
             <LinearGradient
               colors={["rgba(160,32,160,0.25)", "rgba(116,1,130,0.15)"]}
@@ -173,11 +185,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.6)",
   },
-  container: {
-    flex: 1,
-    backgroundColor: Theme.colors.background,
-  },
-
+container: {
+  flex: 1,
+  backgroundColor: Theme.colors.background,
+  maxHeight: "100%",
+},
   header: {
     flexDirection: "row",
     alignItems: "center",

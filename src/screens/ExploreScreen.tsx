@@ -121,13 +121,7 @@ export function ExploreScreen() {
               .getParent()
               ?.navigate(SCREEN_NAMES.PROFILE, { showSettings: true })
           }
-          onNotificationClick={() =>
-            navigation
-              .getParent()
-              ?.navigate(
-                SCREEN_NAMES.NOTIFICATIONS
-              )
-          }
+          onNotificationClick={() => setShowComingSoon(true)}
           onSearchChange={handleSearchChange}
         />
 

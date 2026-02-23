@@ -7,6 +7,7 @@ import {
     Modal,
     Pressable,
 } from "react-native";
+import ComingSoon from "../common/ComingSoon";
 import { Theme, GRADIENT_COLORS } from "../../styles/Theme";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -15,7 +16,7 @@ import { useBookingStore } from "../../store/bookingStore";
 import { ActivityIndicator } from "react-native";
 export function TicketTabContent() {
     const { bookings, fetchMyBookings, loading } = useBookingStore();
-    const [selectedBooking, setSelectedBooking] = useState<any>(null);
+    const [showComingSoon, setShowComingSoon] = useState(false);
 
     useEffect(() => {
         fetchMyBookings();
@@ -137,9 +138,7 @@ export function TicketTabContent() {
                                     </View>
 
                                     <Pressable
-                                        onPress={() =>
-                                            setSelectedBooking(booking)
-                                        }
+                                        onPress={() => setShowComingSoon(true)}
                                     >
                                         <LinearGradient
                                             colors={
@@ -171,21 +170,10 @@ export function TicketTabContent() {
                         })}
             </ScrollView>
 
-            <Modal
-                visible={!!selectedBooking}
-                transparent
-                animationType="slide"
-                onRequestClose={() =>
-                    setSelectedBooking(null)
-                }
-            >
-                <TicketDetailModal
-                    booking={selectedBooking}
-                    onClose={() =>
-                        setSelectedBooking(null)
-                    }
-                />
-            </Modal>
+            <ComingSoon
+                visible={showComingSoon}
+                onClose={() => setShowComingSoon(false)}
+            />
         </>
     );
 }
