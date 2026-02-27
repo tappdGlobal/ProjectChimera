@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { ArrowLeft, Send, MoreVertical } from "lucide-react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Theme } from "../styles/Theme";
 import { useChatStore } from "../store/chatStore";
 import { useAuthStore } from "../store/authStore";
@@ -47,7 +48,29 @@ export default function ChatDetailScreen() {
   const [messageText, setMessageText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoadingChat, setIsLoadingChat] = useState(true);
+  const [resolvedUserId, setResolvedUserId] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
+
+  // Resolve userId from auth store or AsyncStorage
+  useEffect(() => {
+    const getUserId = async () => {
+      // First try from auth store
+      if (userId) {
+        setResolvedUserId(userId);
+        return;
+      }
+      // Fallback to AsyncStorage
+      try {
+        const storedUserId = await AsyncStorage.getItem("userId");
+        if (storedUserId) {
+          setResolvedUserId(storedUserId);
+        }
+      } catch (err) {
+        console.error("[ChatDetail] Failed to get userId from storage:", err);
+      }
+    };
+    getUserId();
+  }, [userId]);
 
   // Use conversationId if available, otherwise fall back to chatId for socket messages
   const messageKey = currentConversationId || chatId;
@@ -182,13 +205,14 @@ export default function ChatDetailScreen() {
 
   const handleSendMessage = async () => {
     if (messageText.trim() === "" || sendingMessage) return;
-    if (!userId) {
+    const effectiveUserId = resolvedUserId || userId;
+    if (!effectiveUserId) {
       console.error("[ChatDetail] Cannot send message: userId is not available");
       return;
     }
 
     const text = messageText.trim();
-    console.log(`[ChatDetail] Sending message with userId: ${userId}`);
+    console.log(`[ChatDetail] Sending message with userId: ${effectiveUserId}`);
     setMessageText("");
 
     // Send message via REST API
@@ -196,7 +220,7 @@ export default function ChatDetailScreen() {
       receiverId: chatId,
       content: text,
       messageType: "text",
-    }, userId);
+    }, effectiveUserId);
   };
 
   const formatMessageTime = (dateString: string) => {
@@ -205,10 +229,13 @@ export default function ChatDetailScreen() {
   };
 
   const renderMessage = ({ item, index }: { item: Message; index: number }) => {
-    const isMyMessage = item.senderId === userId;
+    // Ensure both IDs are strings for comparison
+    const messageSenderId = String(item.senderId || "");
+    const currentUserId = String(resolvedUserId || userId || "");
+    const isMyMessage = messageSenderId === currentUserId && currentUserId !== "";
     
     // Debug logging
-    console.log(`[ChatDetail] Message ${index}: senderId="${item.senderId}", userId="${userId}", isMyMessage=${isMyMessage}`);
+    console.log(`[ChatDetail] Message ${index}: senderId="${messageSenderId}", userId="${currentUserId}", resolvedUserId="${resolvedUserId}", isMyMessage=${isMyMessage}`);
 
     return (
       <View
@@ -436,10 +463,13 @@ const styles = StyleSheet.create({
   },
   myMessageContainer: {
     justifyContent: "flex-end",
-    flexDirection: "row-reverse",
+    flexDirection: "row",
+    alignSelf: "flex-end",
   },
   otherMessageContainer: {
     justifyContent: "flex-start",
+    flexDirection: "row",
+    alignSelf: "flex-start",
   },
   messageBubble: {
     maxWidth: "70%",
