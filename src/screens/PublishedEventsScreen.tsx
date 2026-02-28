@@ -1,6 +1,6 @@
 // src/screens/PublishedEventsScreen.tsx
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   TextStyle,
   Platform,
   StatusBar,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -47,22 +48,28 @@ import {
   DialogTitle,
   DialogDescription,
 } from "../components/ui/Dialog";
+import { useHostStore } from "../store/hostStore";
 
 interface PublishedEvent {
   id: string;
   name: string;
   date: string;
+  time?: string;
   location: string;
+  category?: string;
   maxOccupancy: number;
   registrations: number;
   revenue: number;
-  serviceCharge: number;
-  netEarnings: number;
+  serviceCharge?: number;
+  netEarnings?: number;
   rating: number;
-  totalReviews: number;
-  connections: number;
-  status: "upcoming" | "ongoing" | "completed";
-  reviews: Array<{
+  totalReviews?: number;
+  connections?: number;
+  status?: "upcoming" | "ongoing" | "completed";
+  image?: string;
+  entryOpen?: boolean;
+  checkedInCount?: number;
+  reviews?: Array<{
     id: string;
     userName: string;
     rating: number;
@@ -315,12 +322,88 @@ const EventDetailModal = React.memo(({
   const [activeTab, setActiveTab] = useState("analytics");
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
+  
+  // Host store for real data
+  const { 
+    analytics, 
+    guests, 
+    attendance, 
+    loading, 
+    fetchAnalytics, 
+    fetchGuests, 
+    fetchAttendance,
+    closeEntry,
+    openEntry,
+    manualScan,
+    clearHostData,
+  } = useHostStore();
+  
+  // Entry control state - sync with event data
+  const [isEntryOpen, setIsEntryOpen] = useState(event?.entryOpen ?? true);
+  const [scanModalVisible, setScanModalVisible] = useState(false);
+  const [scanBookingId, setScanBookingId] = useState("");
+
+  // Sync entry status when event changes
+  useEffect(() => {
+    if (event?.entryOpen !== undefined) {
+      setIsEntryOpen(event.entryOpen);
+    }
+  }, [event?.entryOpen]);
+
+  // Fetch data when modal opens or tab changes
+  useEffect(() => {
+    if (event?.id) {
+      fetchAnalytics(event.id);
+      fetchGuests(event.id);
+      fetchAttendance(event.id);
+    }
+    
+    return () => {
+      clearHostData();
+    };
+  }, [event?.id]);
 
   const handleReplySubmit = useCallback((reviewId: string) => {
     Alert.alert("Reply Sent", `Reply to ${reviewId} submitted: ${replyText}`);
     setReplyingTo(null);
     setReplyText("");
   }, [replyText]);
+  
+  // Entry control handlers
+  const handleToggleEntry = useCallback(async () => {
+    if (!event?.id) return;
+    try {
+      if (isEntryOpen) {
+        await closeEntry(event.id);
+        Alert.alert("Entry Closed", "Event entry has been closed successfully.");
+      } else {
+        await openEntry(event.id);
+        Alert.alert("Entry Opened", "Event entry has been opened successfully.");
+      }
+      setIsEntryOpen(!isEntryOpen);
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to toggle entry status");
+    }
+  }, [event?.id, isEntryOpen, closeEntry, openEntry]);
+  
+  const handleManualScan = useCallback(async () => {
+    if (!event?.id || !scanBookingId.trim()) return;
+    try {
+      await manualScan(event.id, scanBookingId.trim());
+      Alert.alert("Success", "Guest checked in successfully!");
+      setScanBookingId("");
+      setScanModalVisible(false);
+      // Refresh guests and attendance data
+      fetchGuests(event.id);
+      fetchAttendance(event.id);
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to check in guest");
+    }
+  }, [event?.id, scanBookingId, manualScan, fetchGuests, fetchAttendance]);
+
+  // Calculate checked in count from guests or attendance
+  const checkedInCount = attendance?.checkedIn || guests.filter(g => g.checkedIn).length;
+  const totalGuests = attendance?.totalGuests || guests.length;
 
   return (
     <Dialog open={!!event} onOpenChange={onClose}>
@@ -363,6 +446,14 @@ const EventDetailModal = React.memo(({
           </View>
         </View>
 
+        {loading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Theme.colors.primary} />
+            <Text style={styles.loadingText}>Loading event data...</Text>
+          </View>
+        )}
+
+        {!loading && (
         <ScrollView style={styles.modalContentScroll} showsVerticalScrollIndicator={false}>
           {activeTab === "analytics" && (
             <View style={styles.tabContentContainer}>
@@ -370,22 +461,22 @@ const EventDetailModal = React.memo(({
                 <Card style={styles.analyticCard}>
                   <CardContent style={styles.analyticCardContent}>
                     <Users size={32} color="#C026D3" style={styles.mb2} />
-                    <Text style={styles.analyticMetricText}>{event.registrations}</Text>
-                    <Text style={styles.analyticMetricLabel}>Registered</Text>
+                    <Text style={styles.analyticMetricText}>{analytics?.totalBookings || event.registrations}</Text>
+                    <Text style={styles.analyticMetricLabel}>Total Bookings</Text>
                     <View style={styles.analyticsProgressContainer}>
-                      <View style={[styles.analyticsProgressFill, { width: `${(event.registrations / event.maxOccupancy) * 100}%` }]} />
+                      <View style={[styles.analyticsProgressFill, { width: `${((analytics?.totalBookings || event.registrations) / event.maxOccupancy) * 100}%` }]} />
                     </View>
                   </CardContent>
                 </Card>
                 <Card style={styles.analyticCard}>
                   <CardContent style={styles.analyticCardContent}>
                     <TrendingUp size={32} color="#4ADE80" style={styles.mb2} />
-                    <Text style={styles.analyticMetricText}>{event.connections}</Text>
-                    <Text style={styles.analyticMetricLabel}>Connections Made</Text>
+                    <Text style={styles.analyticMetricText}>{checkedInCount}</Text>
+                    <Text style={styles.analyticMetricLabel}>Checked In</Text>
                   </CardContent>
                 </Card>
               </View>
-
+              
               <Card style={styles.ratingsCard}>
                 <CardHeader style={styles.ratingsHeader}>
                   <CardTitle style={styles.ratingsTitle}>
@@ -414,7 +505,7 @@ const EventDetailModal = React.memo(({
               </Card>
             </View>
           )}
-
+          
           {activeTab === "reviews" && (
             <View style={styles.tabContentContainer}>
               {mockReviews.map((review) => (
@@ -482,16 +573,16 @@ const EventDetailModal = React.memo(({
                 <CardContent style={styles.financialContent}>
                   <View style={styles.financialRow}>
                     <Text style={styles.financialLabel}>Total Revenue:</Text>
-                    <Text style={styles.financialValue}>{formatCurrency(event.revenue)}</Text>
+                    <Text style={styles.financialValue}>{formatCurrency(analytics?.revenue || 0)}</Text>
                   </View>
                   <View style={styles.financialRow}>
                     <Text style={styles.financialLabel}>TAPPD Service Charge (20%):</Text>
-                    <Text style={styles.financialValueDestructive}>-{formatCurrency(event.serviceCharge)}</Text>
+                    <Text style={styles.financialValueDestructive}>-{formatCurrency((analytics?.revenue || 0) * 0.2)}</Text>
                   </View>
                   <View style={styles.financialDivider} />
                   <View style={styles.financialRow}>
                     <Text style={styles.financialNetLabel}>Net Earnings:</Text>
-                    <Text style={styles.financialNetValue}>{formatCurrency(event.netEarnings)}</Text>
+                    <Text style={styles.financialNetValue}>{formatCurrency((analytics?.revenue || 0) * 0.8)}</Text>
                   </View>
                 </CardContent>
               </Card>
@@ -499,27 +590,86 @@ const EventDetailModal = React.memo(({
               <Card style={styles.financialCard}>
                 <CardHeader style={styles.financialHeader}>
                   <CardTitle style={styles.financialTitle}>
+                    <TrendingUp size={20} color="white" style={{ marginRight: 8 }} />
                     <Text style={{ color: 'white' }}>Performance Metrics</Text>
                   </CardTitle>
                 </CardHeader>
                 <CardContent style={styles.financialContent}>
                   <View style={styles.financialRow}>
+                    <Text style={styles.financialLabel}>Total Bookings:</Text>
+                    <Text style={styles.financialValue}>{analytics?.totalBookings || 0}</Text>
+                  </View>
+                  <View style={styles.financialRow}>
+                    <Text style={styles.financialLabel}>Checked In:</Text>
+                    <Text style={styles.financialValue}>{analytics?.totalCheckedIn || 0}</Text>
+                  </View>
+                  <View style={styles.financialRow}>
+                    <Text style={styles.financialLabel}>Cancelled:</Text>
+                    <Text style={styles.financialValueDestructive}>{analytics?.totalCancelled || 0}</Text>
+                  </View>
+                  <View style={styles.financialDivider} />
+                  <View style={styles.financialRow}>
                     <Text style={styles.financialLabel}>Occupancy Rate:</Text>
-                    <Text style={styles.financialValue}>85%</Text>
+                    <Text style={styles.financialValue}>
+                      {event.maxOccupancy > 0 ? Math.round(((analytics?.totalBookings || 0) / event.maxOccupancy) * 100) : 0}%
+                    </Text>
                   </View>
                   <View style={styles.financialRow}>
                     <Text style={styles.financialLabel}>Revenue per Attendee:</Text>
-                    <Text style={styles.financialValue}>₹1,500</Text>
+                    <Text style={styles.financialValue}>
+                      {formatCurrency((analytics?.totalCheckedIn || 0) > 0 ? (analytics?.revenue || 0) / (analytics?.totalCheckedIn || 1) : 0)}
+                    </Text>
                   </View>
                   <View style={styles.financialRow}>
-                    <Text style={styles.financialLabel}>Connection Rate:</Text>
-                    <Text style={styles.financialValue}>92%</Text>
+                    <Text style={styles.financialLabel}>Check-in Rate:</Text>
+                    <Text style={styles.financialValue}>
+                      {(analytics?.totalBookings || 0) > 0 ? Math.round(((analytics?.totalCheckedIn || 0) / analytics?.totalBookings) * 100) : 0}%
+                    </Text>
                   </View>
                 </CardContent>
               </Card>
             </View>
           )}
         </ScrollView>
+        )}
+        
+        {/* Manual Scan Modal */}
+        <Dialog open={scanModalVisible} onOpenChange={setScanModalVisible}>
+          <DialogContent style={styles.scanModalContent}>
+            <DialogHeader style={styles.modalHeader}>
+              <DialogTitle style={styles.modalTitle}>Manual Check-in</DialogTitle>
+              <DialogDescription style={styles.modalDescription}>
+                Enter the booking ID to check in a guest manually
+              </DialogDescription>
+            </DialogHeader>
+            
+            <View style={styles.scanModalBody}>
+              <Textarea
+                value={scanBookingId}
+                onChangeText={setScanBookingId}
+                placeholder="Enter Booking ID (e.g., BK-12345)"
+                style={styles.scanInput}
+                placeholderTextColor="rgba(255,255,255,0.4)"
+              />
+              
+              <View style={styles.scanModalButtons}>
+                <TouchableOpacity
+                  onPress={() => setScanModalVisible(false)}
+                  style={styles.scanCancelButton}
+                >
+                  <Text style={styles.scanCancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleManualScan}
+                  disabled={!scanBookingId.trim()}
+                  style={[styles.scanConfirmButton, !scanBookingId.trim() && styles.scanConfirmButtonDisabled]}
+                >
+                  <Text style={styles.scanConfirmButtonText}>Check In</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );
@@ -527,8 +677,40 @@ const EventDetailModal = React.memo(({
 
 export function PublishedEventsScreen() {
   const navigation = useNavigation();
-  const [events] = useState<PublishedEvent[]>(mockPublishedEvents);
+  const { events, loading, fetchHostEvents } = useHostStore();
   const [selectedEvent, setSelectedEvent] = useState<PublishedEvent | null>(null);
+
+  // Fetch host events on mount
+  useEffect(() => {
+    fetchHostEvents();
+  }, []);
+
+  // Transform HostEvent to PublishedEvent format
+  const transformedEvents: PublishedEvent[] = events.map(event => ({
+    id: event.id,
+    name: event.eventName,
+    date: new Date(event.eventDatetime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    time: new Date(event.eventDatetime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+    location: event.location,
+    category: event.category,
+    registrations: event.bookedCount,
+    maxOccupancy: event.maxCapacity,
+    rating: 4.7, // Default rating since API doesn't provide it
+    revenue: 0, // Will be calculated from analytics
+    serviceCharge: 0,
+    netEarnings: 0,
+    totalReviews: 0,
+    connections: 0,
+    status: "upcoming" as const,
+    image: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&q=80",
+    entryOpen: event.entryOpen,
+    checkedInCount: event.checkedInCount,
+    reviews: [],
+  }));
+
+  // Calculate totals from real data
+  const totalEarnings = 0; // Will be calculated when analytics API is integrated
+  const totalRegistrations = events.reduce((sum, e) => sum + e.bookedCount, 0);
 
   return (
     <SafeAreaView style={[styles.flex1, { backgroundColor: Theme.colors.background }]} edges={["top", "bottom"]}>
@@ -541,14 +723,21 @@ export function PublishedEventsScreen() {
           <Text style={styles.mainHeaderTitle}>Published Events</Text>
           <View style={styles.w10} />
         </View>
+        
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Theme.colors.primary} />
+            <Text style={styles.loadingText}>Loading events...</Text>
+          </View>
+        ) : (
         <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPadding, { paddingBottom: 40 }]}>
           <View style={styles.statsGrid}>
             <View style={styles.statsCardPurple}>
-              <Text style={[styles.statsValueGreen, { fontSize: 18 }]}>₹606,000</Text>
+              <Text style={[styles.statsValueGreen, { fontSize: 18 }]}>₹{totalEarnings.toLocaleString()}</Text>
               <Text style={styles.statsLabel}>Total Earnings</Text>
             </View>
             <View style={styles.statsCardPurple}>
-              <Text style={[styles.statsValuePurple, { fontSize: 18 }]}>505</Text>
+              <Text style={[styles.statsValuePurple, { fontSize: 18 }]}>{totalRegistrations}</Text>
               <Text style={styles.statsLabel}>Total Registrations</Text>
             </View>
           </View>
@@ -558,15 +747,25 @@ export function PublishedEventsScreen() {
           </View>
           <EarningsChart />
           <View style={styles.eventsListContainer}>
-            {events.map((event) => (
-              <EventCard 
-                key={event.id} 
-                event={event} 
-                onPress={setSelectedEvent} 
-              />
-            ))}
+            {transformedEvents.length === 0 ? (
+              <Card style={styles.emptyStateCard}>
+                <CardContent style={styles.emptyStateContent}>
+                  <Text style={styles.emptyStateText}>No published events</Text>
+                  <Text style={styles.emptyStateSubtext}>Your published events will appear here</Text>
+                </CardContent>
+              </Card>
+            ) : (
+              transformedEvents.map((event) => (
+                <EventCard 
+                  key={event.id} 
+                  event={event} 
+                  onPress={setSelectedEvent} 
+                />
+              ))
+            )}
           </View>
         </ScrollView>
+        )}
         {selectedEvent && (
           <EventDetailModal 
             event={selectedEvent} 
@@ -690,4 +889,64 @@ const styles = StyleSheet.create({
   financialNetLabel: { fontSize: 18, fontWeight: 'bold', color: 'white' },
   financialNetValue: { fontSize: 18, fontWeight: 'bold', color: '#4ADE80' },
   mb2: { marginBottom: 8 },
+  
+  // Loading
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40 },
+  loadingText: { color: 'rgba(255,255,255,0.6)', marginTop: 12, fontSize: 14 },
+  
+  // Attendance Stats
+  attendanceStatsRow: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 16 },
+  attendanceStatItem: { alignItems: 'center' },
+  attendanceStatValue: { fontSize: 24, fontWeight: 'bold', color: 'white' },
+  attendanceStatLabel: { fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 4 },
+  
+  // Guest List
+  guestSummaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16, paddingHorizontal: 4 },
+  guestSummaryText: { color: 'rgba(255,255,255,0.8)', fontSize: 14 },
+  guestSummaryBold: { fontWeight: 'bold', color: 'white' },
+  guestCard: { marginBottom: 12, backgroundColor: 'rgba(255,255,255,0.05)' },
+  guestCardContent: { padding: 16 },
+  guestHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  guestName: { fontSize: 16, fontWeight: '600', color: 'white' },
+  guestEmail: { fontSize: 14, color: 'rgba(255,255,255,0.6)', marginBottom: 8 },
+  guestMetaRow: { flexDirection: 'row', alignItems: 'center' },
+  guestMeta: { fontSize: 12, color: 'rgba(255,255,255,0.5)' },
+  checkedInBadge: { backgroundColor: '#22c55e', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
+  checkedInBadgeText: { color: 'white', fontSize: 12, fontWeight: '500' },
+  pendingBadge: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
+  pendingBadgeText: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '500' },
+  emptyStateCard: { backgroundColor: 'rgba(255,255,255,0.05)', marginTop: 20 },
+  emptyStateContent: { padding: 24, alignItems: 'center' },
+  emptyStateText: { fontSize: 16, fontWeight: '600', color: 'white', marginBottom: 8 },
+  emptyStateSubtext: { fontSize: 14, color: 'rgba(255,255,255,0.5)', textAlign: 'center' },
+  
+  // Guest List Items
+  guestItemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)' },
+  guestItemInfo: { flex: 1 },
+  guestItemName: { fontSize: 15, fontWeight: '600', color: 'white', marginBottom: 2 },
+  guestItemEmail: { fontSize: 12, color: 'rgba(255,255,255,0.5)' },
+  viewAllGuests: { color: '#C026D3', fontSize: 14, fontWeight: '500', textAlign: 'center', marginTop: 12 },
+  
+  // Entry Control
+  entryControlRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  entryStatusContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  entryStatusDot: { width: 10, height: 10, borderRadius: 5 },
+  entryStatusText: { color: 'white', fontSize: 16, fontWeight: '600' },
+  entryToggleButton: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 },
+  entryToggleButtonText: { color: 'white', fontSize: 14, fontWeight: '600' },
+  scanSection: { marginTop: 8 },
+  scanSectionTitle: { color: 'rgba(255,255,255,0.8)', fontSize: 14, marginBottom: 12 },
+  scanButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.1)', paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  scanButtonText: { color: 'white', fontSize: 14, fontWeight: '500' },
+  
+  // Scan Modal
+  scanModalContent: { backgroundColor: Theme.colors.background, borderRadius: 24, padding: 24, width: '90%', maxWidth: 400 },
+  scanModalBody: { gap: 20, marginTop: 16 },
+  scanInput: { backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', borderRadius: 12, color: 'white', padding: 16, fontSize: 16, minHeight: 56 },
+  scanModalButtons: { flexDirection: 'row', gap: 12 },
+  scanCancelButton: { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center' },
+  scanCancelButtonText: { color: 'white', fontSize: 14, fontWeight: '500' },
+  scanConfirmButton: { flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#C026D3', alignItems: 'center' },
+  scanConfirmButtonDisabled: { backgroundColor: 'rgba(192, 38, 211, 0.5)' },
+  scanConfirmButtonText: { color: 'white', fontSize: 14, fontWeight: '600' },
 });
