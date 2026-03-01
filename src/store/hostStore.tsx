@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import {
+  getHostEventsApi,
   getEventAnalyticsApi,
   getEventGuestsApi,
   getEventAttendanceApi,
@@ -9,15 +10,17 @@ import {
   GuestListParams,
   ManualScanPayload,
 } from "../api/hostApi";
-import { EventAnalytics, Guest, Attendance } from "../types/hostTypes";
+import { EventAnalytics, Guest, Attendance, HostEvent } from "../types/hostTypes";
 
 interface HostState {
+  events: HostEvent[];
   analytics: EventAnalytics | null;
   guests: Guest[];
   attendance: Attendance | null;
   loading: boolean;
   error: string | null;
 
+  fetchHostEvents: () => Promise<void>;
   fetchAnalytics: (eventId: string) => Promise<void>;
   fetchGuests: (eventId: string, params?: GuestListParams) => Promise<void>;
   fetchAttendance: (eventId: string) => Promise<void>;
@@ -28,11 +31,22 @@ interface HostState {
 }
 
 export const useHostStore = create<HostState>((set) => ({
+  events: [],
   analytics: null,
   guests: [],
   attendance: null,
   loading: false,
   error: null,
+
+  fetchHostEvents: async () => {
+    try {
+      set({ loading: true, error: null });
+      const res = await getHostEventsApi();
+      set({ events: res.data ?? [], loading: false });
+    } catch (err: any) {
+      set({ loading: false, error: err.message });
+    }
+  },
 
   fetchAnalytics: async (eventId) => {
     try {

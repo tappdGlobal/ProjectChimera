@@ -1,6 +1,12 @@
 import { apiClient } from "../services/api";
 import { ApiResponse } from "../types/authTypes";
-import { EventAnalytics, Guest, Attendance } from "../types/hostTypes";
+import { EventAnalytics, Guest, Attendance, HostEvent } from "../types/hostTypes";
+
+/* ================= HOST EVENTS LIST ================= */
+
+export const getHostEventsApi = (): Promise<ApiResponse<HostEvent[]>> => {
+  return apiClient.get('/host/events');
+};
 
 /* ================= EVENT ANALYTICS ================= */
 

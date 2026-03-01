@@ -780,13 +780,7 @@ export function HostScreen({ route }: any) {
   };
 
   const handlePublishedTabClick = () => {
-    setShowComingSoon(true);
-    // navigation.navigate(SCREEN_NAMES.PUBLISHED_EVENTS as never);
-    // if (onShowPublished) {
-    //   onShowPublished();
-    //   navigation.navigate(SCREEN_NAMES.PUBLISHED_EVENTS as never);
-    // }
-    // Note: We need a navigation hook here to switch to the PublishedEventsScreen
+    navigation.navigate(SCREEN_NAMES.PUBLISHED_EVENTS as never);
   };
 
   const handleLogin = () => {
