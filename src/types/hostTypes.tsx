@@ -14,10 +14,26 @@ export interface HostEvent {
 }
 
 export interface EventAnalytics {
-  totalBookings: number;
-  totalCheckedIn: number;
-  totalCancelled: number;
-  revenue?: number;
+  eventStats: {
+    totalPeopleRegistered: number;
+    totalCheckedIn: number;
+    maxCapacity: number;
+  };
+  earnings: {
+    totalEarnings: number;
+    tappdServiceCharge: number;
+    netEarnings: number;
+  };
+  performance: {
+    occupancyRate: number;
+    revenuePerAttendee: number;
+    connectionRate: number;
+  };
+  engagement: {
+    connectionsMade: number;
+    activeConnectors: number;
+    avgConnectionsPerUser: number;
+  };
 }
 
 export interface Guest {

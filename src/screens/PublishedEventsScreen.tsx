@@ -402,7 +402,7 @@ const EventDetailModal = React.memo(({
   }, [event?.id, scanBookingId, manualScan, fetchGuests, fetchAttendance]);
 
   // Calculate checked in count from guests or attendance
-  const checkedInCount = attendance?.checkedIn || guests.filter(g => g.checkedIn).length;
+  const checkedInCount = analytics?.eventStats?.totalCheckedIn ?? attendance?.checkedIn ?? guests.filter(g => g.checkedIn).length;
   const totalGuests = attendance?.totalGuests || guests.length;
 
   return (
@@ -461,10 +461,10 @@ const EventDetailModal = React.memo(({
                 <Card style={styles.analyticCard}>
                   <CardContent style={styles.analyticCardContent}>
                     <Users size={32} color="#C026D3" style={styles.mb2} />
-                    <Text style={styles.analyticMetricText}>{analytics?.totalBookings || event.registrations}</Text>
+                    <Text style={styles.analyticMetricText}>{analytics?.eventStats?.totalPeopleRegistered ?? event.registrations}</Text>
                     <Text style={styles.analyticMetricLabel}>Total Bookings</Text>
                     <View style={styles.analyticsProgressContainer}>
-                      <View style={[styles.analyticsProgressFill, { width: `${((analytics?.totalBookings || event.registrations) / event.maxOccupancy) * 100}%` }]} />
+                      <View style={[styles.analyticsProgressFill, { width: `${((analytics?.eventStats?.totalPeopleRegistered ?? event.registrations) / event.maxOccupancy) * 100}%` }]} />
                     </View>
                   </CardContent>
                 </Card>
@@ -573,16 +573,16 @@ const EventDetailModal = React.memo(({
                 <CardContent style={styles.financialContent}>
                   <View style={styles.financialRow}>
                     <Text style={styles.financialLabel}>Total Revenue:</Text>
-                    <Text style={styles.financialValue}>{formatCurrency(analytics?.revenue || 0)}</Text>
+                    <Text style={styles.financialValue}>{formatCurrency(analytics?.earnings?.totalEarnings ?? 0)}</Text>
                   </View>
                   <View style={styles.financialRow}>
-                    <Text style={styles.financialLabel}>TAPPD Service Charge (20%):</Text>
-                    <Text style={styles.financialValueDestructive}>-{formatCurrency((analytics?.revenue || 0) * 0.2)}</Text>
+                    <Text style={styles.financialLabel}>TAPPD Service Charge:</Text>
+                    <Text style={styles.financialValueDestructive}>-{formatCurrency(analytics?.earnings?.tappdServiceCharge ?? 0)}</Text>
                   </View>
                   <View style={styles.financialDivider} />
                   <View style={styles.financialRow}>
                     <Text style={styles.financialNetLabel}>Net Earnings:</Text>
-                    <Text style={styles.financialNetValue}>{formatCurrency((analytics?.revenue || 0) * 0.8)}</Text>
+                    <Text style={styles.financialNetValue}>{formatCurrency(analytics?.earnings?.netEarnings ?? 0)}</Text>
                   </View>
                 </CardContent>
               </Card>
@@ -596,34 +596,15 @@ const EventDetailModal = React.memo(({
                 </CardHeader>
                 <CardContent style={styles.financialContent}>
                   <View style={styles.financialRow}>
-                    <Text style={styles.financialLabel}>Total Bookings:</Text>
-                    <Text style={styles.financialValue}>{analytics?.totalBookings || 0}</Text>
-                  </View>
-                  <View style={styles.financialRow}>
-                    <Text style={styles.financialLabel}>Checked In:</Text>
-                    <Text style={styles.financialValue}>{analytics?.totalCheckedIn || 0}</Text>
-                  </View>
-                  <View style={styles.financialRow}>
-                    <Text style={styles.financialLabel}>Cancelled:</Text>
-                    <Text style={styles.financialValueDestructive}>{analytics?.totalCancelled || 0}</Text>
-                  </View>
-                  <View style={styles.financialDivider} />
-                  <View style={styles.financialRow}>
                     <Text style={styles.financialLabel}>Occupancy Rate:</Text>
                     <Text style={styles.financialValue}>
-                      {event.maxOccupancy > 0 ? Math.round(((analytics?.totalBookings || 0) / event.maxOccupancy) * 100) : 0}%
+                      {Math.round(analytics?.performance?.occupancyRate ?? 0)}%
                     </Text>
                   </View>
                   <View style={styles.financialRow}>
                     <Text style={styles.financialLabel}>Revenue per Attendee:</Text>
                     <Text style={styles.financialValue}>
-                      {formatCurrency((analytics?.totalCheckedIn || 0) > 0 ? (analytics?.revenue || 0) / (analytics?.totalCheckedIn || 1) : 0)}
-                    </Text>
-                  </View>
-                  <View style={styles.financialRow}>
-                    <Text style={styles.financialLabel}>Check-in Rate:</Text>
-                    <Text style={styles.financialValue}>
-                      {(analytics?.totalBookings || 0) > 0 ? Math.round(((analytics?.totalCheckedIn || 0) / analytics?.totalBookings) * 100) : 0}%
+                      {formatCurrency(analytics?.performance?.revenuePerAttendee ?? 0)}
                     </Text>
                   </View>
                 </CardContent>
@@ -677,39 +658,53 @@ const EventDetailModal = React.memo(({
 
 export function PublishedEventsScreen() {
   const navigation = useNavigation();
-  const { events, loading, fetchHostEvents } = useHostStore();
+  const { events, analyticsMap, loading, fetchHostEvents, fetchAllEventsAnalytics } = useHostStore();
   const [selectedEvent, setSelectedEvent] = useState<PublishedEvent | null>(null);
 
-  // Fetch host events on mount
+  // Fetch host events and their analytics on mount
   useEffect(() => {
-    fetchHostEvents();
+    const loadData = async () => {
+      await fetchHostEvents();
+    };
+    loadData();
   }, []);
 
-  // Transform HostEvent to PublishedEvent format
-  const transformedEvents: PublishedEvent[] = events.map(event => ({
-    id: event.id,
-    name: event.eventName,
-    date: new Date(event.eventDatetime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    time: new Date(event.eventDatetime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-    location: event.location,
-    category: event.category,
-    registrations: event.bookedCount,
-    maxOccupancy: event.maxCapacity,
-    rating: 4.7, // Default rating since API doesn't provide it
-    revenue: 0, // Will be calculated from analytics
-    serviceCharge: 0,
-    netEarnings: 0,
-    totalReviews: 0,
-    connections: 0,
-    status: "upcoming" as const,
-    image: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&q=80",
-    entryOpen: event.entryOpen,
-    checkedInCount: event.checkedInCount,
-    reviews: [],
-  }));
+  // Fetch analytics for all events when events change
+  useEffect(() => {
+    if (events.length > 0) {
+      const eventIds = events.map(e => e.id);
+      fetchAllEventsAnalytics(eventIds);
+    }
+  }, [events.length]);
+
+  // Transform HostEvent to PublishedEvent format with analytics data
+  const transformedEvents: PublishedEvent[] = events.map(event => {
+    const analytics = analyticsMap.get(event.id);
+    return {
+      id: event.id,
+      name: event.eventName,
+      date: new Date(event.eventDatetime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      time: new Date(event.eventDatetime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      location: event.location,
+      category: event.category,
+      registrations: event.bookedCount,
+      maxOccupancy: event.maxCapacity,
+      rating: 4.7, // Default rating since API doesn't provide it
+      revenue: analytics?.earnings?.totalEarnings ?? 0,
+      serviceCharge: analytics?.earnings?.tappdServiceCharge ?? 0,
+      netEarnings: analytics?.earnings?.netEarnings ?? 0,
+      totalReviews: 0,
+      connections: analytics?.engagement?.connectionsMade ?? 0,
+      status: "upcoming" as const,
+      image: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&q=80",
+      entryOpen: event.entryOpen,
+      checkedInCount: event.checkedInCount,
+      reviews: [],
+    };
+  });
 
   // Calculate totals from real data
-  const totalEarnings = 0; // Will be calculated when analytics API is integrated
+  const totalEarnings = transformedEvents.reduce((sum, e) => sum + (e.netEarnings || 0), 0);
   const totalRegistrations = events.reduce((sum, e) => sum + e.bookedCount, 0);
 
   return (
