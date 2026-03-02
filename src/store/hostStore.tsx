@@ -15,6 +15,7 @@ import { EventAnalytics, Guest, Attendance, HostEvent } from "../types/hostTypes
 interface HostState {
   events: HostEvent[];
   analytics: EventAnalytics | null;
+  analyticsMap: Map<string, EventAnalytics>; // eventId -> analytics
   guests: Guest[];
   attendance: Attendance | null;
   loading: boolean;
@@ -22,6 +23,7 @@ interface HostState {
 
   fetchHostEvents: () => Promise<void>;
   fetchAnalytics: (eventId: string) => Promise<void>;
+  fetchAllEventsAnalytics: (eventIds: string[]) => Promise<void>;
   fetchGuests: (eventId: string, params?: GuestListParams) => Promise<void>;
   fetchAttendance: (eventId: string) => Promise<void>;
   closeEntry: (eventId: string) => Promise<void>;
@@ -30,9 +32,10 @@ interface HostState {
   clearHostData: () => void;
 }
 
-export const useHostStore = create<HostState>((set) => ({
+export const useHostStore = create<HostState>((set, get) => ({
   events: [],
   analytics: null,
+  analyticsMap: new Map(),
   guests: [],
   attendance: null,
   loading: false,
@@ -53,6 +56,31 @@ export const useHostStore = create<HostState>((set) => ({
       set({ loading: true, error: null });
       const res = await getEventAnalyticsApi(eventId);
       set({ analytics: res.data ?? null, loading: false });
+    } catch (err: any) {
+      set({ loading: false, error: err.message });
+    }
+  },
+
+  fetchAllEventsAnalytics: async (eventIds) => {
+    try {
+      set({ loading: true, error: null });
+      const analyticsMap = new Map(get().analyticsMap);
+      
+      // Fetch analytics for all events in parallel
+      await Promise.all(
+        eventIds.map(async (eventId) => {
+          try {
+            const res = await getEventAnalyticsApi(eventId);
+            if (res.data) {
+              analyticsMap.set(eventId, res.data);
+            }
+          } catch (err) {
+            console.error(`Failed to fetch analytics for event ${eventId}:`, err);
+          }
+        })
+      );
+      
+      set({ analyticsMap, loading: false });
     } catch (err: any) {
       set({ loading: false, error: err.message });
     }
