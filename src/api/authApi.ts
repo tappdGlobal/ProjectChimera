@@ -171,7 +171,7 @@ export const restoreAccountApi = (): Promise<ApiResponse<{ user: User; token: st
 export const checkUsernameApi = (
   username: string
 ): Promise<ApiResponse<{ available: boolean }>> => {
-  return apiClient.get(`/auth/check-username/${username}`);
+  return apiClient.get(`/users/check-username?username=${username}`);
 };
 
 /* ================= CHECK EMAIL AVAILABILITY ================= */

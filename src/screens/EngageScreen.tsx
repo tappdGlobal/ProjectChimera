@@ -17,14 +17,14 @@ import ChatListScreen from "../screens/ChatListScreen"; // Use the real screen, 
 type SectionType = "chat" | "match" | "interaction" | "connect";
 
 export function EngageScreen() {
+  const navigation = useNavigation<any>();
+  
   const [activeSection, setActiveSection] =
-    useState<SectionType>("interaction");
+    useState<SectionType>("connect"); // Default to Tap to Connect menu
 
   const { trackEvent } = useAnalytics("EngageScreen", {
     active_section: activeSection,
   });
-
-  const navigation = useNavigation<any>();
 
   const menuItems: { id: SectionType; label: string }[] = [
     { id: "chat", label: "Chat" },
