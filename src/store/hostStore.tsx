@@ -17,7 +17,9 @@ interface HostState {
   analytics: EventAnalytics | null;
   analyticsMap: Map<string, EventAnalytics>; // eventId -> analytics
   guests: Guest[];
+  guestsCountMap: Map<string, number>; // eventId -> guest count
   attendance: Attendance | null;
+  attendanceMap: Map<string, Attendance>; // eventId -> attendance
   loading: boolean;
   error: string | null;
 
@@ -25,7 +27,9 @@ interface HostState {
   fetchAnalytics: (eventId: string) => Promise<void>;
   fetchAllEventsAnalytics: (eventIds: string[]) => Promise<void>;
   fetchGuests: (eventId: string, params?: GuestListParams) => Promise<void>;
+  fetchEventsGuestsCount: (eventIds: string[]) => Promise<void>;
   fetchAttendance: (eventId: string) => Promise<void>;
+  fetchEventsAttendance: (eventIds: string[]) => Promise<void>;
   closeEntry: (eventId: string) => Promise<void>;
   openEntry: (eventId: string) => Promise<void>;
   manualScan: (eventId: string, bookingId: string) => Promise<void>;
@@ -37,7 +41,9 @@ export const useHostStore = create<HostState>((set, get) => ({
   analytics: null,
   analyticsMap: new Map(),
   guests: [],
+  guestsCountMap: new Map(),
   attendance: null,
+  attendanceMap: new Map(),
   loading: false,
   error: null,
 
@@ -96,11 +102,57 @@ export const useHostStore = create<HostState>((set, get) => ({
     }
   },
 
+  fetchEventsGuestsCount: async (eventIds) => {
+    try {
+      const guestsCountMap = new Map(get().guestsCountMap);
+      await Promise.all(
+        eventIds.map(async (eventId) => {
+          try {
+            const res = await getEventGuestsApi(eventId);
+            if (res.data) {
+              guestsCountMap.set(eventId, res.data.length);
+            }
+          } catch (err) {
+            console.error(`Failed to fetch guests for event ${eventId}:`, err);
+          }
+        })
+      );
+      set({ guestsCountMap });
+    } catch (err: any) {
+      // Non-blocking error
+      console.log(err.message);
+    }
+  },
+
   fetchAttendance: async (eventId) => {
     try {
       set({ loading: true, error: null });
       const res = await getEventAttendanceApi(eventId);
       set({ attendance: res.data ?? null, loading: false });
+    } catch (err: any) {
+      set({ loading: false, error: err.message });
+    }
+  },
+
+  fetchEventsAttendance: async (eventIds) => {
+    try {
+      set({ loading: true, error: null });
+      const attendanceMap = new Map(get().attendanceMap);
+      
+      await Promise.all(
+        eventIds.map(async (eventId) => {
+          try {
+            const res = await getEventAttendanceApi(eventId);
+            if (res.data) {
+              attendanceMap.set(eventId, res.data);
+            }
+          } catch (err) {
+            console.error(`Failed to fetch attendance for event ${eventId}:`, err);
+          }
+        })
+      );
+      
+      set({ attendanceMap, loading: false });
     } catch (err: any) {
       set({ loading: false, error: err.message });
     }
@@ -133,6 +185,7 @@ export const useHostStore = create<HostState>((set, get) => ({
       set({ loading: false });
     } catch (err: any) {
       set({ loading: false, error: err.message });
+      throw new Error(err.message || "Invalid ticket number");
     }
   },
 

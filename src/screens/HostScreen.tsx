@@ -1,6 +1,9 @@
 // src/screens/HostScreen.tsx
 
 import React, { useState, useCallback, useEffect } from "react";
+import ManageEventsScreen from "./ManageEventsScreen";
+import { StackNavigationProp } from "@react-navigation/stack";
+// import { StackNavigationProp } from "@react-navigation/stack";
 import {
   View,
   Text,
@@ -63,6 +66,7 @@ import {
 import { Separator } from "../components/ui/Separator";
 import { Badge } from "../components/ui/Badge";
 import { Theme } from "../styles/Theme";
+import { HostStackParamList } from "../navigation/Routes";
 import { useNavigation } from "@react-navigation/native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { GRADIENT_COLORS } from "../styles/Theme";
@@ -214,7 +218,7 @@ const HostStack = createStackNavigator();
 export function HostStackScreen() {
   return (
     <HostStack.Navigator screenOptions={{ headerShown: false }}>
-      <HostStack.Screen name={SCREEN_NAMES.HOST} component={HostScreen} />
+      <HostStack.Screen name={SCREEN_NAMES.HOST_MAIN} component={HostScreen} />
       <HostStack.Screen
         name={SCREEN_NAMES.PUBLISHED_EVENTS}
         component={PublishedEventsScreen}
@@ -222,6 +226,10 @@ export function HostStackScreen() {
       <HostStack.Screen
         name={SCREEN_NAMES.DRAFT_EVENTS}
         component={DraftsScreen}
+      />
+      <HostStack.Screen
+        name={SCREEN_NAMES.MANAGE_EVENTS}
+        component={ManageEventsScreen}
       />
     </HostStack.Navigator>
   );
@@ -232,8 +240,9 @@ export function HostScreen({ route }: any) {
 
   console.log("🏠 HostScreen mounted");
   console.log("🏠 editingDraft from route:", editingDraft);
-
-  const navigation = useNavigation();
+  const navigation = useNavigation<
+  StackNavigationProp<HostStackParamList, typeof SCREEN_NAMES.HOST_MAIN>
+  >();
   const insets = useSafeAreaInsets();
   useAnalytics("HostScreen");
 
@@ -955,54 +964,130 @@ export function HostScreen({ route }: any) {
 
               {/* Date + Time */}
               <View style={styles.grid2Col}>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, position: 'relative' }}>
                   <View style={styles.iconLabel}>
                     <Calendar size={16} color={Theme.colors.foreground} />
                     <Text style={styles.label}>Date</Text>
                   </View>
-                  <TouchableOpacity
-                    style={styles.fieldRow}
-                    onPress={() => {
-                      console.log("Date picker pressed");
-                      setShowDatePicker(true);
-                    }}
-                  >
-                    <Text
-                      style={
-                        localFormData.date
-                          ? styles.fieldText
-                          : styles.placeholderText
-                      }
+                  {Platform.OS !== "ios" && Platform.OS !== "android" ? (
+                    <View style={styles.fieldRow} pointerEvents="auto">
+                      <Text
+                        style={
+                          localFormData.date
+                            ? styles.fieldText
+                            : styles.placeholderText
+                        }
+                      >
+                        {localFormData.date || "dd-mm-yyyy"}
+                      </Text>
+                      <Calendar size={18} color={Theme.colors.mutedForeground} />
+                      {React.createElement("input", {
+                        type: "date",
+                        title: "Select Date",
+                        value: localFormData.date 
+                          ? localFormData.date.split("-").reverse().join("-") 
+                          : "",
+                        style: {
+                          position: "absolute",
+                          opacity: 0.01,
+                          width: "100%",
+                          height: "100%",
+                          top: 0,
+                          left: 0,
+                          cursor: "pointer",
+                          zIndex: 100,
+                        },
+                        onClick: (e: any) => {
+                          try {
+                            e.target.showPicker();
+                          } catch (err) {}
+                        },
+                        onChange: (e: any) => {
+                          const val = e.target.value;
+                          if (val) {
+                            const [yyyy, mm, dd] = val.split("-");
+                            handleLocalFieldChange("date", `${dd}-${mm}-${yyyy}`);
+                          }
+                        },
+                      })}
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.fieldRow}
+                      onPress={() => setShowDatePicker(true)}
                     >
-                      {localFormData.date || "dd-mm-yyyy"}
-                    </Text>
-                    <Calendar size={18} color={Theme.colors.mutedForeground} />
-                  </TouchableOpacity>
+                      <Text
+                        style={
+                          localFormData.date
+                            ? styles.fieldText
+                            : styles.placeholderText
+                        }
+                      >
+                        {localFormData.date || "dd-mm-yyyy"}
+                      </Text>
+                      <Calendar size={18} color={Theme.colors.mutedForeground} />
+                    </TouchableOpacity>
+                  )}
                 </View>
 
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, position: 'relative' }}>
                   <View style={styles.iconLabel}>
                     <Clock size={16} color={Theme.colors.foreground} />
                     <Text style={styles.label}>Time</Text>
                   </View>
-                  <TouchableOpacity
-                    style={styles.fieldRow}
-                    onPress={() => {
-                      console.log("Time picker pressed");
-                      setShowTimePicker(true);
-                    }}
-                  >
-                    <Text
-                      style={
-                        localFormData.time
-                          ? styles.fieldText
-                          : styles.placeholderText
-                      }
+                  {Platform.OS !== "ios" && Platform.OS !== "android" ? (
+                    <View style={styles.fieldRow} pointerEvents="auto">
+                      <Text
+                        style={
+                          localFormData.time
+                            ? styles.fieldText
+                            : styles.placeholderText
+                        }
+                      >
+                        {localFormData.time || "--:--"}
+                      </Text>
+                      <Clock size={18} color={Theme.colors.mutedForeground} />
+                      {React.createElement("input", {
+                        type: "time",
+                        title: "Select Time",
+                        value: localFormData.time || "",
+                        style: {
+                          position: "absolute",
+                          opacity: 0.01,
+                          width: "100%",
+                          height: "100%",
+                          top: 0,
+                          left: 0,
+                          cursor: "pointer",
+                          zIndex: 100,
+                        },
+                        onClick: (e: any) => {
+                          try {
+                            e.target.showPicker();
+                          } catch (err) {}
+                        },
+                        onChange: (e: any) => {
+                          handleLocalFieldChange("time", e.target.value);
+                        },
+                      })}
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.fieldRow}
+                      onPress={() => setShowTimePicker(true)}
                     >
-                      {localFormData.time || "--:--"}
-                    </Text>
-                    <Clock size={18} color={Theme.colors.mutedForeground} />
-                  </TouchableOpacity>
+                      <Text
+                        style={
+                          localFormData.time
+                            ? styles.fieldText
+                            : styles.placeholderText
+                        }
+                      >
+                        {localFormData.time || "--:--"}
+                      </Text>
+                      <Clock size={18} color={Theme.colors.mutedForeground} />
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
 
@@ -2001,7 +2086,6 @@ export function HostScreen({ route }: any) {
       <StatusBar style="light" backgroundColor={Theme.colors.background} />
 
       <View style={styles.mainContainer}>
-        {/* HEADER */}
         <View style={styles.mainHeader}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
@@ -2022,7 +2106,7 @@ export function HostScreen({ route }: any) {
           <Text style={styles.mainHeaderTitle}>Welcome Host</Text>
 
           <TouchableOpacity
-            onPress={() => setShowComingSoon(true)}
+            onPress={() => navigation.navigate(SCREEN_NAMES.MANAGE_EVENTS as never)}
             style={styles.headerIconRight}
           >
             <LayoutDashboard size={22} color={Theme.colors.foreground} />

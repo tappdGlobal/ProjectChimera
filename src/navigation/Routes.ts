@@ -1,3 +1,4 @@
+
 // src/navigation/Routes.ts
 
 export const SCREEN_NAMES = {
@@ -10,7 +11,7 @@ export const SCREEN_NAMES = {
   MAIN_TABS: "MainTabs",
   EDIT_PROFILE: "EditProfile",
   SETTINGS: "Settings",
-  CHAT_LIST: "ChatList",          // ✅ ADDED
+  CHAT_LIST: "ChatList",
   CHAT_DETAIL: "ChatDetail",
   CHAT_SETTINGS: "ChatSettings",
   FRIENDS_LIST: "FriendsList",
@@ -37,6 +38,8 @@ export const SCREEN_NAMES = {
   HOST_MAIN: "HostMain",
   DRAFT_EVENTS: "DraftEvents",
   PUBLISHED_EVENTS: "PublishedEvents",
+  MANAGE_EVENTS: "ManageEvents",
+  EVENT_DASHBOARD: "EventDashboard",
 
   // ================= STANDALONE =================
   EVENT_DETAILS_SCREEN: "EventDetailsScreen",
@@ -44,6 +47,7 @@ export const SCREEN_NAMES = {
   // ================= POST =================
   CREATE_POST: "CreatePost",
 } as const;
+
 
 /* ================= AUTH STACK ================= */
 
@@ -53,6 +57,7 @@ export type AuthStackParamList = {
   [SCREEN_NAMES.PROFILE_CREATION]: undefined;
 };
 
+
 /* ================= ROOT TABS ================= */
 
 export type RootTabParamList = {
@@ -60,29 +65,34 @@ export type RootTabParamList = {
   [SCREEN_NAMES.ENGAGE]: undefined;
   [SCREEN_NAMES.HOST]: undefined;
   [SCREEN_NAMES.RECONNECT]: undefined;
-  
   [SCREEN_NAMES.PROFILE]: undefined;
 };
+
 
 /* ================= APP STACK ================= */
 
 export type AppStackParamList = {
   [SCREEN_NAMES.MAIN_TABS]: undefined;
   [SCREEN_NAMES.EDIT_PROFILE]: undefined;
-   [SCREEN_NAMES.NOTIFICATIONS]: undefined;
+  [SCREEN_NAMES.NOTIFICATIONS]: undefined;
   [SCREEN_NAMES.SETTINGS]: undefined;
+
   [SCREEN_NAMES.CHAT_DETAIL]: {
     chatId: string;
     name: string;
     avatar: string;
   };
+
   [SCREEN_NAMES.CHAT_SETTINGS]: undefined;
+
   [SCREEN_NAMES.EVENT_DETAILS_SCREEN]: undefined;
+
   [SCREEN_NAMES.CREATE_POST]: {
     imageUri: string;
-    mediaType?: 'image' | 'video';
+    mediaType?: "image" | "video";
   };
 };
+
 
 /* ================= EXPLORE STACK ================= */
 
@@ -96,17 +106,19 @@ export type ExploreStackParamList = {
   [SCREEN_NAMES.EVENT_DETAIL]: {
     event: any;
   };
+
   [SCREEN_NAMES.CATEGORY_EVENTS]: {
     category: string;
   };
 };
+
 
 /* ================= ENGAGE STACK ================= */
 
 export type EngageStackParamList = {
   [SCREEN_NAMES.ENGAGE_HOME]: undefined;
 
-  [SCREEN_NAMES.CHAT_LIST]: undefined;   // ✅ ADDED
+  [SCREEN_NAMES.CHAT_LIST]: undefined;
 
   [SCREEN_NAMES.CHAT_DETAIL]: {
     chatId: string;
@@ -121,6 +133,7 @@ export type EngageStackParamList = {
   [SCREEN_NAMES.FRIEND_REQUESTS]: undefined;
 };
 
+
 /* ================= HOST STACK ================= */
 
 export type HostStackParamList = {
@@ -131,4 +144,9 @@ export type HostStackParamList = {
   [SCREEN_NAMES.DRAFT_EVENTS]: undefined;
 
   [SCREEN_NAMES.PUBLISHED_EVENTS]: undefined;
+
+  [SCREEN_NAMES.MANAGE_EVENTS]: undefined; // ✅ REQUIRED FIX
+
+  [SCREEN_NAMES.EVENT_DASHBOARD]: { event: any };
 };
+
