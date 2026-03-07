@@ -5,6 +5,8 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { HostScreen } from "../screens/HostScreen";
 import { PublishedEventsScreen } from "../screens/PublishedEventsScreen";
 import { DraftEventsScreen } from "../screens/DraftEventsScreen";
+import ManageEventsScreen from "../screens/ManageEventsScreen";
+import EventDashboardScreen from "../screens/EventDashboardScreen";
 import { SCREEN_NAMES } from "./Routes";
 
 const HostStack = createStackNavigator();
@@ -26,7 +28,16 @@ export function HostStackScreen() {
         name={SCREEN_NAMES.DRAFT_EVENTS}
         component={DraftEventsScreen}
       />
+
+      <HostStack.Screen
+        name={SCREEN_NAMES.MANAGE_EVENTS}
+        component={ManageEventsScreen}
+      />
+
+      <HostStack.Screen
+        name={SCREEN_NAMES.EVENT_DASHBOARD}
+        component={EventDashboardScreen}
+      />
     </HostStack.Navigator>
   );
 }
-
