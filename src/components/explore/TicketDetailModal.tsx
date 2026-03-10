@@ -11,6 +11,13 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import QRCode from "react-native-qrcode-svg";
+import ViewShot from "react-native-view-shot";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
+import { useRef } from "react";
+import ComingSoon from "../common/ComingSoon";
+import { Image } from "react-native";
+import { useState } from "react";
 interface Props {
   booking: any;
   onClose: () => void;
@@ -18,6 +25,46 @@ interface Props {
 
 export function TicketDetailModal({ booking, onClose }: Props) {
   const { event, ticket } = booking;
+  const ticketRef = useRef<any>(null);
+  const [showComingSoon, setShowComingSoon] = useState(false);
+  const downloadTicket = async () => {
+    try {
+      if (!ticketRef.current) return;
+
+      const uri = await ticketRef.current.capture();
+
+      // ask user for Downloads folder permission
+      const permissions =
+        await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+
+      if (!permissions.granted) {
+        alert("Permission required to save file");
+        return;
+      }
+
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      const fileName = `ticket_${booking.id}.png`;
+
+      const newFileUri =
+        await FileSystem.StorageAccessFramework.createFileAsync(
+          permissions.directoryUri,
+          fileName,
+          "image/png"
+        );
+
+      await FileSystem.writeAsStringAsync(newFileUri, base64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      alert("Ticket downloaded successfully!");
+    } catch (error) {
+      console.log("Ticket download failed:", error);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.overlay} edges={["bottom"]}>
       <View style={styles.sheet}>
@@ -27,57 +74,70 @@ export function TicketDetailModal({ booking, onClose }: Props) {
         </Pressable>
 
         {/* ✅ SCROLLABLE CONTENT */}
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.content}
-        >
-          <Text style={styles.headerTitle}>Your Ticket</Text>
-          <Text style={styles.subtitle}>
-            Show this QR code at the venue entrance
-          </Text>
+        <View style={styles.content}>
+          <ViewShot ref={ticketRef} options={{ format: "png", quality: 1 }}>
 
-          {/* QR */}
-          <View style={{ alignItems: "center", marginTop: Theme.spacing.l }}>
-            {booking?.qrCode ? (
-              <LinearGradient
-                colors={GRADIENT_COLORS.primary as [string, string]}
-                style={styles.qrGradientBorder}
-              >
-                <View style={styles.qrInner}>
-                  <QRCode
-                    value={booking.qrCode}
-                    size={260}              // bigger = sharper QR
-                    backgroundColor="#ffffff"
-                    color="#000000"
-                    ecl="H"                 // highest error correction
-                    quietZone={16}          // extra padding for scanners
-                  />
-                </View>
-              </LinearGradient>
-            ) : (
-              <Text>QR not available</Text>
-            )}
-          </View>
+            <View style={styles.headerRow}>
+              <Text style={styles.headerTitle}>Your Ticket</Text>
 
-          {/* INFO CARD */}
-          <View style={styles.infoCard}>
-            <Text style={styles.eventTitle}>{event.eventName}</Text>
+              <Image
+                source={require("../../../assets/tappdLogo.png")}
+                style={styles.logo}
+              />
+            </View>
 
-            <InfoRow
-              label="Date:"
-              value={new Date(event.eventDate).toLocaleDateString()}
-            />
-            <InfoRow label="Time:" value={event.eventTime} />
-            <InfoRow label="Ticket Type:" value={ticket.ticketLabel} />
-          </View>
+            <Text style={styles.subtitle}>
+              Show this QR code at the venue entrance
+            </Text>
+
+            {/* QR */}
+            <View style={{ alignItems: "center", marginTop: Theme.spacing.l }}>
+              {booking?.qrCode ? (
+                <LinearGradient
+                  colors={GRADIENT_COLORS.primary as [string, string]}
+                  style={styles.qrGradientBorder}
+                >
+                  <View style={styles.qrInner}>
+                    <QRCode
+                      value={booking.qrCode}
+                      size={240}
+                      backgroundColor="#ffffff"
+                      color="#000000"
+                      ecl="H"
+                      quietZone={0}
+                    />
+                  </View>
+                </LinearGradient>
+              ) : (
+                <Text style={{ color: "#000" }}>QR not available</Text>
+              )}
+            </View>
+
+            {/* INFO CARD */}
+            <View style={styles.infoCard}>
+              <Text style={styles.eventTitle}>{event.eventName}</Text>
+
+              <InfoRow
+                label="Date:"
+                value={new Date(event.eventDate).toLocaleDateString()}
+              />
+              <InfoRow label="Time:" value={event.eventTime} />
+              <InfoRow label="Ticket Type:" value={ticket.ticketLabel} />
+            </View>
+
+          </ViewShot>
+
+
 
           {/* DOWNLOAD */}
-          <LinearGradient
-            colors={GRADIENT_COLORS.primary as [string, string]}
-            style={styles.downloadBtn}
-          >
-            <Text style={styles.downloadText}>Download Ticket</Text>
-          </LinearGradient>
+          <Pressable onPress={downloadTicket}>
+            <LinearGradient
+              colors={GRADIENT_COLORS.primary as [string, string]}
+              style={styles.downloadBtn}
+            >
+              <Text style={styles.downloadText}>Download Ticket</Text>
+            </LinearGradient>
+          </Pressable>
 
           {/* UBER */}
           <View style={styles.rideCard}>
@@ -94,13 +154,20 @@ export function TicketDetailModal({ booking, onClose }: Props) {
               </View>
             </View>
 
-            <Pressable style={styles.uberButton}>
+            <Pressable
+              style={styles.uberButton}
+              onPress={() => setShowComingSoon(true)}
+            >
               <Ionicons name="car-outline" size={18} color="#000" />
               <Text style={styles.uberText}>Book Uber</Text>
             </Pressable>
           </View>
-        </ScrollView>
+        </View>
       </View>
+      <ComingSoon
+        visible={showComingSoon}
+        onClose={() => setShowComingSoon(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -120,28 +187,28 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.6)",
-    justifyContent: "flex-end",
   },
 
   sheet: {
+    flex: 1,
     backgroundColor: Theme.colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: "92%",           // 🔥 prevents overflow
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     position: "relative",
   },
 
   closeBtn: {
     position: "absolute",
-    top: 12,
-    right: 12,
-    zIndex: 100,                // 🔥 ALWAYS on top
+    top: 40,
+    right: 16,
+    zIndex: 100,
+    elevation: 10,   // 🔥 important for Android touch
     padding: 8,
   },
-
   content: {
     padding: Theme.spacing.l,
-    paddingTop: 48,             // 🔥 space for close button
+    paddingTop: 80,   // increase space from X button
+    flexGrow: 1,
   },
 
   headerTitle: {
@@ -165,12 +232,12 @@ const styles = StyleSheet.create({
   },
 
   qrBox: {
-    borderRadius: Theme.radius.lg,
+    borderRadius: 12,
     borderWidth: 3,
     borderColor: Theme.colors.primary,
-    padding: 6, // keeps QR centered
-    justifyContent: "center",
-    alignItems: "center",
+    padding: 4,          // very small padding
+    alignSelf: "center",
+    marginTop: Theme.spacing.l,
   },
 
   code: {
@@ -276,14 +343,31 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginLeft: 8,
   },
+  qrBorder: {
+    borderWidth: 3,
+    borderColor: Theme.colors.primary,
+    padding: 2, // very small so border hugs QR
+    borderRadius: 6,
+  },
   qrGradientBorder: {
-    padding: 4, // thickness of gradient border
-    borderRadius: 16,
+    padding: 4,        // thickness of gradient border
+    borderRadius: 14,
   },
 
   qrInner: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 6,
+    backgroundColor: "#ffffff",
+    padding: 2,
+    borderRadius: 10,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  logo: {
+    width: 80,
+    height: 28,
+    resizeMode: "contain",
   },
 });
