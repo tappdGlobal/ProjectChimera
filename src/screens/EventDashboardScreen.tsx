@@ -85,43 +85,28 @@ export default function EventDashboardScreen() {
         return;
       }
     }
+    // Reset scanned result so barcode scanner re-enables
     setScannedResult(null);
+    setTicketInput("");
     setIsScanning(true);
   };
 
   const handleBarcodeScanned = async ({ type, data }: any) => {
+    if (!data) return;
+
+    const scannedTicket = data.trim();
     setIsScanning(false);
-    setScannedResult(data);
-    setTicketInput(data);
+    setScannedResult(scannedTicket);
+    setTicketInput(scannedTicket);
 
-    const guestMatch = guests.find(g => g.bookingId === data);
-
-    // Front-end strict verification: Stop early if ticket is not on list
-    if (!guestMatch) {
-      Toast.show({
-        type: "error",
-        text1: "Invalid Ticket",
-        text2: "This ticket does not match any guest on the list.",
-      });
-      return;
-    }
-
-    if (guestMatch.checkedIn) {
-      Toast.show({
-        type: "error",
-        text1: "Already checked in",
-        text2: `${guestMatch.name || (guestMatch.bookingId ? `Guest ${guestMatch.bookingId.slice(-4)}` : "Unknown Guest")} has already entered.`,
-      });
-      return;
-    }
-
+    // Try API check-in directly — the backend is the source of truth
     try {
       if (event.id) {
-        await manualScan(event.id, data);
+        await manualScan(event.id, scannedTicket);
         Toast.show({
           type: "success",
           text1: "Check-in Successful",
-          text2: guestMatch ? `Checked in ${guestMatch.name}` : `Successfully checked in ticket`,
+          text2: "Guest has been checked in.",
         });
         await fetchGuests(event.id);
         setTicketInput("");
@@ -129,8 +114,8 @@ export default function EventDashboardScreen() {
     } catch (e: any) {
       Toast.show({
         type: "error",
-        text1: "Ticket not found",
-        text2: "The scanned ticket is invalid.",
+        text1: "Check-in Failed",
+        text2: e.message || "Could not check in this ticket.",
       });
     }
   };
@@ -144,34 +129,21 @@ export default function EventDashboardScreen() {
       return;
     }
 
-    const guestMatch = guests.find(g => g.bookingId === ticketId);
+    const inputTicket = ticketId.trim();
 
-    // Front-end strict verification: Stop early if ticket is not on list
-    if (!guestMatch) {
-      Toast.show({
-        type: "error",
-        text1: "Invalid Ticket",
-        text2: "The entered ticket does not match any guest.",
-      });
-      return;
-    }
-
-    if (guestMatch.checkedIn) {
-      Toast.show({
-        type: "error",
-        text1: "Already checked in",
-        text2: `${guestMatch.name || (guestMatch.bookingId ? `Guest ${guestMatch.bookingId.slice(-4)}` : "Unknown Guest")} has already entered.`,
-      });
-      return;
-    }
-
+    // Try API check-in directly — the backend is the source of truth
     try {
       if (event.id) {
-        await manualScan(event.id, ticketId);
+        await manualScan(event.id, inputTicket);
+
+        const guestMatch = guests.find(
+          g => g.bookingId?.trim().toLowerCase() === inputTicket.toLowerCase()
+        );
+
         Toast.show({
           type: "success",
           text1: "Check-in Successful",
-          text2: guestMatch ? `Checked in ${guestMatch.name}` : `Successfully checked in ticket`,
+          text2: guestMatch ? `Checked in ${guestMatch.name}` : "Guest checked in successfully.",
         });
         await fetchGuests(event.id);
         setTicketInput("");
@@ -179,8 +151,8 @@ export default function EventDashboardScreen() {
     } catch (e: any) {
       Toast.show({
         type: "error",
-        text1: "Ticket not found",
-        text2: "The entered ticket is invalid.",
+        text1: "Check-in Failed",
+        text2: e.message || "Invalid ticket or already checked in.",
       });
     }
   };
@@ -209,6 +181,28 @@ export default function EventDashboardScreen() {
     }
   };
 
+  // Compute event status based on date
+  const getEventStatus = () => {
+    try {
+      const eventDate = new Date(event.eventDatetime);
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const eventDay = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+
+      if (eventDay.getTime() === today.getTime()) {
+        return { label: "Live", color: "#10B981", bgColor: "rgba(16, 185, 129, 0.15)", borderColor: "rgba(16, 185, 129, 0.3)" };
+      } else if (eventDay.getTime() > today.getTime()) {
+        return { label: "Upcoming", color: "#EAB308", bgColor: "rgba(234, 179, 8, 0.15)", borderColor: "rgba(234, 179, 8, 0.3)" };
+      } else {
+        return { label: "Ended", color: "#6B7280", bgColor: "rgba(107, 114, 128, 0.15)", borderColor: "rgba(107, 114, 128, 0.3)" };
+      }
+    } catch (e) {
+      return { label: "Unknown", color: "#6B7280", bgColor: "rgba(107, 114, 128, 0.15)", borderColor: "rgba(107, 114, 128, 0.3)" };
+    }
+  };
+
+  const eventStatus = getEventStatus();
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar barStyle="light-content" backgroundColor="#0B0714" />
@@ -225,9 +219,9 @@ export default function EventDashboardScreen() {
         <View style={styles.headerTitleContainer}>
           <View style={styles.titleRow}>
             <Text style={styles.title} numberOfLines={1}>{event.eventName}</Text>
-            <View style={styles.liveBadge}>
-              <View style={styles.liveDot} />
-              <Text style={styles.liveText}>Live</Text>
+            <View style={[styles.liveBadge, { backgroundColor: eventStatus.bgColor, borderColor: eventStatus.borderColor }]}>
+              <View style={[styles.liveDot, { backgroundColor: eventStatus.color }]} />
+              <Text style={[styles.liveText, { color: eventStatus.color }]}>{eventStatus.label}</Text>
             </View>
           </View>
 
@@ -379,11 +373,13 @@ export default function EventDashboardScreen() {
           <View style={styles.statusCard}>
             <View style={styles.statusCardLeft}>
               <Text style={styles.statusLabel}>Event Status</Text>
-              <Text style={styles.statusValue}>Live Now</Text>
+              <Text style={[styles.statusValue, { color: eventStatus.color }]}>
+                {eventStatus.label === "Live" ? "Live Now" : eventStatus.label === "Upcoming" ? "Upcoming" : "Event Ended"}
+              </Text>
             </View>
             <View style={styles.statusCardRight}>
-              <View style={styles.pulsingDotOutline}>
-                <View style={styles.pulsingDotInner} />
+              <View style={[styles.pulsingDotOutline, { borderColor: eventStatus.color }]}>
+                <View style={[styles.pulsingDotInner, { backgroundColor: eventStatus.color }]} />
               </View>
             </View>
           </View>
@@ -393,22 +389,25 @@ export default function EventDashboardScreen() {
       {/* TAB CONTENT: SCAN - SCANNING */}
       {activeTab === "scan" && isScanning && (
         <View style={styles.cameraContainer}>
+
           <CameraView
             style={StyleSheet.absoluteFillObject}
             facing="back"
             onBarcodeScanned={scannedResult ? undefined : handleBarcodeScanned}
             barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-          >
-            <View style={styles.cameraOverlay}>
-              <View style={styles.scanTargetBox} />
-              <TouchableOpacity
-                style={styles.cancelScanBtn}
-                onPress={() => setIsScanning(false)}
-              >
-                <Text style={styles.cancelScanBtnText}>Cancel Scan</Text>
-              </TouchableOpacity>
-            </View>
-          </CameraView>
+          />
+
+          <View style={styles.cameraOverlay}>
+            <View style={styles.scanTargetBox} />
+
+            <TouchableOpacity
+              style={styles.cancelScanBtn}
+              onPress={() => setIsScanning(false)}
+            >
+              <Text style={styles.cancelScanBtnText}>Cancel Scan</Text>
+            </TouchableOpacity>
+          </View>
+
         </View>
       )}
 

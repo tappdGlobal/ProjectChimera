@@ -30,7 +30,7 @@ export default function App() {
   useWarningsSuppression();
   const profile = useUserStore((s) => s.profile);
   const isFetchingUserRef = useRef(false);
-  
+
 
 
   useEffect(() => {
@@ -101,15 +101,6 @@ export default function App() {
     };
   }, [isAuthenticated, token, receiveMessage]);
 
-  useEffect(() => {
-    setTimeout(() => {
-      Toast.show({
-        type: "success",
-        text1: "Toast Test",
-        text2: "If you see this, toast works",
-      });
-    }, 2000);
-  }, []);
 
   if (!isHydrated) return null;
 

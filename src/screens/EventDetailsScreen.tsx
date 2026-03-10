@@ -14,7 +14,13 @@ import { GRADIENT_COLORS } from "../styles/Theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Alert, Linking } from "react-native";
 import { usePaymentStore } from "../store/paymentStore";
-import RazorpayCheckout from "react-native-razorpay";
+// Razorpay is a native module - only available in dev builds, not Expo Go
+let RazorpayCheckout: any = null;
+try {
+  RazorpayCheckout = require("react-native-razorpay").default;
+} catch (e) {
+  console.warn("react-native-razorpay not available (expected in Expo Go)");
+}
 import {
   ArrowLeft,
   Calendar,
