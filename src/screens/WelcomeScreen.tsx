@@ -1,14 +1,19 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAnalytics } from "../hooks/useAnalytics";
+import { TermsOfServiceModal } from "../components/Legal/TermsOfServiceModal";
+import { PrivacyPolicyModal } from "../components/Legal/PrivacyPolicyModal";
 
 export const WelcomeScreen = ({ navigation }: any) => {
   const { trackButtonClick } = useAnalytics("WelcomeScreen");
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+
   return (
     <LinearGradient colors={["#0A0A1F", "#1A1A3F"]} style={styles.gradient}>
-      <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+      <SafeAreaView style={styles.container} edges={["top", "bottom", "left", "right"]}>
         <View style={styles.content}>
           {/* Logo Section */}
           <View style={styles.logoSection}>
@@ -61,12 +66,21 @@ export const WelcomeScreen = ({ navigation }: any) => {
           <View style={styles.footer}>
             <Text style={styles.footerText}>
               By continuing, you agree to our{" "}
-              <Text style={styles.footerLink}>Terms of Service</Text> and{" "}
-              <Text style={styles.footerLink}>Privacy Policy</Text>
+              <Text style={styles.footerLink} onPress={() => setShowTermsModal(true)}>Terms of Service</Text> and{" "}
+              <Text style={styles.footerLink} onPress={() => setShowPrivacyModal(true)}>Privacy Policy</Text>
             </Text>
           </View>
         </View>
       </SafeAreaView>
+
+      <TermsOfServiceModal
+        visible={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
+      />
+      <PrivacyPolicyModal
+        visible={showPrivacyModal}
+        onClose={() => setShowPrivacyModal(false)}
+      />
     </LinearGradient>
   );
 };

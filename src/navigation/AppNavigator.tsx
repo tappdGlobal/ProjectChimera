@@ -66,7 +66,7 @@ const MainTabs = () => {
 
 const AppNavigator = () => {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: '#0A0A1F' } }}>
       <Stack.Screen
         name={SCREEN_NAMES.MAIN_TABS}
         component={MainTabs}

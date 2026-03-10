@@ -96,7 +96,16 @@ export const useHostStore = create<HostState>((set, get) => ({
     try {
       set({ loading: true, error: null });
       const res = await getEventGuestsApi(eventId, params);
-      set({ guests: res.data ?? [], loading: false });
+      
+      const normalizedGuests = (res.data ?? []).map((raw: any) => ({
+        ...raw,
+        bookingId: raw.bookingId || raw.id || raw._id,
+        name: raw.name || raw.user?.name || raw.user?.username || "",
+        email: raw.email || raw.user?.email || "",
+        checkedIn: raw.checkedIn ?? (raw.status === "CHECKED_IN")
+      }));
+
+      set({ guests: normalizedGuests, loading: false });
     } catch (err: any) {
       set({ loading: false, error: err.message });
     }

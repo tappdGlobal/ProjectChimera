@@ -57,11 +57,8 @@ export default function ManageEventsScreen() {
   const formatEventDate = (datetimeString: string) => {
     try {
       const date = new Date(datetimeString);
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric"
-      });
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
     } catch (e) {
       return "Date TBD";
     }
@@ -70,11 +67,13 @@ export default function ManageEventsScreen() {
   const formatEventTime = (datetimeString: string) => {
     try {
       const date = new Date(datetimeString);
-      return date.toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true
-      });
+      let hours = date.getHours();
+      let minutes: any = date.getMinutes();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12; // the hour '0' should be '12'
+      minutes = minutes < 10 ? '0' + minutes : minutes;
+      return `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
     } catch (e) {
       return "Time TBD";
     }
@@ -93,17 +92,14 @@ export default function ManageEventsScreen() {
         activeOpacity={0.8}
         onPress={() => navigation.navigate(SCREEN_NAMES.EVENT_DASHBOARD as never, { event } as never)}
       >
-        {/* Event Header */}
         <View style={styles.eventHeader}>
           <Text style={styles.eventTitle}>{event.eventName}</Text>
-
           <View style={styles.liveBadge}>
             <View style={styles.liveDot} />
             <Text style={styles.liveText}>Live Now</Text>
           </View>
         </View>
 
-        {/* Event Metadata */}
         <View style={styles.row}>
           <View style={styles.iconRow}>
             <Calendar size={16} color="#B482C2" />
@@ -115,7 +111,6 @@ export default function ManageEventsScreen() {
             <Text style={styles.metaText}>{formatEventTime(event.eventDatetime)}</Text>
           </View>
         </View>
-
         <View style={[styles.iconRow, { marginTop: 12 }]}>
           <MapPin size={16} color="#B482C2" />
           <Text style={styles.metaText}>{event.location || 'Location TBD'}</Text>
@@ -130,7 +125,6 @@ export default function ManageEventsScreen() {
               {realBookedCount} Tickets Booked
             </Text>
           </View>
-
           <View>
             <Text style={styles.manageText}>Manage Event →</Text>
           </View>
@@ -148,21 +142,16 @@ export default function ManageEventsScreen() {
     <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar barStyle="light-content" backgroundColor="#0B0714" />
 
-      {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2.5} />
         </TouchableOpacity>
-
         <View style={styles.headerTextContainer}>
           <Text style={styles.title}>Manage Events</Text>
           <Text style={styles.subtitle}>Events published by you</Text>
         </View>
-        
-        <View style={{ width: 24 }} /> {/* Spacer to balance the ArrowLeft */}
+        <View style={{ width: 24 }} />
       </View>
-
-      {/* SEARCH */}
       <View style={styles.searchContainerWrapper}>
         <View style={styles.searchContainer}>
           <Search size={20} color="#8A85A3" />
@@ -176,7 +165,6 @@ export default function ManageEventsScreen() {
         </View>
       </View>
 
-      {/* EVENTS */}
       {loading && !refreshing ? (
         <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
           <ActivityIndicator size="large" color="#C84BFF" />
@@ -193,7 +181,7 @@ export default function ManageEventsScreen() {
             />
           }
         >
-          {filteredEvents && filteredEvents.length > 0 ? (
+          {(filteredEvents && filteredEvents.length > 0) ? (
             filteredEvents.map(renderEvent)
           ) : (
             <View style={{ alignItems: 'center', marginTop: 40 }}>
