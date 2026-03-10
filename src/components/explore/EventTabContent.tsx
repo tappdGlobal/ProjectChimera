@@ -17,7 +17,6 @@ import { useBookingStore } from "../../store/bookingStore";
 import { ActivityIndicator } from "react-native";
 import ComingSoon from "../common/ComingSoon";
 export function EventTabContent() {
-  const [showTicketModal, setShowTicketModal] = useState(false);
   const { bookings, fetchMyBookings, loading } = useBookingStore();
   const [showComingSoon, setShowComingSoon] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
@@ -152,11 +151,10 @@ export function EventTabContent() {
 
                   {/* 🔥 BUTTON */}
                   <Pressable
-  onPress={() => {
-    setSelectedBooking(booking);
-    setShowTicketModal(true);
-  }}
->
+                    onPress={() => {
+                      setSelectedBooking(booking);
+                    }}
+                  >
                     <LinearGradient
                       colors={GRADIENT_COLORS.primary as [string, string]}
                       start={{ x: 0, y: 0 }}
@@ -182,14 +180,14 @@ export function EventTabContent() {
             })}
       </ScrollView>
 
-     {showTicketModal && selectedBooking && (
-  <Modal transparent animationType="slide">
-    <TicketDetailModal
-      booking={selectedBooking}
-      onClose={() => setShowTicketModal(false)}
-    />
-  </Modal>
-)}
+      {selectedBooking && (
+        <Modal transparent animationType="slide">
+          <TicketDetailModal
+            booking={selectedBooking}
+            onClose={() => setSelectedBooking(null)}
+          />
+        </Modal>
+      )}
     </>
   );
 }
