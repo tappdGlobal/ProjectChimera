@@ -19,6 +19,7 @@ import {
 type BookingResult = {
   success: boolean;
   message: string;
+  bookingId?: string;
 };
 
 /* ================= STATE INTERFACE ================= */
@@ -29,8 +30,6 @@ interface BookingState {
 
   loading: boolean;
   error: string | null;
-
-  /* ================= ACTIONS ================= */
 
   createBooking: (
     data: CreateBookingRequest
@@ -65,20 +64,33 @@ export const useBookingStore = create<BookingState>((set) => ({
 
   createBooking: async (data) => {
     try {
+      console.log("📤 CREATE BOOKING REQUEST:", data);
+
       set({ loading: true, error: null });
 
       const res = await createBookingApi(data);
 
+      console.log("📥 CREATE BOOKING API RESPONSE:", res);
+
+      const booking = res?.data;
+
+      console.log("🆔 BOOKING ID:", booking?.id);
+
       set((state) => ({
-        bookings: [res.data, ...state.bookings],
+        bookings: booking
+          ? [booking, ...state.bookings]
+          : state.bookings,
         loading: false,
       }));
 
       return {
         success: true,
         message: "Booking successful",
+        bookingId: booking?.id,
       };
     } catch (error: any) {
+      console.log("❌ CREATE BOOKING ERROR:", error);
+
       const backendMessage =
         error?.response?.data?.error?.message ||
         error?.response?.data?.message ||
@@ -97,18 +109,26 @@ export const useBookingStore = create<BookingState>((set) => ({
   },
 
   /* ================= FETCH BOOKINGS ================= */
-fetchMyBookings: async (params) => {
+
+ fetchMyBookings: async (params) => {
   try {
+    console.log("📤 FETCH BOOKINGS PARAMS:", params);
+
     set({ loading: true, error: null });
 
-    const bookings = await getMyBookingsApi(params);
+    const res = await getMyBookingsApi(params);
+
+    console.log("📥 FULL API RESPONSE:", res);
+    console.log("📦 BOOKINGS ARRAY:", res?.data);
 
     set({
-      bookings: bookings || [],
+      bookings: res?.data || [],
       loading: false,
     });
 
   } catch (error: any) {
+    console.log("❌ FETCH BOOKINGS ERROR:", error);
+
     set({
       error:
         error?.response?.data?.message ||
@@ -117,25 +137,30 @@ fetchMyBookings: async (params) => {
     });
   }
 },
+
   /* ================= CANCEL BOOKING ================= */
 
   cancelBooking: async (id) => {
     try {
+      console.log("🚫 CANCEL BOOKING ID:", id);
+
       set({ loading: true, error: null });
 
       await cancelBookingApi(id);
 
+      console.log("✅ BOOKING CANCELLED:", id);
+
       set((state) => ({
         bookings: state.bookings.map((b) =>
-          b.id === id
-            ? { ...b, status: "CANCELLED" }
-            : b
+          b.id === id ? { ...b, status: "CANCELLED" } : b
         ),
         loading: false,
       }));
 
       return true;
     } catch (error: any) {
+      console.log("❌ CANCEL BOOKING ERROR:", error);
+
       set({
         error:
           error?.response?.data?.message ||
@@ -151,9 +176,13 @@ fetchMyBookings: async (params) => {
 
   confirmBooking: async (id) => {
     try {
+      console.log("✔️ CONFIRM BOOKING ID:", id);
+
       set({ loading: true, error: null });
 
       const res = await confirmBookingApi(id);
+
+      console.log("📥 CONFIRM BOOKING RESPONSE:", res);
 
       set((state) => ({
         bookings: state.bookings.map((b) =>
@@ -164,6 +193,8 @@ fetchMyBookings: async (params) => {
 
       return true;
     } catch (error: any) {
+      console.log("❌ CONFIRM BOOKING ERROR:", error);
+
       set({
         error:
           error?.response?.data?.message ||
@@ -179,9 +210,13 @@ fetchMyBookings: async (params) => {
 
   checkInBooking: async (id, data) => {
     try {
+      console.log("📍 CHECK-IN REQUEST:", { id, data });
+
       set({ loading: true, error: null });
 
       const res = await checkInBookingApi(id, data);
+
+      console.log("📥 CHECK-IN RESPONSE:", res);
 
       set((state) => ({
         bookings: state.bookings.map((b) =>
@@ -192,6 +227,8 @@ fetchMyBookings: async (params) => {
 
       return true;
     } catch (error: any) {
+      console.log("❌ CHECK-IN ERROR:", error);
+
       set({
         error:
           error?.response?.data?.message ||

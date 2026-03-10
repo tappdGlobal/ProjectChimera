@@ -20,6 +20,7 @@ export function EventTabContent() {
   const [showTicketModal, setShowTicketModal] = useState(false);
   const { bookings, fetchMyBookings, loading } = useBookingStore();
   const [showComingSoon, setShowComingSoon] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<any>(null);
   useEffect(() => {
     fetchMyBookings();
   }, []);
@@ -150,7 +151,12 @@ export function EventTabContent() {
                   </View>
 
                   {/* 🔥 BUTTON */}
-                  <Pressable onPress={() => setShowComingSoon(true)}>
+                  <Pressable
+  onPress={() => {
+    setSelectedBooking(booking);
+    setShowTicketModal(true);
+  }}
+>
                     <LinearGradient
                       colors={GRADIENT_COLORS.primary as [string, string]}
                       start={{ x: 0, y: 0 }}
@@ -176,10 +182,14 @@ export function EventTabContent() {
             })}
       </ScrollView>
 
-      <ComingSoon
-        visible={showComingSoon}
-        onClose={() => setShowComingSoon(false)}
-      />
+     {showTicketModal && selectedBooking && (
+  <Modal transparent animationType="slide">
+    <TicketDetailModal
+      booking={selectedBooking}
+      onClose={() => setShowTicketModal(false)}
+    />
+  </Modal>
+)}
     </>
   );
 }

@@ -2,7 +2,7 @@
   "expo": {
     "name": "TappdApp",
     "slug": "TappdApp",
-    "version": "1.1.4",
+    "version": "1.1.1",
     "scheme": "tappd",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
@@ -27,7 +27,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.tappd.app",
-      "versionCode": 15,
+      "versionCode": 3,
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
@@ -43,11 +43,10 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "owner": "keshav88",
     "plugins": [],
     "extra": {
       "eas": {
-        "projectId": "0a5f65d2-a6f6-4398-8bad-a61516c5c57a"
+        "projectId": "32d21d44-90c7-4e7f-a062-ee3ae7df6e29"
       }
     }
   }
