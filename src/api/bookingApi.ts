@@ -3,7 +3,6 @@ import {
   Booking,
   BookingStatus,
   CreateBookingRequest,
-  CreateBookingResponse,
   ConfirmBookingResponse,
   CancelBookingResponse,
   CheckInRequest,
@@ -14,17 +13,20 @@ import {
 
 export const createBookingApi = async (
   data: CreateBookingRequest
-): Promise<CreateBookingResponse> => {
+): Promise<Booking> => {
   try {
     console.log("📤 CREATE BOOKING REQUEST:", data);
 
     const response = await apiClient.post("/bookings", data);
 
-    console.log("✅ CREATE BOOKING RESPONSE:", response.data);
+    console.log("✅ CREATE BOOKING RESPONSE:", response);
+    console.log("🆔 BOOKING ID:", response?.id);
 
-    return response.data;
+    return response;
   } catch (error: any) {
-    console.log("❌ CREATE BOOKING ERROR:", error?.response?.data || error);
+    console.log("❌ CREATE BOOKING ERROR:", error);
+    console.log("⚠️ BACKEND ERROR:", error?.response?.data);
+
     throw error;
   }
 };
@@ -36,37 +38,40 @@ export const getMyBookingsApi = async (params?: {
   upcoming?: boolean;
 }): Promise<Booking[]> => {
   try {
+    console.log("📤 GET MY BOOKINGS PARAMS:", params);
 
-    const response = await apiClient.get(
-      "/bookings/my-bookings",
-      { params }
-    );
+    const response = await apiClient.get("/bookings/my-bookings", {
+      params,
+    });
 
+    console.log("✅ GET MY BOOKINGS RESPONSE:", response);
 
-    return response.data; // returning array directly
+    return response;
   } catch (error: any) {
-    console.log(
-      "❌ GET MY BOOKINGS ERROR:",
-      error?.response?.data || error
-    );
+    console.log("❌ GET MY BOOKINGS ERROR:", error);
+    console.log("⚠️ BACKEND ERROR:", error?.response?.data);
+
     throw error;
   }
 };
+
 /* ================= GET BOOKING BY ID ================= */
 
 export const getBookingByIdApi = async (
   id: string
-): Promise<{ success: boolean; data: Booking }> => {
+): Promise<Booking> => {
   try {
     console.log("📤 GET BOOKING BY ID:", id);
 
-    const response = await apiClient.get(`bookings/${id}`);
+    const response = await apiClient.get(`/bookings/${id}`);
 
-    console.log("✅ GET BOOKING RESPONSE:", response.data);
+    console.log("✅ GET BOOKING RESPONSE:", response);
 
-    return response.data;
+    return response;
   } catch (error: any) {
-    console.log("❌ GET BOOKING ERROR:", error?.response?.data || error);
+    console.log("❌ GET BOOKING ERROR:", error);
+    console.log("⚠️ BACKEND ERROR:", error?.response?.data);
+
     throw error;
   }
 };
@@ -79,13 +84,15 @@ export const cancelBookingApi = async (
   try {
     console.log("📤 CANCEL BOOKING ID:", id);
 
-    const response = await apiClient.delete(`bookings/${id}`);
+    const response = await apiClient.delete(`/bookings/${id}`);
 
-    console.log("✅ CANCEL BOOKING RESPONSE:", response.data);
+    console.log("✅ CANCEL BOOKING RESPONSE:", response);
 
-    return response.data;
+    return response;
   } catch (error: any) {
-    console.log("❌ CANCEL BOOKING ERROR:", error?.response?.data || error);
+    console.log("❌ CANCEL BOOKING ERROR:", error);
+    console.log("⚠️ BACKEND ERROR:", error?.response?.data);
+
     throw error;
   }
 };
@@ -98,15 +105,15 @@ export const confirmBookingApi = async (
   try {
     console.log("📤 CONFIRM BOOKING ID:", id);
 
-    const response = await apiClient.post(
-      `bookings/${id}/confirm`
-    );
+    const response = await apiClient.post(`/bookings/${id}/confirm`);
 
-    console.log("✅ CONFIRM BOOKING RESPONSE:", response.data);
+    console.log("✅ CONFIRM BOOKING RESPONSE:", response);
 
-    return response.data;
+    return response;
   } catch (error: any) {
-    console.log("❌ CONFIRM BOOKING ERROR:", error?.response?.data || error);
+    console.log("❌ CONFIRM BOOKING ERROR:", error);
+    console.log("⚠️ BACKEND ERROR:", error?.response?.data);
+
     throw error;
   }
 };
@@ -120,16 +127,15 @@ export const checkInBookingApi = async (
   try {
     console.log("📤 CHECK-IN REQUEST:", { id, ...data });
 
-    const response = await apiClient.post(
-      `bookings/${id}/check-in`,
-      data
-    );
+    const response = await apiClient.post(`/bookings/${id}/check-in`, data);
 
-    console.log("✅ CHECK-IN RESPONSE:", response.data);
+    console.log("✅ CHECK-IN RESPONSE:", response);
 
-    return response.data;
+    return response;
   } catch (error: any) {
-    console.log("❌ CHECK-IN ERROR:", error?.response?.data || error);
+    console.log("❌ CHECK-IN ERROR:", error);
+    console.log("⚠️ BACKEND ERROR:", error?.response?.data);
+
     throw error;
   }
 };

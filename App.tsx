@@ -28,26 +28,28 @@ export default function App() {
 
   // Suppress non-critical warnings during app initialization
   useWarningsSuppression();
-const profile = useUserStore((s) => s.profile);
-const isFetchingUserRef = useRef(false);
+  const profile = useUserStore((s) => s.profile);
+  const isFetchingUserRef = useRef(false);
+  
 
-useEffect(() => {
-  if (
-    isHydrated &&
-    isAuthenticated &&
-    userId &&
-    !profile &&            // prevents refetch
-    !isFetchingUserRef.current
-  ) {
-    isFetchingUserRef.current = true;
 
-    console.log("[App] Fetching user profile on app start...");
+  useEffect(() => {
+    if (
+      isHydrated &&
+      isAuthenticated &&
+      userId &&
+      !profile &&            // prevents refetch
+      !isFetchingUserRef.current
+    ) {
+      isFetchingUserRef.current = true;
 
-    fetchUser(userId).finally(() => {
-      isFetchingUserRef.current = false;
-    });
-  }
-}, [isHydrated, isAuthenticated, userId, profile]);
+      console.log("[App] Fetching user profile on app start...");
+
+      fetchUser(userId).finally(() => {
+        isFetchingUserRef.current = false;
+      });
+    }
+  }, [isHydrated, isAuthenticated, userId, profile]);
   useEffect(() => {
     hydrateAuth();
 
@@ -99,6 +101,16 @@ useEffect(() => {
     };
   }, [isAuthenticated, token, receiveMessage]);
 
+  useEffect(() => {
+    setTimeout(() => {
+      Toast.show({
+        type: "success",
+        text1: "Toast Test",
+        text2: "If you see this, toast works",
+      });
+    }, 2000);
+  }, []);
+
   if (!isHydrated) return null;
 
   if (initError) {
@@ -111,23 +123,26 @@ useEffect(() => {
   }
 
   return (
-    <SafeAreaProvider>
-      <PostHogProvider
-        apiKey="phc_FXpHLpLnFGLGRtvZOC9rFDXx8nUPoZVEqhqxslEXyhs"
-        options={{
-          host: "https://us.i.posthog.com",
-          enableSessionReplay: false,
-          captureAppLifecycleEvents: true,
-        }}
-      >
-        <ErrorBoundary>
-          <RootNavigator />
-          <StatusBar style="light" />
-          <Toast topOffset={60} />
-        </ErrorBoundary>
+    <>
+      <SafeAreaProvider>
+        <PostHogProvider
+          apiKey="phc_FXpHLpLnFGLGRtvZOC9rFDXx8nUPoZVEqhqxslEXyhs"
+          options={{
+            host: "https://us.i.posthog.com",
+            enableSessionReplay: false,
+            captureAppLifecycleEvents: true,
+          }}
+        >
+          <ErrorBoundary>
+            <RootNavigator />
+            <StatusBar style="light" />
+          </ErrorBoundary>
+        </PostHogProvider>
+      </SafeAreaProvider>
 
-      </PostHogProvider>
-    </SafeAreaProvider>
+      {/* GLOBAL TOAST */}
+      <Toast position="top" topOffset={60} />
+    </>
   );
 }
 

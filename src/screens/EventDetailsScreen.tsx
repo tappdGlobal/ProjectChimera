@@ -13,6 +13,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { GRADIENT_COLORS } from "../styles/Theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Alert, Linking } from "react-native";
+import { usePaymentStore } from "../store/paymentStore";
+import RazorpayCheckout from "react-native-razorpay";
 import {
   ArrowLeft,
   Calendar,
@@ -74,50 +76,141 @@ export function EventDetailsScreen() {
   const navigation = useNavigation();
   const route = useRoute<RouteType>();
   const event: FeedEvent = route.params.event;
-
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [activeTab, setActiveTab] = useState<
     "Availability" | "Details" | "Reviews"
   >("Details");
   const [bookingLoading, setBookingLoading] = useState<string | null>(null);
   const { width } = Dimensions.get("window");
   const { createBooking } = useBookingStore();
+  const { createOrder, verifyPayment } = usePaymentStore();
+
+
   const handleBookNow = async (ticket: any) => {
-    if (!event?.id || !ticket?.id) {
+    const qty = quantities[ticket.id] || 0;
+
+    if (qty === 0) {
+      Toast.show({
+        type: "error",
+        text1: "Select at least 1 ticket",
+      });
       return;
     }
 
     try {
-      setBookingLoading(ticket.id); // 🔥 start loader
+      setBookingLoading(ticket.id);
 
       const payload = {
         eventId: event.id,
         ticketId: ticket.id,
+        quantity: qty,
       };
+
+      /* STEP 1 — CREATE BOOKING */
 
       const result = await createBooking(payload);
 
-      if (result.success) {
+      if (!result.success || !result.bookingId) {
         Toast.show({
-          type: "success",
-          text1: "Booking Reserved 🎉",
-          text2: result.message, // ✅ dynamic success message
+          type: "error",
+          text1: "Booking Failed",
+          text2: result.message,
+        });
+        return;
+      }
+
+      const bookingId = result.bookingId;
+
+      /* STEP 2 — CREATE ORDER */
+
+      await createOrder(bookingId);
+
+      const { order } = usePaymentStore.getState();
+
+      if (!order) {
+        throw new Error("Order creation failed");
+      }
+
+      if (!order) {
+        throw new Error("Order creation failed");
+      }
+
+      /* STEP 3 — RAZORPAY OPTIONS */
+
+      const options = {
+        key: "rzp_test_SNkYGFjypbxFU8",
+        amount: order.amount,
+        currency: order.currency,
+        name: event.eventName,
+        description: "Ticket Booking",
+        order_id: order.id,
+        prefill: {
+          email: "test@example.com",
+          contact: "9999999999",
+        },
+        theme: { color: "#6366F1" },
+      };
+
+
+
+      /* STEP 4 — OPEN RAZORPAY */
+
+      if (!RazorpayCheckout) {
+        throw new Error("RazorpayCheckout not linked. Use dev build instead of Expo Go.");
+      }
+      console.log("RazorpayCheckout:", RazorpayCheckout);
+      console.log("RazorpayCheckout.open:", RazorpayCheckout?.open);
+      const payment = await RazorpayCheckout.open(options);
+
+      /* STEP 5 — VERIFY PAYMENT */
+
+      await verifyPayment(
+        payment.razorpay_order_id,
+        payment.razorpay_payment_id,
+        payment.razorpay_signature
+      );
+
+      Toast.show({
+        type: "success",
+        text1: "Payment Successful 🎉",
+      });
+
+    } catch (error: any) {
+      console.log("Payment error:", error);
+
+      if (error?.code === 0) {
+        Toast.show({
+          type: "error",
+          text1: "Payment Cancelled",
         });
       } else {
         Toast.show({
           type: "error",
-          text1: "Booking Failed",
-          text2: result.message, // ✅ backend validation message
+          text1: "Payment Failed",
+          text2: error?.message,
         });
       }
-    } catch (error) {
-      Toast.show({
-        type: "error",
-        text1: "Something went wrong",
-        text2: "Please try again.",
-      });
     } finally {
-      setBookingLoading(null); // 🔥 stop loader
+      setBookingLoading(null);
     }
+  };
+
+  const increaseQty = (ticketId: string, available: number) => {
+    setQuantities((prev) => {
+      const current = prev[ticketId] || 0;
+      if (current >= available) return prev;
+
+      return { ...prev, [ticketId]: current + 1 };
+    });
+  };
+
+  const decreaseQty = (ticketId: string) => {
+    setQuantities((prev) => {
+      const current = prev[ticketId] || 0;
+      if (current <= 0) return prev;
+
+      return { ...prev, [ticketId]: current - 1 };
+    });
   };
   const handleAddToCalendar = async () => {
     try {
@@ -295,6 +388,8 @@ export function EventDetailsScreen() {
         const available =
           ticket.quantityTotal - (ticket.quantitySold ?? 0);
 
+        const qty = quantities[ticket.id] || 0;
+
         return (
           <Card key={index} style={styles.ticketCard}>
             <CardContent style={styles.ticketContent}>
@@ -319,30 +414,58 @@ export function EventDetailsScreen() {
                   : `₹${ticket.price}`}
               </Text>
 
-              <TouchableOpacity
-                disabled={available === 0 || bookingLoading === ticket.id}
-                activeOpacity={0.9}
-                onPress={() => handleBookNow(ticket)}
-              >
-                <LinearGradient
-                  colors={GRADIENT_COLORS.primary as [string, string]}
-                  style={[
-                    styles.bookButton,
-                    (available === 0 || bookingLoading === ticket.id) && { opacity: 0.7 },
-                  ]}
+              {/* QUANTITY + BOOK BUTTON */}
+              <View style={styles.quantityRow}>
+
+                <View style={styles.qtySelector}>
+                  <TouchableOpacity
+                    onPress={() => decreaseQty(ticket.id)}
+                    style={styles.qtyBtn}
+                  >
+                    <Text style={styles.qtyText}>-</Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.qtyNumber}>{qty}</Text>
+
+                  <TouchableOpacity
+                    onPress={() => increaseQty(ticket.id, available)}
+                    style={styles.qtyBtn}
+                  >
+                    <Text style={styles.qtyText}>+</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity
+                  disabled={qty === 0 || available === 0}
+                  activeOpacity={0.9}
+                  onPress={() => handleBookNow(ticket)}
+                  style={{ flex: 1 }}
                 >
-                  {bookingLoading === ticket.id ? (
-                    <ActivityIndicator
-                      size="small"
-                      color={Theme.colors.primaryForeground}
-                    />
-                  ) : (
-                    <Text style={styles.bookButtonText}>
-                      {available === 0 ? "Sold Out" : "Book Now"}
-                    </Text>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
+                  <LinearGradient
+                    colors={GRADIENT_COLORS.primary as [string, string]}
+                    style={[
+                      styles.bookButton,
+                      (qty === 0 || available === 0) && { opacity: 0.6 },
+                    ]}
+                  >
+                    {bookingLoading === ticket.id ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={Theme.colors.primaryForeground}
+                      />
+                    ) : (
+                      <Text style={styles.bookButtonText}>
+                        {available === 0
+                          ? "Sold Out"
+                          : qty === 0
+                            ? "Select Quantity"
+                            : `Book ${qty} Tickets`}
+                      </Text>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+
+              </View>
             </CardContent>
           </Card>
         );
@@ -757,22 +880,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
   },
-gradientButton: {
-  paddingHorizontal: 10,   // reduce horizontal size
-  paddingVertical: 6,
-  borderRadius: Theme.radius.md,
-  justifyContent: "center",
-  alignItems: "center",
-  alignSelf: "flex-start", // prevents stretching
-  minWidth: 0,             // important
-},
+  gradientButton: {
+    paddingHorizontal: 10,   // reduce horizontal size
+    paddingVertical: 6,
+    borderRadius: Theme.radius.md,
+    justifyContent: "center",
+    alignItems: "center",
+    alignSelf: "flex-start", // prevents stretching
+    minWidth: 0,             // important
+  },
 
 
-gradientButtonText: {
-  color: Theme.colors.primaryForeground,
-  fontSize: 12,   // ↓ smaller text
-  fontWeight: "600",
-},
+  gradientButtonText: {
+    color: Theme.colors.primaryForeground,
+    fontSize: 12,   // ↓ smaller text
+    fontWeight: "600",
+  },
 
   reviewCardNew: {
     backgroundColor: Theme.colors.card,
@@ -832,5 +955,36 @@ gradientButtonText: {
     color: Theme.colors.mutedForeground,
     fontSize: 14,
     lineHeight: 20,
+  },
+  quantityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  qtySelector: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Theme.colors.muted,
+    borderRadius: 12,
+    paddingHorizontal: 6,
+  },
+
+  qtyBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+
+  qtyText: {
+    fontSize: 18,
+    color: Theme.colors.foreground,
+    fontWeight: "600",
+  },
+
+  qtyNumber: {
+    minWidth: 24,
+    textAlign: "center",
+    color: Theme.colors.foreground,
+    fontSize: 16,
   },
 });

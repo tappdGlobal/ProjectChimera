@@ -9,14 +9,17 @@ import {
 import { Theme, GRADIENT_COLORS } from "../../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-
+import { SafeAreaView } from "react-native-safe-area-context";
+import QRCode from "react-native-qrcode-svg";
 interface Props {
+  booking: any;
   onClose: () => void;
 }
 
-export function TicketDetailModal({ onClose }: Props) {
+export function TicketDetailModal({ booking, onClose }: Props) {
+  const { event, ticket } = booking;
   return (
-    <View style={styles.overlay}>
+    <SafeAreaView style={styles.overlay} edges={["bottom"]}>
       <View style={styles.sheet}>
         {/* ❌ CLOSE BUTTON (ALWAYS VISIBLE) */}
         <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={10}>
@@ -34,25 +37,38 @@ export function TicketDetailModal({ onClose }: Props) {
           </Text>
 
           {/* QR */}
-          <View style={styles.qrCard}>
-            <View style={styles.qrBox}>
-              <Ionicons
-                name="ticket-outline"
-                size={64}
-                color={Theme.colors.primary}
-              />
-              <Text style={styles.code}>VIP-001</Text>
-            </View>
+          <View style={{ alignItems: "center", marginTop: Theme.spacing.l }}>
+            {booking?.qrCode ? (
+              <LinearGradient
+                colors={GRADIENT_COLORS.primary as [string, string]}
+                style={styles.qrGradientBorder}
+              >
+                <View style={styles.qrInner}>
+                  <QRCode
+                    value={booking.qrCode}
+                    size={260}              // bigger = sharper QR
+                    backgroundColor="#ffffff"
+                    color="#000000"
+                    ecl="H"                 // highest error correction
+                    quietZone={16}          // extra padding for scanners
+                  />
+                </View>
+              </LinearGradient>
+            ) : (
+              <Text>QR not available</Text>
+            )}
           </View>
 
           {/* INFO CARD */}
           <View style={styles.infoCard}>
-            <Text style={styles.eventTitle}>Rooftop Jazz Night</Text>
+            <Text style={styles.eventTitle}>{event.eventName}</Text>
 
-            <InfoRow label="Date:" value="12/15/2024" />
-            <InfoRow label="Time:" value="8:00 PM" />
-            <InfoRow label="Ticket Type:" value="VIP" />
-            <InfoRow label="Ticket Number:" value="VIP-001" />
+            <InfoRow
+              label="Date:"
+              value={new Date(event.eventDate).toLocaleDateString()}
+            />
+            <InfoRow label="Time:" value={event.eventTime} />
+            <InfoRow label="Ticket Type:" value={ticket.ticketLabel} />
           </View>
 
           {/* DOWNLOAD */}
@@ -85,7 +101,7 @@ export function TicketDetailModal({ onClose }: Props) {
           </View>
         </ScrollView>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -144,16 +160,15 @@ const styles = StyleSheet.create({
     marginTop: Theme.spacing.l,
     backgroundColor: "#fff",
     borderRadius: Theme.radius.lg,
-    paddingVertical: Theme.spacing.xl,
+    padding: 12, // small padding only
     alignItems: "center",
   },
 
   qrBox: {
-    width: 220,
-    height: 220,
     borderRadius: Theme.radius.lg,
-    borderWidth: 4,
+    borderWidth: 3,
     borderColor: Theme.colors.primary,
+    padding: 6, // keeps QR centered
     justifyContent: "center",
     alignItems: "center",
   },
@@ -260,5 +275,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     marginLeft: 8,
+  },
+  qrGradientBorder: {
+    padding: 4, // thickness of gradient border
+    borderRadius: 16,
+  },
+
+  qrInner: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 6,
   },
 });
