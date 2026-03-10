@@ -2257,8 +2257,6 @@ export function HostScreen({ route }: any) {
         )}
       </View>
 
-      <Toast />
-
       {/* Date Picker Modal */}
       <DateTimePickerModal
         isVisible={showDatePicker}

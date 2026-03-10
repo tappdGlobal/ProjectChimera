@@ -22,7 +22,15 @@ export const AuthStack = () => {
 
   return (
     <Stack.Navigator 
-      screenOptions={{ headerShown: false }}
+      screenOptions={{
+        headerShown: false,
+        cardStyle: { backgroundColor: '#0A0A1F' },
+        cardStyleInterpolator: ({ current }) => ({
+          cardStyle: {
+            opacity: current.progress,
+          },
+        }),
+      }}
       initialRouteName={SCREEN_NAMES.WELCOME}
     >
       <Stack.Screen name={SCREEN_NAMES.WELCOME} component={WelcomeScreen} />

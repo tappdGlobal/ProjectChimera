@@ -5,11 +5,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
-  StatusBar,
   TextInput,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  StatusBar,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ArrowLeft,
   Calendar,
@@ -35,7 +37,7 @@ import Toast from "react-native-toast-message";
 export default function EventDashboardScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  
+
   // Accept event data passed via navigation params, or provide defaults
   const event = (route.params as any)?.event || {
     eventName: "Electro Night Party",
@@ -54,7 +56,7 @@ export default function EventDashboardScreen() {
 
   useEffect(() => {
     if (event?.id) {
-       fetchGuests(event.id);
+      fetchGuests(event.id);
     }
   }, [event?.id, fetchGuests]);
 
@@ -63,14 +65,14 @@ export default function EventDashboardScreen() {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Derived lists
-  const filteredGuests = guests.filter(g => 
-    (g.name || "").toLowerCase().includes((searchQuery || "").toLowerCase()) || 
+  const filteredGuests = guests.filter(g =>
+    (g.name || "").toLowerCase().includes((searchQuery || "").toLowerCase()) ||
     (g.email || "").toLowerCase().includes((searchQuery || "").toLowerCase()) ||
     (g.bookingId || "").toLowerCase().includes((searchQuery || "").toLowerCase())
   );
-  
+
   const recentCheckins = [...guests].filter(g => g.checkedIn).reverse().slice(0, 3);
-  
+
   const [permission, requestPermission] = useCameraPermissions();
   const [isScanning, setIsScanning] = useState(false);
   const [scannedResult, setScannedResult] = useState<string | null>(null);
@@ -79,8 +81,8 @@ export default function EventDashboardScreen() {
     if (!permission?.granted) {
       const { granted } = await requestPermission();
       if (!granted) {
-         alert("Camera permission is required to scan QR codes.");
-         return;
+        alert("Camera permission is required to scan QR codes.");
+        return;
       }
     }
     setScannedResult(null);
@@ -90,96 +92,130 @@ export default function EventDashboardScreen() {
   const handleBarcodeScanned = async ({ type, data }: any) => {
     setIsScanning(false);
     setScannedResult(data);
-    setTicketInput(data); 
+    setTicketInput(data);
 
     const guestMatch = guests.find(g => g.bookingId === data);
-    if (guestMatch?.checkedIn) {
-       Toast.show({
-          type: "error",
-          text1: "Already checked in",
-          text2: `${guestMatch.name} has already entered.`,
-       });
-       return;
+
+    // Front-end strict verification: Stop early if ticket is not on list
+    if (!guestMatch) {
+      Toast.show({
+        type: "error",
+        text1: "Invalid Ticket",
+        text2: "This ticket does not match any guest on the list.",
+      });
+      return;
+    }
+
+    if (guestMatch.checkedIn) {
+      Toast.show({
+        type: "error",
+        text1: "Already checked in",
+        text2: `${guestMatch.name || (guestMatch.bookingId ? `Guest ${guestMatch.bookingId.slice(-4)}` : "Unknown Guest")} has already entered.`,
+      });
+      return;
     }
 
     try {
       if (event.id) {
         await manualScan(event.id, data);
         Toast.show({
-           type: "success",
-           text1: "Check-in Successful",
-           text2: guestMatch ? `Checked in ${guestMatch.name}` : `Successfully checked in ticket`,
+          type: "success",
+          text1: "Check-in Successful",
+          text2: guestMatch ? `Checked in ${guestMatch.name}` : `Successfully checked in ticket`,
         });
         await fetchGuests(event.id);
         setTicketInput("");
       }
     } catch (e: any) {
       Toast.show({
-         type: "error",
-         text1: "Ticket not found",
-         text2: "The scanned ticket is invalid.",
+        type: "error",
+        text1: "Ticket not found",
+        text2: "The scanned ticket is invalid.",
       });
     }
   };
 
   const handleManualCheckIn = async (ticketId: string) => {
-     if (!ticketId || ticketId.trim() === "") {
-        Toast.show({
-           type: "error",
-           text1: "Please enter a ticket number",
-        });
-        return;
-     }
+    if (!ticketId || ticketId.trim() === "") {
+      Toast.show({
+        type: "error",
+        text1: "Please enter a ticket number",
+      });
+      return;
+    }
 
-     const guestMatch = guests.find(g => g.bookingId === ticketId);
-     if (guestMatch?.checkedIn) {
-        Toast.show({
-           type: "error",
-           text1: "Already checked in",
-           text2: `${guestMatch.name} has already entered.`,
-        });
-        return;
-     }
+    const guestMatch = guests.find(g => g.bookingId === ticketId);
 
-     try {
-       if (event.id) {
-         await manualScan(event.id, ticketId);
-         Toast.show({
-            type: "success",
-            text1: "Check-in Successful",
-            text2: guestMatch ? `Checked in ${guestMatch.name}` : `Successfully checked in ticket`,
-         });
-         await fetchGuests(event.id);
-         setTicketInput("");
-       }
-     } catch(e: any) {
+    // Front-end strict verification: Stop early if ticket is not on list
+    if (!guestMatch) {
+      Toast.show({
+        type: "error",
+        text1: "Invalid Ticket",
+        text2: "The entered ticket does not match any guest.",
+      });
+      return;
+    }
+
+    if (guestMatch.checkedIn) {
+      Toast.show({
+        type: "error",
+        text1: "Already checked in",
+        text2: `${guestMatch.name || (guestMatch.bookingId ? `Guest ${guestMatch.bookingId.slice(-4)}` : "Unknown Guest")} has already entered.`,
+      });
+      return;
+    }
+
+    try {
+      if (event.id) {
+        await manualScan(event.id, ticketId);
         Toast.show({
-           type: "error",
-           text1: "Ticket not found",
-           text2: "The entered ticket is invalid.",
+          type: "success",
+          text1: "Check-in Successful",
+          text2: guestMatch ? `Checked in ${guestMatch.name}` : `Successfully checked in ticket`,
         });
-     }
+        await fetchGuests(event.id);
+        setTicketInput("");
+      }
+    } catch (e: any) {
+      Toast.show({
+        type: "error",
+        text1: "Ticket not found",
+        text2: "The entered ticket is invalid.",
+      });
+    }
   };
 
   const formatEventDate = (datetimeString: string) => {
     try {
       const date = new Date(datetimeString);
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      });
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      return `${months[date.getMonth()]} ${date.getDate()}`;
     } catch (e) {
       return "Mar 5";
     }
   };
 
+  const safeFormatTime = (dateObj: Date) => {
+    try {
+      let hours = dateObj.getHours();
+      let minutes: any = dateObj.getMinutes();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      minutes = minutes < 10 ? '0' + minutes : minutes;
+      return `${hours}:${minutes} ${ampm}`;
+    } catch (e) {
+      return "00:00 PM";
+    }
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar barStyle="light-content" backgroundColor="#0B0714" />
 
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={() => navigation.goBack()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
@@ -194,7 +230,7 @@ export default function EventDashboardScreen() {
               <Text style={styles.liveText}>Live</Text>
             </View>
           </View>
-          
+
           <View style={styles.subtitleRow}>
             <Calendar size={14} color="#B482C2" />
             <Text style={styles.subtitleText}>{formatEventDate(event.eventDatetime)}</Text>
@@ -208,7 +244,7 @@ export default function EventDashboardScreen() {
       {/* TABS */}
       <View style={styles.tabsContainer}>
         {/* Analytics Tab */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.tabWrapper}
           onPress={() => setActiveTab("analytics")}
           activeOpacity={0.8}
@@ -232,21 +268,21 @@ export default function EventDashboardScreen() {
         </TouchableOpacity>
 
         {/* Scan Tab */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.tabWrapper}
           onPress={() => setActiveTab("scan")}
           activeOpacity={0.8}
         >
           {activeTab === "scan" ? (
-             <LinearGradient
-             colors={["#C84BFF", "#D946EF"]}
-             style={styles.activeTabBackground}
-             start={{ x: 0, y: 0 }}
-             end={{ x: 1, y: 0 }}
-           >
-             <QrCode size={18} color="#FFFFFF" />
-             <Text style={styles.activeTabText}>Scan</Text>
-           </LinearGradient>
+            <LinearGradient
+              colors={["#C84BFF", "#D946EF"]}
+              style={styles.activeTabBackground}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <QrCode size={18} color="#FFFFFF" />
+              <Text style={styles.activeTabText}>Scan</Text>
+            </LinearGradient>
           ) : (
             <View style={styles.inactiveTab}>
               <QrCode size={18} color="#FFFFFF" />
@@ -256,21 +292,21 @@ export default function EventDashboardScreen() {
         </TouchableOpacity>
 
         {/* Guests Tab */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.tabWrapper}
           onPress={() => setActiveTab("guests")}
           activeOpacity={0.8}
         >
           {activeTab === "guests" ? (
-             <LinearGradient
-             colors={["#C84BFF", "#D946EF"]}
-             style={styles.activeTabBackground}
-             start={{ x: 0, y: 0 }}
-             end={{ x: 1, y: 0 }}
-           >
-             <Users size={18} color="#FFFFFF" />
-             <Text style={styles.activeTabText}>Guests</Text>
-           </LinearGradient>
+            <LinearGradient
+              colors={["#C84BFF", "#D946EF"]}
+              style={styles.activeTabBackground}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Users size={18} color="#FFFFFF" />
+              <Text style={styles.activeTabText}>Guests</Text>
+            </LinearGradient>
           ) : (
             <View style={styles.inactiveTab}>
               <Users size={18} color="#FFFFFF" />
@@ -354,208 +390,216 @@ export default function EventDashboardScreen() {
         </ScrollView>
       )}
 
-      {/* TAB CONTENT: SCAN */}
-      {activeTab === "scan" && isScanning ? (
+      {/* TAB CONTENT: SCAN - SCANNING */}
+      {activeTab === "scan" && isScanning && (
         <View style={styles.cameraContainer}>
-           <CameraView 
-             style={StyleSheet.absoluteFillObject}
-             facing="back"
-             onBarcodeScanned={scannedResult ? undefined : handleBarcodeScanned}
-             barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-           >
-             <View style={styles.cameraOverlay}>
-                <View style={styles.scanTargetBox} />
-                <TouchableOpacity 
-                   style={styles.cancelScanBtn} 
-                   onPress={() => setIsScanning(false)}
-                >
-                   <Text style={styles.cancelScanBtnText}>Cancel Scan</Text>
-                </TouchableOpacity>
-             </View>
-           </CameraView>
-        </View>
-      ) : activeTab === "scan" && !isScanning && (
-        <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Main Scanner Box Placeholder */}
-          <View style={styles.scanBoxWrapper}>
-            <LinearGradient
-              colors={["rgba(217, 70, 239, 0.15)", "rgba(217, 70, 239, 0.05)"]}
-              style={styles.scanDeviceMock}
-            >
-              <QrCode size={70} color="#D946EF" />
-              <TouchableOpacity activeOpacity={0.8} style={styles.floatingCameraBtn}>
-                 <Camera size={14} color="#FFFFFF" />
+          <CameraView
+            style={StyleSheet.absoluteFillObject}
+            facing="back"
+            onBarcodeScanned={scannedResult ? undefined : handleBarcodeScanned}
+            barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+          >
+            <View style={styles.cameraOverlay}>
+              <View style={styles.scanTargetBox} />
+              <TouchableOpacity
+                style={styles.cancelScanBtn}
+                onPress={() => setIsScanning(false)}
+              >
+                <Text style={styles.cancelScanBtnText}>Cancel Scan</Text>
               </TouchableOpacity>
-            </LinearGradient>
-          </View>
-
-          <Text style={styles.scanInstruction}>Scan QR code or enter ticket number manually</Text>
-
-          {/* Open Camera Button */}
-          <TouchableOpacity activeOpacity={0.8} onPress={startScanning}>
-            <LinearGradient
-              colors={["#A82EBE", "#7D1380"]}
-              style={styles.openCameraBtn}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            >
-              <Camera size={20} color="#FFF" />
-              <Text style={styles.openCameraText}>Open Camera to Scan QR Code</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          {/* Divider */}
-          <View style={styles.orDividerRow}>
-            <View style={styles.orDividerLine} />
-            <Text style={styles.orDividerText}>OR</Text>
-            <View style={styles.orDividerLine} />
-          </View>
-
-          {/* Manual Input */}
-          <View style={styles.manualInputRow}>
-            <View style={styles.ticketInputWrapper}>
-              <TextInput 
-                placeholder="Enter ticket number (e.g., VIP-001)"
-                placeholderTextColor="#6B7280"
-                style={styles.ticketInputBox}
-                value={ticketInput}
-                onChangeText={setTicketInput}
-              />
             </View>
-            <TouchableOpacity style={styles.checkInBtn} onPress={() => handleManualCheckIn(ticketInput)}>
-               <Text style={styles.checkInBtnText}>Check In</Text>
-            </TouchableOpacity>
-          </View>
+          </CameraView>
+        </View>
+      )}
 
-          {/* Recent Check-ins */}
-          <Text style={styles.sectionHeader}>Recent Check-ins</Text>
-          
-          <View style={styles.checkinList}>
-            {recentCheckins.map((item, idx) => (
-              <View key={idx} style={styles.checkinListItem}>
-                <View style={styles.checkinUserIconWrapper}>
-                   <UserCheck size={20} color="#10B981" />
-                </View>
-                <View style={styles.checkinDetails}>
-                  <Text style={styles.checkinName}>{item.name || (item.bookingId ? `Guest ${item.bookingId.slice(-4)}` : "Unknown Guest")}</Text>
-                  <Text style={styles.checkinSubtext}>
-                    {item.status || "Standard"} • {(item.bookingId || "N/A").slice(-6)}
-                    <Text style={{ color: "#10B981" }}>
-                      {" • "}
-                      {new Date((item as any).checkedInAt || (item as any).updatedAt || new Date()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-                    </Text>
-                  </Text>
-                </View>
+      {/* TAB CONTENT: SCAN - MANUAL */}
+      {activeTab === "scan" && !isScanning && (
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
+        >
+          <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            {/* Main Scanner Box Placeholder */}
+            <View style={styles.scanBoxWrapper}>
+              <LinearGradient
+                colors={["rgba(217, 70, 239, 0.15)", "rgba(217, 70, 239, 0.05)"]}
+                style={styles.scanDeviceMock}
+              >
+                <QrCode size={70} color="#D946EF" />
+                <TouchableOpacity activeOpacity={0.8} style={styles.floatingCameraBtn}>
+                  <Camera size={14} color="#FFFFFF" />
+                </TouchableOpacity>
+              </LinearGradient>
+            </View>
+
+            <Text style={styles.scanInstruction}>Scan QR code or enter ticket number manually</Text>
+
+            {/* Open Camera Button */}
+            <TouchableOpacity activeOpacity={0.8} onPress={startScanning}>
+              <LinearGradient
+                colors={["#A82EBE", "#7D1380"]}
+                style={styles.openCameraBtn}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              >
+                <Camera size={20} color="#FFF" />
+                <Text style={styles.openCameraText}>Open Camera to Scan QR Code</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Divider */}
+            <View style={styles.orDividerRow}>
+              <View style={styles.orDividerLine} />
+              <Text style={styles.orDividerText}>OR</Text>
+              <View style={styles.orDividerLine} />
+            </View>
+
+            {/* Manual Input */}
+            <View style={styles.manualInputRow}>
+              <View style={styles.ticketInputWrapper}>
+                <TextInput
+                  placeholder="Enter ticket number (e.g., VIP-001)"
+                  placeholderTextColor="#6B7280"
+                  style={styles.ticketInputBox}
+                  value={ticketInput}
+                  onChangeText={setTicketInput}
+                />
               </View>
-            ))}
-            {recentCheckins.length === 0 && (
-              <Text style={{ color: "#8A85A3", textAlign: "center", marginTop: 20 }}>
-                No recent check-ins found.
-              </Text>
-            )}
-          </View>
-          <View style={{height: 40}} />
-        </ScrollView>
+              <TouchableOpacity style={styles.checkInBtn} onPress={() => handleManualCheckIn(ticketInput)}>
+                <Text style={styles.checkInBtnText}>Check In</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Recent Check-ins */}
+            <Text style={styles.sectionHeader}>Recent Check-ins</Text>
+
+            <View style={styles.checkinList}>
+              {recentCheckins.map((item, idx) => (
+                <View key={idx} style={styles.checkinListItem}>
+                  <View style={styles.checkinUserIconWrapper}>
+                    <UserCheck size={20} color="#10B981" />
+                  </View>
+                  <View style={styles.checkinDetails}>
+                    <Text style={styles.checkinName}>{item.name || (item.bookingId ? `Guest ${item.bookingId.slice(-4)}` : "Unknown Guest")}</Text>
+                    <Text style={styles.checkinSubtext}>
+                      {item.status || "Standard"} • {(item.bookingId || "N/A").slice(-6)}
+                      <Text style={{ color: "#10B981" }}>
+                        {" • "}
+                        {safeFormatTime(new Date((item as any).checkedInAt || (item as any).updatedAt || new Date()))}
+                      </Text>
+                    </Text>
+                  </View>
+                </View>
+              ))}
+              {recentCheckins.length === 0 ? (
+                <Text style={{ color: "#8A85A3", fontStyle: "italic", marginLeft: 4 }}>
+                  No recent check-ins...
+                </Text>
+              ) : null}
+            </View>
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </KeyboardAvoidingView>
       )}
 
       {/* TAB CONTENT: GUESTS */}
       {activeTab === "guests" && (
         <View style={[styles.scrollContent, { paddingHorizontal: 0 }]}>
-           {/* Top Stats */}
-           <View style={{ paddingHorizontal: 20 }}>
-             <View style={styles.guestsTopStats}>
-                <View style={styles.gStatBlock}>
-                   <Text style={styles.gStatLabel}>Total Guests</Text>
-                   <Text style={styles.gStatValueWhite}>{totalBooked}</Text>
-                </View>
-                <View style={styles.gStatDivider} />
-                <View style={styles.gStatBlock}>
-                   <Text style={styles.gStatLabel}>Checked In</Text>
-                   <Text style={[styles.gStatValueWhite, { color: "#10B981" }]}>{checkedIn}</Text>
-                </View>
-                <View style={styles.gStatDivider} />
-                <View style={styles.gStatBlock}>
-                   <Text style={styles.gStatLabel}>Pending</Text>
-                   <Text style={[styles.gStatValueWhite, { color: "#EAB308" }]}>{pending}</Text>
-                </View>
-             </View>
+          {/* Top Stats */}
+          <View style={{ paddingHorizontal: 20 }}>
+            <View style={styles.guestsTopStats}>
+              <View style={styles.gStatBlock}>
+                <Text style={styles.gStatLabel}>Total Guests</Text>
+                <Text style={styles.gStatValueWhite}>{totalBooked}</Text>
+              </View>
+              <View style={styles.gStatDivider} />
+              <View style={styles.gStatBlock}>
+                <Text style={styles.gStatLabel}>Checked In</Text>
+                <Text style={[styles.gStatValueWhite, { color: "#10B981" }]}>{checkedIn}</Text>
+              </View>
+              <View style={styles.gStatDivider} />
+              <View style={styles.gStatBlock}>
+                <Text style={styles.gStatLabel}>Pending</Text>
+                <Text style={[styles.gStatValueWhite, { color: "#EAB308" }]}>{pending}</Text>
+              </View>
+            </View>
 
-             {/* Search */}
-             <View style={styles.guestSearchRow}>
-                <Search size={20} color="#6B7280" />
-                <TextInput
-                  placeholder="Search guests by name, email or ticket..."
-                  placeholderTextColor="#6B7280"
-                  style={styles.guestSearchInput}
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                />
-             </View>
-           </View>
+            {/* Search */}
+            <View style={styles.guestSearchRow}>
+              <Search size={20} color="#6B7280" />
+              <TextInput
+                placeholder="Search guests by name, email or ticket..."
+                placeholderTextColor="#6B7280"
+                style={styles.guestSearchInput}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+            </View>
+          </View>
 
-           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
-              {filteredGuests.map((guest, idx) => (
-                <View key={idx} style={[
-                  styles.guestRowCard, 
-                  idx === 0 && { borderColor: 'rgba(16, 185, 129, 0.4)' }
-                ]}>
-                  {/* Left Avatar circle */}
-                  <View style={styles.guestAvatar}>
-                     <Text style={styles.guestAvatarText}>#{idx + 1}</Text>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
+            {filteredGuests.map((guest, idx) => (
+              <View key={idx} style={[
+                styles.guestRowCard,
+                idx === 0 && { borderColor: 'rgba(16, 185, 129, 0.4)' }
+              ]}>
+                {/* Left Avatar circle */}
+                <View style={styles.guestAvatar}>
+                  <Text style={styles.guestAvatarText}>#{idx + 1}</Text>
+                </View>
+
+                {/* Middle Details */}
+                <View style={styles.guestInfo}>
+                  <View style={styles.guestNameRow}>
+                    <Text style={styles.guestName}>{guest.name || (guest.bookingId ? `Guest ${guest.bookingId.slice(-4)}` : "Unknown Guest")}</Text>
+                    {guest.checkedIn ? (
+                      <View style={styles.checkedInTag}>
+                        <CheckCircle2 size={12} color="#10B981" />
+                        <Text style={styles.checkedInTagText}>Checked In</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.pendingTag}>
+                        <Text style={styles.pendingTagText}>Pending</Text>
+                      </View>
+                    )}
                   </View>
+                  <Text style={styles.guestEmail}>{guest.email || "No email provided"}</Text>
 
-                  {/* Middle Details */}
-                  <View style={styles.guestInfo}>
-                     <View style={styles.guestNameRow}>
-                       <Text style={styles.guestName}>{guest.name || (guest.bookingId ? `Guest ${guest.bookingId.slice(-4)}` : "Unknown Guest")}</Text>
-                       {guest.checkedIn ? (
-                         <View style={styles.checkedInTag}>
-                           <CheckCircle2 size={12} color="#10B981" />
-                           <Text style={styles.checkedInTagText}>Checked In</Text>
-                         </View>
-                       ) : (
-                         <View style={styles.pendingTag}>
-                           <Text style={styles.pendingTagText}>Pending</Text>
-                         </View>
-                       )}
-                    </View>
-                    <Text style={styles.guestEmail}>{guest.email || "No email provided"}</Text>
-                    
-                    <View style={styles.guestTicketRow}>
-                       <Ticket size={12} color="#8A85A3" />
-                       <Text style={styles.guestTicketText}>
-                         {guest.status || "VIP"} • {(guest.bookingId || "N/A").slice(-6)}
-                         {guest.checkedIn && (
-                           <Text style={{ color: "#10B981" }}>
-                             {" • "}
-                             {new Date((guest as any).checkedInAt || (guest as any).updatedAt || new Date()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-                           </Text>
-                         )}
-                       </Text>
-                    </View>
-                  </View>
-
-                  {/* Right Action */}
-                  <View style={styles.guestActionContainer}>
-                     {guest.checkedIn ? (
-                        <UserCheck size={28} color="#10B981" />
-                     ) : (
-                        <TouchableOpacity 
-                           style={styles.checkInActionBtn}
-                           onPress={() => handleManualCheckIn(guest.bookingId)}
-                        >
-                           <Text style={styles.checkInActionBtnText}>Check In</Text>
-                        </TouchableOpacity>
-                     )}
+                  <View style={styles.guestTicketRow}>
+                    <Ticket size={12} color="#8A85A3" />
+                    <Text style={styles.guestTicketText}>
+                      {guest.status || "VIP"} • {(guest.bookingId || "N/A").slice(-6)}
+                      {guest.checkedIn && (
+                        <Text style={{ color: "#10B981" }}>
+                          {" • "}
+                          {safeFormatTime(new Date((guest as any).checkedInAt || (guest as any).updatedAt || new Date()))}
+                        </Text>
+                      )}
+                    </Text>
                   </View>
                 </View>
-              ))}
-              {loading && <ActivityIndicator size="large" color="#D946EF" style={{ marginTop: 20 }} />}
-              {!loading && filteredGuests.length === 0 && (
-                <Text style={{ color: "#8A85A3", textAlign: "center", marginTop: 40 }}>
-                  No guests found.
-                </Text>
-              )}
-           </ScrollView>
+
+                <View style={styles.guestActionContainer}>
+                  {guest.checkedIn ? (
+                    <UserCheck size={28} color="#10B981" />
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.checkInActionBtn}
+                      onPress={() => handleManualCheckIn(guest.bookingId)}
+                    >
+                      <Text style={styles.checkInActionBtnText}>Check In</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            ))}
+            {loading ? <ActivityIndicator size="large" color="#D946EF" style={{ marginTop: 20 }} /> : null}
+            {(!loading && filteredGuests.length === 0) ? (
+              <Text style={{ color: "#8A85A3", textAlign: "center", marginTop: 40 }}>
+                No guests found.
+              </Text>
+            ) : null}
+          </ScrollView>
         </View>
       )}
 
@@ -808,7 +852,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: "#10B981",
   },
-  
+
   // SCANNER TAB STYLES
   scanBoxWrapper: {
     alignItems: "center",
@@ -944,36 +988,36 @@ const styles = StyleSheet.create({
     color: "#8A85A3",
     fontSize: 14,
   },
-  
+
   // GUESTS TAB STYLES
   guestsTopStats: {
-     flexDirection: "row",
-     backgroundColor: "#161125",
-     borderRadius: 16,
-     paddingVertical: 16,
-     marginBottom: 20,
-     borderWidth: 1,
-     borderColor: "rgba(255,255,255,0.05)",
+    flexDirection: "row",
+    backgroundColor: "#161125",
+    borderRadius: 16,
+    paddingVertical: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.05)",
   },
   gStatBlock: {
-     flex: 1,
-     alignItems: "center",
-     justifyContent: "center",
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   gStatDivider: {
-     width: 1,
-     backgroundColor: "rgba(255,255,255,0.08)",
-     marginVertical: 4,
+    width: 1,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    marginVertical: 4,
   },
   gStatLabel: {
-     color: "#8A85A3",
-     fontSize: 12,
-     marginBottom: 8,
+    color: "#8A85A3",
+    fontSize: 12,
+    marginBottom: 8,
   },
   gStatValueWhite: {
-     color: "#FFF",
-     fontSize: 22,
-     fontWeight: "bold",
+    color: "#FFF",
+    fontSize: 22,
+    fontWeight: "bold",
   },
   guestSearchRow: {
     flexDirection: "row",
@@ -1026,9 +1070,10 @@ const styles = StyleSheet.create({
   },
   guestName: {
     color: "#FFF",
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "bold",
-    marginRight: 10,
+    marginRight: 8,
+    flexShrink: 1,
   },
   checkedInTag: {
     flexDirection: "row",
@@ -1087,7 +1132,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "bold",
   },
-  
+
   // LIVE CAMERA SCANNER STYLES
   cameraContainer: {
     flex: 1,
