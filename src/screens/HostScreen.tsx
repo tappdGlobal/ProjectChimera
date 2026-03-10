@@ -80,6 +80,7 @@ import { DraftsScreen } from "./DraftsScreen";
 import ComingSoon from "../components/common/ComingSoon";
 import { StatusBar } from "expo-status-bar";
 import { useAnalytics } from "../hooks/useAnalytics";
+import { LocationPickerModal } from "../components/host/LocationPickerModal";
 const SERVICE_CHARGE_PERCENT = 20;
 
 interface TicketType {
@@ -87,6 +88,7 @@ interface TicketType {
   name: string; // UI name
   price: number;
   quantityTotal: number; // REQUIRED by backend
+  description?: string; // Optional ticket description
 }
 
 interface EventForm {
@@ -290,6 +292,7 @@ export function HostScreen({ route }: any) {
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [ageOpen, setAgeOpen] = useState(false);
   const [genderOpen, setGenderOpen] = useState(false);
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const toISODateTime = (date: string, time: string) => {
     // date: dd-mm-yyyy
     const [dd, mm, yyyy] = date.split("-");
@@ -396,6 +399,38 @@ export function HostScreen({ route }: any) {
     [errors],
   );
 
+  // Handler for location selection from Google Places
+  const handleLocationSelect = useCallback(
+    (locationData: {
+      location: string;
+      address: string;
+      city: string;
+      country: string;
+      venue: string;
+      latitude?: number;
+      longitude?: number;
+    }) => {
+      setLocalFormData((prev) => ({
+        ...prev,
+        location: locationData.location,
+        address: locationData.address,
+        city: locationData.city,
+        country: locationData.country || "India",
+        venue: locationData.venue,
+      }));
+      // Clear any location-related errors
+      setErrors((prev) => ({
+        ...prev,
+        location: "",
+        address: "",
+        city: "",
+        country: "",
+        venue: "",
+      }));
+    },
+    []
+  );
+
   // ... inside HostScreen component ...
 
   const pickImage = async () => {
@@ -428,7 +463,7 @@ export function HostScreen({ route }: any) {
 
   // Handler for ticket changes
   const handleLocalTicketChange = useCallback(
-    (ticketId: string, field: "name" | "price", value: string | number) => {
+    (ticketId: string, field: "name" | "price" | "description" | "quantityTotal", value: string | number) => {
       setLocalFormData((prev) => ({
         ...prev,
         tickets: prev.tickets.map((ticket) =>
@@ -436,7 +471,7 @@ export function HostScreen({ route }: any) {
             ? {
               ...ticket,
               [field]:
-                field === "price"
+                field === "price" || field === "quantityTotal"
                   ? value === ""
                     ? 0 // Handle empty string as 0 internally
                     : parseInt(String(value)) || 0
@@ -457,6 +492,7 @@ export function HostScreen({ route }: any) {
       name: "",
       price: 0,
       quantityTotal: 100,
+      description: "",
     };
 
     setLocalFormData((prev) => ({
@@ -1097,14 +1133,30 @@ export function HostScreen({ route }: any) {
                   <MapPin size={16} color={Theme.colors.foreground} />
                   <Text style={styles.label}>Location</Text>
                 </View>
-                <Input
-                  style={styles.field}
-                  placeholder="Enter event location"
-                  value={localFormData.location}
-                  onChangeText={(v) => handleLocalFieldChange("location", v)}
-                />
+                <TouchableOpacity
+                  style={styles.locationSelectButton}
+                  onPress={() => setLocationPickerOpen(true)}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={[
+                      styles.locationSelectText,
+                      !localFormData.location && styles.locationSelectPlaceholder,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {localFormData.location || "Tap to search and select location"}
+                  </Text>
+                  <MapPin size={18} color={Theme.colors.primary} />
+                </TouchableOpacity>
+                {localFormData.location ? (
+                  <Text style={styles.locationHelpText}>
+                    ✓ Location selected. Address, City, Country, and Venue auto-filled.
+                  </Text>
+                ) : null}
               </View>
-              {/* Address */}
+
+              {/* Address - Editable after location selection */}
               <View>
                 <Text style={styles.label}>Address</Text>
                 <Input
@@ -1113,27 +1165,30 @@ export function HostScreen({ route }: any) {
                   value={localFormData.address}
                   onChangeText={(v) => handleLocalFieldChange("address", v)}
                 />
+                <Text style={styles.fieldHelpText}>
+                  Edit for exact details like building name, floor, etc.
+                </Text>
               </View>
 
-              {/* City */}
+              {/* City - Auto-filled, read-only */}
               <View>
                 <Text style={styles.label}>City</Text>
                 <Input
-                  style={styles.field}
-                  placeholder="Enter city"
+                  style={[styles.field, styles.autoFilledField]}
+                  placeholder=""
                   value={localFormData.city}
-                  onChangeText={(v) => handleLocalFieldChange("city", v)}
+                  editable={false}
                 />
               </View>
 
-              {/* Country */}
+              {/* Country - Auto-filled, read-only */}
               <View>
                 <Text style={styles.label}>Country</Text>
                 <Input
-                  style={styles.field}
-                  placeholder="Enter country"
+                  style={[styles.field, styles.autoFilledField]}
+                  placeholder=""
                   value={localFormData.country}
-                  onChangeText={(v) => handleLocalFieldChange("country", v)}
+                  editable={false}
                 />
               </View>
 
@@ -1270,19 +1325,19 @@ export function HostScreen({ route }: any) {
                     calculateServiceCharge(ticket.price);
 
                   return (
-                    <View key={ticket.id} style={{ marginBottom: 18 }}>
-                      <View style={styles.ticketCard}>
+                    <View key={ticket.id} style={styles.ticketItemContainer}>
+                      <View style={styles.ticketCardNew}>
 
                         {/* 🔴 HEADER WITH DELETE BUTTON */}
-                        <View style={styles.ticketHeaderRow}>
-                          <Text style={styles.ticketTitle}>
+                        <View style={styles.ticketHeaderRowNew}>
+                          <Text style={styles.ticketTitleNew}>
                             Ticket Type {index + 1}
                           </Text>
 
                           {localFormData.tickets.length > 1 && (
                             <TouchableOpacity
                               onPress={() => removeTicket(ticket.id)}
-                              style={styles.ticketDeleteButton}
+                              style={styles.ticketDeleteButtonNew}
                               activeOpacity={0.8}
                             >
                               <X size={14} color="#FFFFFF" />
@@ -1290,22 +1345,28 @@ export function HostScreen({ route }: any) {
                           )}
                         </View>
 
-                        <View style={styles.grid2Col}>
-                          <View>
-                            <Text style={styles.label}>Ticket Name</Text>
+                        {/* Ticket Name & Price Row */}
+                        <View style={styles.ticketRow}>
+                          <View style={styles.ticketFieldHalf}>
+                            <Text style={styles.ticketLabelNew}>Ticket Name</Text>
                             <Input
+                              style={styles.ticketInputNew}
                               value={ticket.name}
-                              placeholder="Standard"
+                              placeholder="e.g., Standard, Prime, VIP"
+                              placeholderTextColor={Theme.colors.mutedForeground}
                               onChangeText={(v) =>
                                 handleLocalTicketChange(ticket.id, "name", v)
                               }
                             />
                           </View>
 
-                          <View>
-                            <Text style={styles.label}>Price (₹)</Text>
+                          <View style={styles.ticketFieldHalf}>
+                            <Text style={styles.ticketLabelNew}>Price (₹)</Text>
                             <Input
-                              value={String(ticket.price)}
+                              style={styles.ticketInputNew}
+                              value={ticket.price > 0 ? String(ticket.price) : ""}
+                              placeholder="Enter price"
+                              placeholderTextColor={Theme.colors.mutedForeground}
                               keyboardType="numeric"
                               onChangeText={(v) =>
                                 handleLocalTicketChange(ticket.id, "price", v)
@@ -1314,50 +1375,75 @@ export function HostScreen({ route }: any) {
                           </View>
                         </View>
 
-                        {/* SERVICE CHARGE (VISIBLE BUT FIXED) */}
-                        <LinearGradient
-                          colors={[
-                            "rgba(196,81,201,0.25)",
-                            "rgba(116,1,130,0.35)",
-                          ]}
-                          style={styles.serviceChargeBox}
-                        >
-                          <View style={styles.serviceChargeHeader}>
+                        {/* Ticket Description */}
+                        <View style={styles.ticketFieldFull}>
+                          <Text style={styles.ticketLabelNew}>Ticket Description</Text>
+                          <Input
+                            style={[styles.ticketInputNew, styles.ticketDescriptionInput]}
+                            value={ticket.description}
+                            placeholder="Briefly describe what this ticket includes..."
+                            placeholderTextColor={Theme.colors.mutedForeground}
+                            multiline={true}
+                            numberOfLines={2}
+                            onChangeText={(v) =>
+                              handleLocalTicketChange(ticket.id, "description", v)
+                            }
+                          />
+                        </View>
+
+                        {/* Ticket Capacity */}
+                        <View style={styles.ticketFieldFull}>
+                          <Text style={styles.ticketLabelNew}>Ticket Capacity</Text>
+                          <Input
+                            style={styles.ticketInputNew}
+                            value={ticket.quantityTotal > 0 ? String(ticket.quantityTotal) : ""}
+                            placeholder="50"
+                            placeholderTextColor={Theme.colors.mutedForeground}
+                            keyboardType="numeric"
+                            onChangeText={(v) =>
+                              handleLocalTicketChange(ticket.id, "quantityTotal", v)
+                            }
+                          />
+                        </View>
+
+                        {/* SERVICE CHARGE BREAKDOWN */}
+                        <View style={styles.serviceChargeContainer}>
+                          <View style={styles.serviceChargeHeaderNew}>
                             <Info size={16} color="#E879F9" />
-                            <Text style={styles.serviceChargeTitle}>
-                              Service Charge Breakdown (Fixed {SERVICE_CHARGE_PERCENT}%)
+                            <Text style={styles.serviceChargeTitleNew}>
+                              Service Charge Breakdown
                             </Text>
                           </View>
 
-                          <View style={styles.serviceChargeRow}>
-                            <Text style={styles.serviceChargeLabel}>
+                          <View style={styles.serviceChargeRowNew}>
+                            <Text style={styles.serviceChargeLabelNew}>
                               Ticket Price:
                             </Text>
-                            <Text style={styles.serviceChargeValue}>
-                              ₹{ticket.price}
+                            <Text style={styles.serviceChargeValueNew}>
+                              ₹{ticket.price || 0}
                             </Text>
                           </View>
 
-                          <View style={styles.serviceChargeRow}>
-                            <Text style={styles.serviceChargeLabel}>
+                          <View style={styles.serviceChargeRowNew}>
+                            <Text style={styles.serviceChargeLabelNew}>
                               TAPPD Service Charge ({SERVICE_CHARGE_PERCENT}%):
                             </Text>
-                            <Text style={styles.serviceChargeNegative}>
+                            <Text style={styles.serviceChargeNegativeNew}>
                               ₹{serviceCharge}
                             </Text>
                           </View>
 
-                          <View style={styles.serviceChargeDivider} />
+                          <View style={styles.serviceChargeDividerNew} />
 
-                          <View style={styles.serviceChargeRow}>
-                            <Text style={styles.serviceChargeNetLabel}>
+                          <View style={styles.serviceChargeRowNew}>
+                            <Text style={styles.serviceChargeNetLabelNew}>
                               You will receive:
                             </Text>
-                            <Text style={styles.serviceChargeNetValue}>
+                            <Text style={styles.serviceChargeNetValueNew}>
                               ₹{hostReceives}
                             </Text>
                           </View>
-                        </LinearGradient>
+                        </View>
 
                       </View>
                     </View>
@@ -2081,7 +2167,7 @@ export function HostScreen({ route }: any) {
   return (
     <SafeAreaView
       style={[styles.flex1, { backgroundColor: Theme.colors.background }]}
-      edges={["top"]}
+      edges={["top", "left", "right"]}
     >
       <StatusBar style="light" backgroundColor={Theme.colors.background} />
 
@@ -2217,7 +2303,7 @@ export function HostScreen({ route }: any) {
           <View
             style={[
               styles.bottomActionBar,
-              { paddingBottom: Math.max(12, insets.bottom) },
+              { paddingBottom: insets.bottom > 0 ? insets.bottom : 12 },
             ]}
           >
             <View style={styles.bottomActionBarInner}>
@@ -2288,6 +2374,14 @@ export function HostScreen({ route }: any) {
         onCancel={() => setShowTimePicker(false)}
       />
       <ComingSoon visible={showComingSoon} onClose={() => setShowComingSoon(false)} />
+
+      {/* Location Picker Modal */}
+      <LocationPickerModal
+        visible={locationPickerOpen}
+        onClose={() => setLocationPickerOpen(false)}
+        onSelectLocation={handleLocationSelect}
+        initialLocation={localFormData.location}
+      />
     </SafeAreaView>
   );
 }
@@ -2816,7 +2910,7 @@ const styles = StyleSheet.create({
   scrollPadding: {
     paddingHorizontal: 16,
     paddingVertical: 24,
-    paddingBottom: 100, // Extra padding to ensure content scrolls above fixed bar
+    paddingBottom: 80, // Padding to account for fixed bottom action bar
   },
   formContentContainer: {
     gap: 32,
@@ -2939,7 +3033,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bottomSpacer: {
-    height: 100, // Spacer at the bottom of the ScrollView
+    height: 80, // Spacer to account for fixed bottom action bar
   },
 
   // Stats Cards Styles
@@ -3343,8 +3437,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Theme.colors.border,
     paddingHorizontal: Theme.spacing.m,
-    color: Theme.colors.foreground,
-    fontSize: 14,
   },
 
   fieldRow: {
@@ -3472,5 +3564,157 @@ const styles = StyleSheet.create({
     backgroundColor: Theme.colors.destructive,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  // Location Picker Styles
+  locationSelectButton: {
+    height: 52,
+    backgroundColor: Theme.colors.inputBackground,
+    borderRadius: Theme.radius.xl,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+    paddingHorizontal: Theme.spacing.m,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  locationSelectText: {
+    color: Theme.colors.foreground,
+    fontSize: 14,
+    flex: 1,
+  },
+  locationSelectPlaceholder: {
+    color: Theme.colors.mutedForeground,
+  },
+  locationHelpText: {
+    color: "#22c55e",
+    fontSize: 12,
+    marginTop: 6,
+    fontWeight: "500",
+  },
+  fieldHelpText: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 11,
+    marginTop: 4,
+    fontStyle: "italic",
+  },
+  autoFilledField: {
+    backgroundColor: "rgba(180, 130, 194, 0.1)",
+  },
+
+  // New Ticket Styles
+  ticketItemContainer: {
+    marginBottom: 20,
+  },
+  ticketCardNew: {
+    backgroundColor: "#1A152E",
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  ticketHeaderRowNew: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  ticketTitleNew: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: Theme.colors.foreground,
+  },
+  ticketDeleteButtonNew: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Theme.colors.destructive,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ticketRow: {
+    flexDirection: "row",
+    gap: 16,
+    marginBottom: 16,
+  },
+  ticketFieldHalf: {
+    flex: 1,
+  },
+  ticketFieldFull: {
+    marginBottom: 16,
+  },
+  ticketLabelNew: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: Theme.colors.foreground,
+    marginBottom: 8,
+  },
+  ticketInputNew: {
+    height: 48,
+    backgroundColor: "#252038",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    paddingHorizontal: 16,
+    color: Theme.colors.foreground,
+    fontSize: 15,
+  },
+  ticketDescriptionInput: {
+    height: 72,
+    textAlignVertical: "top",
+    paddingTop: 12,
+  },
+  serviceChargeContainer: {
+    backgroundColor: "rgba(196,81,201,0.12)",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(196,81,201,0.3)",
+    marginTop: 8,
+  },
+  serviceChargeHeaderNew: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 14,
+  },
+  serviceChargeTitleNew: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#E879F9",
+  },
+  serviceChargeRowNew: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  serviceChargeLabelNew: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.7)",
+  },
+  serviceChargeValueNew: {
+    fontSize: 14,
+    color: Theme.colors.foreground,
+    fontWeight: "500",
+  },
+  serviceChargeNegativeNew: {
+    fontSize: 14,
+    color: Theme.colors.foreground,
+    fontWeight: "500",
+  },
+  serviceChargeDividerNew: {
+    height: 1,
+    backgroundColor: "rgba(196,81,201,0.3)",
+    marginVertical: 12,
+  },
+  serviceChargeNetLabelNew: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#E879F9",
+  },
+  serviceChargeNetValueNew: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#E879F9",
   },
 });

@@ -708,7 +708,7 @@ export function PublishedEventsScreen() {
   const totalRegistrations = events.reduce((sum, e) => sum + e.bookedCount, 0);
 
   return (
-    <SafeAreaView style={[styles.flex1, { backgroundColor: Theme.colors.background }]} edges={["top", "bottom"]}>
+    <SafeAreaView style={[styles.flex1, { backgroundColor: Theme.colors.background }]} edges={["top", "left", "right"]}>
       <StatusBar barStyle="light-content" backgroundColor={Theme.colors.background} translucent={false} />
       <View style={styles.container}>
         <View style={styles.mainHeader}>
