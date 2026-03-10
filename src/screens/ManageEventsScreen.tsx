@@ -145,7 +145,7 @@ export default function ManageEventsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <StatusBar barStyle="light-content" backgroundColor="#0B0714" />
 
       {/* HEADER */}

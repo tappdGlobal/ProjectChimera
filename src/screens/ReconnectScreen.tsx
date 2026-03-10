@@ -417,7 +417,7 @@ export function ReconnectScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Reconnect</Text>
