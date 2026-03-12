@@ -85,18 +85,43 @@ export default function ManageEventsScreen() {
     const guestsLength = guestsCountMap.get(event.id);
     const realBookedCount = guestsLength ?? event.bookedCount ?? 0;
 
+    // Compute event status based on date
+    let statusLabel = "Upcoming";
+    let statusColor = "#EAB308";
+    let statusBgColor = "rgba(234, 179, 8, 0.15)";
+    try {
+      const eventDate = new Date(event.eventDatetime);
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const eventDay = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+
+      if (eventDay.getTime() === today.getTime()) {
+        statusLabel = "Live Now";
+        statusColor = "#10B981";
+        statusBgColor = "rgba(16, 185, 129, 0.15)";
+      } else if (eventDay.getTime() > today.getTime()) {
+        statusLabel = "Upcoming";
+        statusColor = "#EAB308";
+        statusBgColor = "rgba(234, 179, 8, 0.15)";
+      } else {
+        statusLabel = "Ended";
+        statusColor = "#6B7280";
+        statusBgColor = "rgba(107, 114, 128, 0.15)";
+      }
+    } catch (e) { }
+
     return (
-      <TouchableOpacity 
-        key={event.id} 
+      <TouchableOpacity
+        key={event.id}
         style={styles.eventCard}
         activeOpacity={0.8}
         onPress={() => navigation.navigate(SCREEN_NAMES.EVENT_DASHBOARD as never, { event } as never)}
       >
         <View style={styles.eventHeader}>
           <Text style={styles.eventTitle}>{event.eventName}</Text>
-          <View style={styles.liveBadge}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>Live Now</Text>
+          <View style={[styles.liveBadge, { backgroundColor: statusBgColor }]}>
+            <View style={[styles.liveDot, { backgroundColor: statusColor }]} />
+            <Text style={[styles.liveText, { color: statusColor }]}>{statusLabel}</Text>
           </View>
         </View>
 
@@ -133,7 +158,7 @@ export default function ManageEventsScreen() {
     );
   };
 
-  const filteredEvents = events?.filter(event => 
+  const filteredEvents = events?.filter(event =>
     (event.eventName || "").toLowerCase().includes((searchQuery || "").toLowerCase()) ||
     ((event.location || "").toLowerCase().includes((searchQuery || "").toLowerCase()))
   );
@@ -166,11 +191,11 @@ export default function ManageEventsScreen() {
       </View>
 
       {loading && !refreshing ? (
-        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color="#C84BFF" />
         </View>
       ) : (
-        <ScrollView 
+        <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           refreshControl={
@@ -197,7 +222,7 @@ export default function ManageEventsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0B0714", 
+    backgroundColor: "#0B0714",
   },
   header: {
     flexDirection: "row",
@@ -269,7 +294,7 @@ const styles = StyleSheet.create({
   liveBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(16, 185, 129, 0.15)", 
+    backgroundColor: "rgba(16, 185, 129, 0.15)",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 16,
@@ -338,7 +363,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   manageText: {
-    color: "#D946EF", 
+    color: "#D946EF",
     fontSize: 14,
     fontWeight: "600",
   },

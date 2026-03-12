@@ -71,7 +71,7 @@ export const useHostStore = create<HostState>((set, get) => ({
     try {
       set({ loading: true, error: null });
       const analyticsMap = new Map(get().analyticsMap);
-      
+
       // Fetch analytics for all events in parallel
       await Promise.all(
         eventIds.map(async (eventId) => {
@@ -85,7 +85,7 @@ export const useHostStore = create<HostState>((set, get) => ({
           }
         })
       );
-      
+
       set({ analyticsMap, loading: false });
     } catch (err: any) {
       set({ loading: false, error: err.message });
@@ -96,17 +96,35 @@ export const useHostStore = create<HostState>((set, get) => ({
     try {
       set({ loading: true, error: null });
       const res = await getEventGuestsApi(eventId, params);
-      
-      const normalizedGuests = (res.data ?? []).map((raw: any) => ({
-        ...raw,
-        bookingId: raw.bookingId || raw.id || raw._id,
-        name: raw.name || raw.user?.name || raw.user?.username || "",
-        email: raw.email || raw.user?.email || "",
-        checkedIn: raw.checkedIn ?? (raw.status === "CHECKED_IN")
-      }));
+      const resAny = res as any;
+
+      // Smart extraction: handle { data: [...] } or direct array
+      let rawGuests: any[] = [];
+      if (Array.isArray(resAny)) {
+        rawGuests = resAny;
+      } else if (Array.isArray(resAny?.data)) {
+        rawGuests = resAny.data;
+      }
+
+      const normalizedGuests = rawGuests.map((raw: any) => {
+        // Backend uses `id` not `bookingId`
+        const resolvedBookingId = raw.bookingId || raw.id || raw._id;
+
+        return {
+          ...raw,
+          bookingId: resolvedBookingId,
+          name: raw.name || raw.user?.name || raw.user?.username || "",
+          email: raw.email || raw.user?.email || "",
+          // Backend uses `hasCheckedIn`, not `checkedIn`
+          checkedIn: raw.hasCheckedIn ?? raw.checkedIn ?? (raw.status === "CHECKED_IN"),
+        };
+      });
+
+      console.log('✅ Guests loaded:', normalizedGuests.length, '| IDs:', normalizedGuests.map((g: any) => g.bookingId));
 
       set({ guests: normalizedGuests, loading: false });
     } catch (err: any) {
+      console.error('❌ fetchGuests ERROR:', err);
       set({ loading: false, error: err.message });
     }
   },
@@ -147,7 +165,7 @@ export const useHostStore = create<HostState>((set, get) => ({
     try {
       set({ loading: true, error: null });
       const attendanceMap = new Map(get().attendanceMap);
-      
+
       await Promise.all(
         eventIds.map(async (eventId) => {
           try {
@@ -160,7 +178,7 @@ export const useHostStore = create<HostState>((set, get) => ({
           }
         })
       );
-      
+
       set({ attendanceMap, loading: false });
     } catch (err: any) {
       set({ loading: false, error: err.message });

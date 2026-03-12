@@ -1,10 +1,12 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAnalytics } from "../hooks/useAnalytics";
 import { TermsOfServiceModal } from "../components/Legal/TermsOfServiceModal";
 import { PrivacyPolicyModal } from "../components/Legal/PrivacyPolicyModal";
+
+const tappdLogo = require('../../assets/tappdLogo.png');
 
 export const WelcomeScreen = ({ navigation }: any) => {
   const { trackButtonClick } = useAnalytics("WelcomeScreen");
@@ -17,7 +19,11 @@ export const WelcomeScreen = ({ navigation }: any) => {
         <View style={styles.content}>
           {/* Logo Section */}
           <View style={styles.logoSection}>
-            <Text style={styles.logo}>TAPPD</Text>
+            <Image
+              source={tappdLogo}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
             <Text style={styles.tagline}>Tap into your world</Text>
           </View>
 
@@ -103,11 +109,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 60,
   },
-  logo: {
-    fontSize: 56,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    letterSpacing: 2,
+  logoImage: {
+    width: 200,
+    height: 70,
     marginBottom: 8,
   },
   tagline: {
