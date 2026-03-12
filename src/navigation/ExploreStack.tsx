@@ -6,6 +6,8 @@ import { ExploreScreen } from "../screens/ExploreScreen";
 import EventDiscoveryScreen from "../screens/EventDiscoveryScreen";
 import { EventDetailsScreen } from "../screens/EventDetailsScreen";
 import { CategoryEventsScreen } from "../screens/CategoryEventsScreen";
+import AllCategoriesScreen  from "../screens/AllCategoriesScreen";
+
 import { Theme } from "../styles/Theme";
 
 const Stack = createNativeStackNavigator<ExploreStackParamList>();
@@ -43,6 +45,16 @@ export default function ExploreStack() {
         name={SCREEN_NAMES.EVENT_DETAIL}
         component={EventDetailsScreen}
         options={{ headerShown: false }}
+      />
+
+      {/* All Categories Screen */}
+      <Stack.Screen
+        name={SCREEN_NAMES.ALL_CATEGORIES}
+        component={AllCategoriesScreen}
+        options={{
+          title: "All Categories",
+          headerShown: true,
+        }}
       />
 
       {/* Category Events Screen */}

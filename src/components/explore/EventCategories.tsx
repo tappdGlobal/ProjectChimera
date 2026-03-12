@@ -7,6 +7,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { Theme } from "../../styles/Theme";
+import { useNavigation } from "@react-navigation/native";
 
 interface EventCategoriesProps {
   onCategorySelect?: (category: string) => void;
@@ -41,7 +42,11 @@ const categories = [
 export function EventCategories({
   onCategorySelect,
 }: EventCategoriesProps) {
+
+  const navigation = useNavigation();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+  const visibleCategories = categories.slice(0, 3);
 
   const handlePress = (category: string) => {
     setActiveCategory(category);
@@ -57,18 +62,14 @@ export function EventCategories({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {categories.map((category) => {
+        {visibleCategories.map((category) => {
           const isActive = activeCategory === category;
 
           return (
             <TouchableOpacity
               key={category}
-              style={[
-                styles.chip,
-                isActive && styles.activeChip,
-              ]}
+              style={[styles.chip, isActive && styles.activeChip]}
               onPress={() => handlePress(category)}
-              activeOpacity={0.85}
             >
               <Text
                 style={[
@@ -81,6 +82,16 @@ export function EventCategories({
             </TouchableOpacity>
           );
         })}
+
+        {/* Explore All Button */}
+
+        <TouchableOpacity
+          style={styles.exploreChip}
+          onPress={() => navigation.navigate("AllCategories")}
+        >
+          <Text style={styles.exploreText}>Explore All →</Text>
+        </TouchableOpacity>
+
       </ScrollView>
     </View>
   );
@@ -124,7 +135,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
   },
+  exploreChip: {
+  paddingHorizontal: 16,
+  paddingVertical: 10,
+  borderRadius: 999,
+  backgroundColor: Theme.colors.secondary,
+},
 
+exploreText: {
+  color: Theme.colors.primary,
+  fontWeight: "600",
+},
   activeChipText: {
     color: "#ffffff",
   },

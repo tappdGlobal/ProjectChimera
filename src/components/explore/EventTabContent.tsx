@@ -24,18 +24,19 @@ export function EventTabContent() {
     fetchMyBookings();
   }, []);
 
-  const getEventStatus = (eventDate: string, eventTime: string) => {
-    const now = new Date();
+  const getEventStatus = (eventDate?: string, eventTime?: string) => {
+    if (!eventDate || !eventTime) return "upcoming";
 
+    const now = new Date();
     const eventDateTime = new Date(eventDate);
 
-    // merge time manually (important)
-    const [hours, minutes] = eventTime.split(":").map(Number);
+    const [hours, minutes] = eventTime?.split(":")?.map(Number) ?? [0, 0];
+
     eventDateTime.setHours(hours);
     eventDateTime.setMinutes(minutes);
     eventDateTime.setSeconds(0);
 
-    const eventEndTime = new Date(eventDateTime.getTime() + 2 * 60 * 60 * 1000); // assume 2 hour duration
+    const eventEndTime = new Date(eventDateTime.getTime() + 2 * 60 * 60 * 1000);
 
     if (now < eventDateTime) return "upcoming";
     if (now >= eventDateTime && now <= eventEndTime) return "ongoing";
