@@ -1,4 +1,3 @@
-
 // src/navigation/Routes.ts
 
 export const SCREEN_NAMES = {
@@ -30,6 +29,7 @@ export const SCREEN_NAMES = {
   EVENT_DISCOVERY: "EventDiscovery",
   EVENT_DETAIL: "EventDetail",
   CATEGORY_EVENTS: "CategoryEvents",
+  ALL_CATEGORIES: "AllCategories",
 
   // ================= ENGAGE STACK =================
   ENGAGE_HOME: "EngageHome",
@@ -110,6 +110,8 @@ export type ExploreStackParamList = {
   [SCREEN_NAMES.CATEGORY_EVENTS]: {
     category: string;
   };
+
+  [SCREEN_NAMES.ALL_CATEGORIES]: undefined;
 };
 
 
@@ -145,8 +147,9 @@ export type HostStackParamList = {
 
   [SCREEN_NAMES.PUBLISHED_EVENTS]: undefined;
 
-  [SCREEN_NAMES.MANAGE_EVENTS]: undefined; // ✅ REQUIRED FIX
+  [SCREEN_NAMES.MANAGE_EVENTS]: undefined;
 
-  [SCREEN_NAMES.EVENT_DASHBOARD]: { event: any };
+  [SCREEN_NAMES.EVENT_DASHBOARD]: {
+    event: any;
+  };
 };
-
