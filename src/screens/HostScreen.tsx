@@ -80,7 +80,6 @@ import { DraftsScreen } from "./DraftsScreen";
 import ComingSoon from "../components/common/ComingSoon";
 import { StatusBar } from "expo-status-bar";
 import { useAnalytics } from "../hooks/useAnalytics";
-import { LocationPickerModal } from "../components/host/LocationPickerModal";
 const SERVICE_CHARGE_PERCENT = 20;
 
 interface TicketType {
@@ -103,6 +102,8 @@ interface EventForm {
   city: string; // ✅ NEW
   country: string; // ✅ NEW
   venue: string; // ✅ NEW
+  latitude?: number; // ✅ NEW - from map
+  longitude?: number; // ✅ NEW - from map
 
   maxOccupancy: number;
   ageRestriction: string;
@@ -292,7 +293,7 @@ export function HostScreen({ route }: any) {
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [ageOpen, setAgeOpen] = useState(false);
   const [genderOpen, setGenderOpen] = useState(false);
-  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
+  
   const toISODateTime = (date: string, time: string) => {
     // date: dd-mm-yyyy
     const [dd, mm, yyyy] = date.split("-");
@@ -386,6 +387,35 @@ export function HostScreen({ route }: any) {
     });
   }, [editingDraft]);
 
+  // Effect to handle selected location from LocationPickerScreen
+  useEffect(() => {
+    const selectedLocation = route?.params?.selectedLocation;
+    if (selectedLocation) {
+      console.log("📍 Received location from picker:", selectedLocation);
+      setLocalFormData((prev) => ({
+        ...prev,
+        location: selectedLocation.address,
+        address: selectedLocation.address,
+        city: selectedLocation.city,
+        country: selectedLocation.country || "India",
+        venue: selectedLocation.venue,
+        latitude: selectedLocation.lat,
+        longitude: selectedLocation.lng,
+      }));
+      // Clear any location-related errors
+      setErrors((prev) => ({
+        ...prev,
+        location: "",
+        address: "",
+        city: "",
+        country: "",
+        venue: "",
+      }));
+      // Clear the param to prevent re-processing
+      navigation.setParams({ selectedLocation: undefined });
+    }
+  }, [route?.params?.selectedLocation]);
+
 
 
   // Handler for all standard text/number inputs
@@ -417,6 +447,8 @@ export function HostScreen({ route }: any) {
         city: locationData.city,
         country: locationData.country || "India",
         venue: locationData.venue,
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
       }));
       // Clear any location-related errors
       setErrors((prev) => ({
@@ -624,6 +656,8 @@ export function HostScreen({ route }: any) {
     if (localFormData.city) payload.city = localFormData.city;
     if (localFormData.country) payload.country = localFormData.country;
     if (localFormData.venue) payload.venue = localFormData.venue;
+    if (localFormData.latitude) payload.latitude = localFormData.latitude;
+    if (localFormData.longitude) payload.longitude = localFormData.longitude;
 
     if (localFormData.maxOccupancy > 0)
       payload.maxCapacity = localFormData.maxOccupancy;
@@ -715,6 +749,8 @@ export function HostScreen({ route }: any) {
         city: localFormData.city,
         country: localFormData.country,
         venue: localFormData.venue,
+        latitude: localFormData.latitude,
+        longitude: localFormData.longitude,
 
         maxCapacity: localFormData.maxOccupancy,
         ageLimit: mapAgeLimit(localFormData.ageRestriction),
@@ -1135,7 +1171,7 @@ export function HostScreen({ route }: any) {
                 </View>
                 <TouchableOpacity
                   style={styles.locationSelectButton}
-                  onPress={() => setLocationPickerOpen(true)}
+                  onPress={() => navigation.navigate(SCREEN_NAMES.LOCATION_PICKER)}
                   activeOpacity={0.8}
                 >
                   <Text
@@ -2377,13 +2413,7 @@ export function HostScreen({ route }: any) {
       />
       <ComingSoon visible={showComingSoon} onClose={() => setShowComingSoon(false)} />
 
-      {/* Location Picker Modal */}
-      <LocationPickerModal
-        visible={locationPickerOpen}
-        onClose={() => setLocationPickerOpen(false)}
-        onSelectLocation={handleLocationSelect}
-        initialLocation={localFormData.location}
-      />
+
     </SafeAreaView>
   );
 }

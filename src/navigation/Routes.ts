@@ -40,6 +40,7 @@ export const SCREEN_NAMES = {
   PUBLISHED_EVENTS: "PublishedEvents",
   MANAGE_EVENTS: "ManageEvents",
   EVENT_DASHBOARD: "EventDashboard",
+  LOCATION_PICKER: "LocationPicker",
 
   // ================= STANDALONE =================
   EVENT_DETAILS_SCREEN: "EventDetailsScreen",
@@ -139,14 +140,24 @@ export type EngageStackParamList = {
 export type HostStackParamList = {
   [SCREEN_NAMES.HOST_MAIN]: {
     editingDraft?: any;
+    selectedLocation?: {
+      address: string;
+      lat: number;
+      lng: number;
+      city: string;
+      country: string;
+      venue: string;
+    };
   } | undefined;
 
   [SCREEN_NAMES.DRAFT_EVENTS]: undefined;
 
   [SCREEN_NAMES.PUBLISHED_EVENTS]: undefined;
 
-  [SCREEN_NAMES.MANAGE_EVENTS]: undefined; // ✅ REQUIRED FIX
+  [SCREEN_NAMES.MANAGE_EVENTS]: undefined;
 
   [SCREEN_NAMES.EVENT_DASHBOARD]: { event: any };
+
+  [SCREEN_NAMES.LOCATION_PICKER]: undefined;
 };
 
