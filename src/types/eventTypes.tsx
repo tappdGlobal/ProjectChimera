@@ -51,6 +51,9 @@ export interface Event {
 
   tickets: Ticket[];
 
+  // NEW → private event security
+  pinVerified?: boolean;
+
   // timestamps (backend adds these)
   createdAt?: string;
   updatedAt?: string;
