@@ -61,7 +61,6 @@ export default function EventDashboardScreen() {
   }, [event?.id, fetchGuests]);
 
   const [activeTab, setActiveTab] = useState<"analytics" | "scan" | "guests">("analytics");
-  const [ticketInput, setTicketInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Derived lists
@@ -87,7 +86,6 @@ export default function EventDashboardScreen() {
     }
     // Reset scanned result so barcode scanner re-enables
     setScannedResult(null);
-    setTicketInput("");
     setIsScanning(true);
   };
 
@@ -97,7 +95,6 @@ export default function EventDashboardScreen() {
     const scannedTicket = data.trim();
     setIsScanning(false);
     setScannedResult(scannedTicket);
-    setTicketInput(scannedTicket);
 
     // Try API check-in directly — the backend is the source of truth
     try {
@@ -109,7 +106,6 @@ export default function EventDashboardScreen() {
           text2: "Guest has been checked in.",
         });
         await fetchGuests(event.id);
-        setTicketInput("");
       }
     } catch (e: any) {
       Toast.show({
@@ -146,7 +142,6 @@ export default function EventDashboardScreen() {
           text2: guestMatch ? `Checked in ${guestMatch.name}` : "Guest checked in successfully.",
         });
         await fetchGuests(event.id);
-        setTicketInput("");
       }
     } catch (e: any) {
       Toast.show({
@@ -432,7 +427,7 @@ export default function EventDashboardScreen() {
               </LinearGradient>
             </View>
 
-            <Text style={styles.scanInstruction}>Scan QR code or enter ticket number manually</Text>
+            <Text style={styles.scanInstruction}>Scan guest QR code to check in</Text>
 
             {/* Open Camera Button */}
             <TouchableOpacity activeOpacity={0.8} onPress={startScanning}>
@@ -445,29 +440,6 @@ export default function EventDashboardScreen() {
                 <Text style={styles.openCameraText}>Open Camera to Scan QR Code</Text>
               </LinearGradient>
             </TouchableOpacity>
-
-            {/* Divider */}
-            <View style={styles.orDividerRow}>
-              <View style={styles.orDividerLine} />
-              <Text style={styles.orDividerText}>OR</Text>
-              <View style={styles.orDividerLine} />
-            </View>
-
-            {/* Manual Input */}
-            <View style={styles.manualInputRow}>
-              <View style={styles.ticketInputWrapper}>
-                <TextInput
-                  placeholder="Enter ticket number (e.g., VIP-001)"
-                  placeholderTextColor="#6B7280"
-                  style={styles.ticketInputBox}
-                  value={ticketInput}
-                  onChangeText={setTicketInput}
-                />
-              </View>
-              <TouchableOpacity style={styles.checkInBtn} onPress={() => handleManualCheckIn(ticketInput)}>
-                <Text style={styles.checkInBtnText}>Check In</Text>
-              </TouchableOpacity>
-            </View>
 
             {/* Recent Check-ins */}
             <Text style={styles.sectionHeader}>Recent Check-ins</Text>
