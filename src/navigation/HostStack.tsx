@@ -7,6 +7,7 @@ import { PublishedEventsScreen } from "../screens/PublishedEventsScreen";
 import { DraftEventsScreen } from "../screens/DraftEventsScreen";
 import ManageEventsScreen from "../screens/ManageEventsScreen";
 import EventDashboardScreen from "../screens/EventDashboardScreen";
+import LocationPickerScreen from "../screens/LocationPickerScreen";
 import { SCREEN_NAMES } from "./Routes";
 
 const HostStack = createStackNavigator();
@@ -37,6 +38,11 @@ export function HostStackScreen() {
       <HostStack.Screen
         name={SCREEN_NAMES.EVENT_DASHBOARD}
         component={EventDashboardScreen}
+      />
+
+      <HostStack.Screen
+        name={SCREEN_NAMES.LOCATION_PICKER}
+        component={LocationPickerScreen}
       />
     </HostStack.Navigator>
   );
