@@ -55,7 +55,6 @@ const buildEventFormData = (
   const formData = new FormData();
 
   Object.entries(payload).forEach(([key, value]) => {
-    // Skip only undefined and null, but keep false, 0, and empty strings
     if (value === undefined || value === null) return;
 
     if (key === "images") {
@@ -72,14 +71,12 @@ const buildEventFormData = (
       console.log("🎟️ Tickets JSON:", ticketsJson);
       formData.append("tickets", ticketsJson);
     } else if (typeof value === "boolean") {
-      // Explicitly convert booleans to strings
       formData.append(key, value ? "true" : "false");
     } else {
       formData.append(key, String(value));
     }
   });
 
-  // Debug: Log all form data entries
   console.log("📋 FormData entries:");
   const entries: Record<string, any> = {};
   formData.forEach((value, key) => {
@@ -97,7 +94,6 @@ const buildEventFormData = (
 
 /* ================= CREATE EVENT (PUBLISH) ================= */
 
-// ❌ UNCHANGED
 export const createEventApi = (
   payload: CreateEventPayload
 ): Promise<Event> => {
@@ -127,14 +123,12 @@ export const getEventCategoriesApi = (): Promise<{
 /* ================= EVENT API OBJECT ================= */
 
 export const eventApi = {
-  // ❌ UNCHANGED
   createEvent: (payload: CreateEventPayload) =>
     createEventApi(payload),
 
   getCategories: () =>
     getEventCategoriesApi(),
 
-  // ✅ FIXED: unwrap backend response → always return array
   getDraftEvents: async (): Promise<Event[]> => {
     const res = await apiClient.get("/events/drafts");
 
@@ -143,18 +137,32 @@ export const eventApi = {
       JSON.stringify(res.data, null, 2)
     );
 
-    // 🔑 BACKEND RETURNS ARRAY DIRECTLY
     return Array.isArray(res.data) ? res.data : [];
   },
 
+  /* ================= PRIVATE EVENT PIN ================= */
 
-  // ✅ Draft create (JSON to preserve number types)
+  generatePrivateEventPin: async (): Promise<{ message: string }> => {
+    const res = await apiClient.post("/events/public/generate-pin");
+    return res.data;
+  },
+
+  verifyPrivateEventPin: async (
+    pin: string
+  ): Promise<{ message: string }> => {
+    const res = await apiClient.post("/events/public/verify-pin", {
+      pin,
+    });
+    return res.data;
+  },
+
+  /* ================= DRAFT EVENTS ================= */
+
   saveDraft: (
     payload: DraftEventPayload
   ): Promise<Event> => {
-    // Send as JSON to preserve number types (ageLimit, maxCapacity, etc.)
     const { images, ...jsonPayload } = payload;
-    
+
     return apiClient.post("/events/drafts", jsonPayload, {
       headers: {
         "Content-Type": "application/json",
@@ -162,14 +170,12 @@ export const eventApi = {
     });
   },
 
-  // ✅ Draft update (JSON to preserve number types)
   updateDraft: (
     draftId: string,
     payload: DraftEventPayload
   ): Promise<Event> => {
-    // Send as JSON to preserve number types (ageLimit, maxCapacity, etc.)
     const { images, ...jsonPayload } = payload;
-    
+
     return apiClient.put(`/events/drafts/${draftId}`, jsonPayload, {
       headers: {
         "Content-Type": "application/json",

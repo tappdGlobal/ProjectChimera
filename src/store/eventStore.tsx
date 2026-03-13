@@ -18,6 +18,10 @@ interface EventState {
   createEvent: (data: CreateEventPayload) => Promise<Event>;
   fetchCategories: () => Promise<void>;
 
+  // private event PIN
+  generatePrivatePin: () => Promise<void>;
+  verifyPrivatePin: (pin: string) => Promise<boolean>;
+
   // drafts
   fetchDraftEvents: () => Promise<void>;
   saveDraft: (data: DraftEventPayload) => Promise<Event>;
@@ -84,6 +88,49 @@ export const useEventStore = create<EventState>((set) => ({
     }
   },
 
+  /* ================= PRIVATE EVENT PIN ================= */
+
+  generatePrivatePin: async () => {
+    try {
+      set({ loading: true, error: null });
+
+      await eventApi.generatePrivateEventPin();
+
+      set({ loading: false });
+    } catch (err: unknown) {
+      set({
+        loading: false,
+        error:
+          err instanceof Error
+            ? err.message
+            : "Failed to generate PIN",
+      });
+      throw err;
+    }
+  },
+
+  verifyPrivatePin: async (pin) => {
+    try {
+      set({ loading: true, error: null });
+
+      await eventApi.verifyPrivateEventPin(pin);
+
+      set({ loading: false });
+
+      return true;
+    } catch (err: unknown) {
+      set({
+        loading: false,
+        error:
+          err instanceof Error
+            ? err.message
+            : "Invalid or expired PIN",
+      });
+
+      return false;
+    }
+  },
+
   /* ================= DRAFT EVENTS ================= */
 
   fetchDraftEvents: async () => {
@@ -139,7 +186,7 @@ export const useEventStore = create<EventState>((set) => ({
 
       set((state) => ({
         draftEvents: state.draftEvents.map((d) =>
-          d.id === draftId ? updatedDraft : d
+          d._id === draftId ? updatedDraft : d
         ),
         loading: false,
       }));
@@ -165,7 +212,7 @@ export const useEventStore = create<EventState>((set) => ({
 
       set((state) => ({
         draftEvents: state.draftEvents.filter(
-          (d) => d.id !== draftId
+          (d) => d._id !== draftId
         ),
         loading: false,
       }));
@@ -190,7 +237,7 @@ export const useEventStore = create<EventState>((set) => ({
       set((state) => ({
         createdEvent: event,
         draftEvents: state.draftEvents.filter(
-          (d) => d.id !== draftId
+          (d) => d._id !== draftId
         ),
         loading: false,
       }));

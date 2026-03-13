@@ -243,7 +243,7 @@ export function HostScreen({ route }: any) {
   console.log("🏠 HostScreen mounted");
   console.log("🏠 editingDraft from route:", editingDraft);
   const navigation = useNavigation<
-  StackNavigationProp<HostStackParamList, typeof SCREEN_NAMES.HOST_MAIN>
+    StackNavigationProp<HostStackParamList, typeof SCREEN_NAMES.HOST_MAIN>
   >();
   const insets = useSafeAreaInsets();
   useAnalytics("HostScreen");
@@ -258,6 +258,8 @@ export function HostScreen({ route }: any) {
     saveDraft,
     updateDraft,
     publishDraft,
+    generatePrivatePin,
+    verifyPrivatePin,
     loading: creatingEvent,
     error: eventError,
   } = useEventStore();
@@ -266,16 +268,13 @@ export function HostScreen({ route }: any) {
   const [draftId, setDraftId] = useState<string | null>(null);
   const [isDraftLoading, setIsDraftLoading] = useState(false);
   const [showComingSoon, setShowComingSoon] = useState(false);
-
-  const [showPublicVerification, setShowPublicVerification] = useState(false);
-  const [isVerified, setIsVerified] = useState(false);
   const [showTickets, setShowTickets] = useState(false);
 
-  const [loginData, setLoginData] = useState({
-    username: "Harsh@tappd.co.in",
-    password: "Tappd@2025",
-  });
-  const [loginErrors, setLoginErrors] = useState<Record<string, string>>({});
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [showPublicVerification, setShowPublicVerification] = useState(false);
+  const [pin, setPin] = useState("");
+  const [isPinVerified, setIsPinVerified] = useState(false);
+
 
   const [localFormData, setLocalFormData] =
     useState<EventForm>(initialFormData);
@@ -655,12 +654,15 @@ export function HostScreen({ route }: any) {
   };
 
 
+  // PUBLIC EVENT PIN FLOW
+
+
   const handlePublishEvent = async () => {
+    // 1️⃣ Validate form first
     const validationErrors = validateForm(localFormData);
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length > 0) {
-      // Get the first few error messages to show to the user
       const errorMessages = Object.values(validationErrors).slice(0, 2);
       const errorText = errorMessages.join("\n");
 
@@ -670,16 +672,38 @@ export function HostScreen({ route }: any) {
         text2: errorText,
         visibilityTime: 4000,
       });
+
       return;
+    }
+
+    // 2️⃣ Public event PIN flow (only after validation)
+    if (activeTab === "public" && !isPinVerified) {
+      try {
+        await generatePrivatePin();
+
+        Toast.show({
+          type: "success",
+          text1: "Password Generated",
+          text2: "Password sent to Event Management Team of Tappd",
+        });
+
+        setShowPinModal(true);
+        return;
+      } catch (err) {
+        Toast.show({
+          type: "error",
+          text1: "Failed to generate password",
+        });
+        return;
+      }
     }
 
     try {
       const imageFiles = await Promise.all(
-        localFormData.photos.map((uri, index) =>
-          uriToFile(uri, index)
-        )
+        localFormData.photos.map((uri, index) => uriToFile(uri, index))
       );
-      // Validate tickets before creating payload
+
+      // Validate tickets
       if (localFormData.tickets.length === 0) {
         Toast.show({
           type: "error",
@@ -688,7 +712,7 @@ export function HostScreen({ route }: any) {
         return;
       }
 
-      // Validate at least one image
+      // Validate images
       if (localFormData.photos.length === 0) {
         Toast.show({
           type: "error",
@@ -702,12 +726,11 @@ export function HostScreen({ route }: any) {
         genre: localFormData.genre,
         category: localFormData.category,
 
-        eventType: (activeTab === "public" ? "public" : "private") as "public" | "private",
+        eventType: (activeTab === "public" ? "public" : "private") as
+          | "public"
+          | "private",
 
-        eventDate: toISODateTime(
-          localFormData.date,
-          localFormData.time
-        ),
+        eventDate: toISODateTime(localFormData.date, localFormData.time),
         eventTime: localFormData.time,
 
         location: localFormData.location,
@@ -725,7 +748,6 @@ export function HostScreen({ route }: any) {
 
         description: localFormData.description,
 
-        // ✅ FIX
         images: imageFiles,
 
         tickets: localFormData.tickets.map((t) => ({
@@ -738,45 +760,63 @@ export function HostScreen({ route }: any) {
         })),
       };
 
-      // Debug: Log the payload being sent
-      console.log("📤 Event payload:", JSON.stringify({
-        ...payload,
-        images: `${imageFiles.length} image(s)`, // Don't log full image data
-      }, null, 2));
+      console.log(
+        "📤 Event payload:",
+        JSON.stringify(
+          {
+            ...payload,
+            images: `${imageFiles.length} image(s)`,
+          },
+          null,
+          2
+        )
+      );
 
-      // Check for any undefined values in required fields
       const requiredFields = [
-        'eventName', 'genre', 'category', 'eventType', 'eventDate',
-        'eventTime', 'location', 'address', 'city', 'country', 'venue',
-        'maxCapacity', 'ageLimit', 'allowance', 'description'
+        "eventName",
+        "genre",
+        "category",
+        "eventType",
+        "eventDate",
+        "eventTime",
+        "location",
+        "address",
+        "city",
+        "country",
+        "venue",
+        "maxCapacity",
+        "ageLimit",
+        "allowance",
+        "description",
       ];
-      const missingFields = requiredFields.filter(field => {
+
+      const missingFields = requiredFields.filter((field) => {
         const value = (payload as any)[field];
-        return value === undefined || value === null || value === '';
+        return value === undefined || value === null || value === "";
       });
+
       if (missingFields.length > 0) {
         console.error("❌ Missing required fields:", missingFields);
+
         Toast.show({
           type: "error",
           text1: "Missing required fields",
           text2: missingFields.join(", "),
         });
+
         return;
       }
 
-
       let response;
+
       if (draftId) {
-        // If editing a draft, first update it with current form data, then publish
         console.log("Updating draft before publish:", draftId);
         await updateDraft(draftId, payload);
         response = await publishDraft(draftId);
       } else {
-        // Creating a new event directly
         response = await createEvent(payload);
       }
 
-      // ✅ SUCCESS FEEDBACK FROM BACKEND
       Toast.show({
         type: "success",
         text1: "Event created successfully 🎉",
@@ -789,8 +829,8 @@ export function HostScreen({ route }: any) {
     } catch (err: any) {
       console.error("Create event error:", err);
 
-      // Extract detailed error message from Axios response or fallback to generic message
       let errorMessage = "Something went wrong";
+
       if (err?.response?.data?.message) {
         errorMessage = err.response.data.message;
       } else if (err?.response?.data?.error) {
@@ -799,7 +839,6 @@ export function HostScreen({ route }: any) {
         errorMessage = err.message;
       }
 
-      // Log detailed error for debugging
       console.error("Error details:", {
         message: err?.message,
         response: err?.response?.data,
@@ -814,13 +853,25 @@ export function HostScreen({ route }: any) {
     }
   };
 
+  const handleVerifyPin = async () => {
+    try {
+      await verifyPrivatePin(pin);
 
-  const handlePublicTabClick = () => {
-    setActiveTab("public"); // Set active tab first
-    if (!isVerified) {
-      setShowPublicVerification(true);
-    } else {
-      setShowPublicVerification(false);
+      Toast.show({
+        type: "success",
+        text1: "PIN verified",
+      });
+
+      setIsPinVerified(true);
+      setShowPinModal(false);
+      setPin("");
+      // Continue publishing
+      handlePublishEvent();
+    } catch (err) {
+      Toast.show({
+        type: "error",
+        text1: "Invalid or expired PIN",
+      });
     }
   };
 
@@ -828,27 +879,7 @@ export function HostScreen({ route }: any) {
     navigation.navigate(SCREEN_NAMES.PUBLISHED_EVENTS as never);
   };
 
-  const handleLogin = () => {
-    const newErrors: Record<string, string> = {};
 
-    if (!loginData.username.trim()) newErrors.username = "Username is required";
-    if (!loginData.password.trim()) newErrors.password = "Password is required";
-
-    // Simple validation
-    if (
-      loginData.username === "Harsh@tappd.co.in" &&
-      loginData.password === "Tappd@2025"
-    ) {
-      setIsVerified(true);
-      setShowPublicVerification(false);
-      setActiveTab("public");
-      setLoginErrors({});
-    } else {
-      newErrors.credentials = "Invalid username or password";
-    }
-
-    setLoginErrors(newErrors);
-  };
 
   // --- SUB COMPONENTS ---
 
@@ -1020,8 +1051,8 @@ export function HostScreen({ route }: any) {
                       {React.createElement("input", {
                         type: "date",
                         title: "Select Date",
-                        value: localFormData.date 
-                          ? localFormData.date.split("-").reverse().join("-") 
+                        value: localFormData.date
+                          ? localFormData.date.split("-").reverse().join("-")
                           : "",
                         style: {
                           position: "absolute",
@@ -1036,7 +1067,7 @@ export function HostScreen({ route }: any) {
                         onClick: (e: any) => {
                           try {
                             e.target.showPicker();
-                          } catch (err) {}
+                          } catch (err) { }
                         },
                         onChange: (e: any) => {
                           const val = e.target.value;
@@ -1100,7 +1131,7 @@ export function HostScreen({ route }: any) {
                         onClick: (e: any) => {
                           try {
                             e.target.showPicker();
-                          } catch (err) {}
+                          } catch (err) { }
                         },
                         onChange: (e: any) => {
                           handleLocalFieldChange("time", e.target.value);
@@ -2239,7 +2270,10 @@ export function HostScreen({ route }: any) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={handlePublicTabClick}
+            onPress={() => {
+              setActiveTab("public");
+              setIsPinVerified(false);
+            }}
             style={[
               styles.tabButton,
               activeTab === "public" && styles.tabButtonActive,
@@ -2263,7 +2297,7 @@ export function HostScreen({ route }: any) {
                 Public Event
               </Text>
 
-              {isVerified && (
+              {isPinVerified && (
                 <View style={styles.verifiedBadgeCorner}>
                   <Text style={styles.verifiedBadgeText}>Verified</Text>
                 </View>
@@ -2382,6 +2416,70 @@ export function HostScreen({ route }: any) {
         onSelectLocation={handleLocationSelect}
         initialLocation={localFormData.location}
       />
+      <Modal visible={showPinModal} transparent animationType="fade">
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0,0,0,0.6)",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#1A152E",
+              padding: 24,
+              borderRadius: 16,
+              width: "85%",
+              position: "relative",
+            }}
+          >
+
+            {/* CLOSE BUTTON */}
+            <TouchableOpacity
+              onPress={() => {
+                setShowPinModal(false);
+                setPin("");
+              }}
+              style={{
+                position: "absolute",
+                top: 12,
+                right: 12,
+                padding: 6,
+              }}
+            >
+              <X size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "600", marginBottom: 16 }}>
+              Enter Verification PIN
+            </Text>
+
+            <Input
+              value={pin}
+              onChangeText={setPin}
+              placeholder="Enter 6 digit PIN"
+              keyboardType="numeric"
+            />
+
+            <TouchableOpacity
+              onPress={handleVerifyPin}
+              style={{
+                marginTop: 20,
+                backgroundColor: "#C026D3",
+                padding: 14,
+                borderRadius: 10,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: "#fff", fontWeight: "600" }}>
+                Verify PIN
+              </Text>
+            </TouchableOpacity>
+
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
