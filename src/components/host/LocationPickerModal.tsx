@@ -1,6 +1,6 @@
 // src/components/host/LocationPickerModal.tsx
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,15 +9,17 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
-  Image,
   Dimensions,
+  TextInput,
+  ActivityIndicator,
+  FlatList,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
-import { X, MapPin, Check, Navigation, Search } from "lucide-react-native";
+import { X, MapPin, Check, Navigation, Search, Crosshair } from "lucide-react-native";
 import { Theme } from "../../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
+import MapView, { UrlTile } from "react-native-maps";
 
 interface LocationData {
   location: string;
@@ -36,14 +38,26 @@ interface LocationPickerModalProps {
   initialLocation?: string;
 }
 
-const GOOGLE_PLACES_API_KEY = "YOUR_GOOGLE_PLACES_API_KEY"; // Replace with your actual API key
-const { width } = Dimensions.get("window");
+const GEOAPIFY_API_KEY = "2c3c85c5f29947d58a663a5a4dd5e5f5"; // Replace with your actual Geoapify API key
+const { width, height } = Dimensions.get("window");
 
 // Default to Delhi, India
 const DEFAULT_LOCATION = {
   latitude: 28.6139,
   longitude: 77.2090,
 };
+
+interface SearchResult {
+  place_id: string;
+  formatted: string;
+  lat: number;
+  lon: number;
+  address_line1?: string;
+  address_line2?: string;
+  city?: string;
+  country?: string;
+  name?: string;
+}
 
 export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   visible,
@@ -52,10 +66,14 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   initialLocation = "",
 }) => {
   const insets = useSafeAreaInsets();
-  const [selectedPlace, setSelectedPlace] = useState<any>(null);
-  const [addressData, setAddressData] = useState<LocationData | null>(null);
-  const [currentLocation, setCurrentLocation] = useState(DEFAULT_LOCATION);
-  const [mapUrl, setMapUrl] = useState<string>("");
+  const mapRef = useRef<MapView>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<LocationData | null>(null);
+  const [mapCenter, setMapCenter] = useState(DEFAULT_LOCATION);
+  const [showResults, setShowResults] = useState(false);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Get current location on mount
   useEffect(() => {
@@ -64,144 +82,182 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
     }
   }, [visible]);
 
-  // Update map when location changes
-  useEffect(() => {
-    if (selectedPlace) {
-      const lat = selectedPlace.geometry?.location?.lat || currentLocation.latitude;
-      const lng = selectedPlace.geometry?.location?.lng || currentLocation.longitude;
-      updateMapUrl(lat, lng);
+  const searchLocations = useCallback(async (query: string) => {
+    if (!query.trim() || query.length < 2) {
+      setSearchResults([]);
+      setShowResults(false);
+      return;
     }
-  }, [selectedPlace]);
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(
+        `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(query)}&apiKey=${GEOAPIFY_API_KEY}&limit=5`
+      );
+      const data = await response.json();
+
+      if (data.features) {
+        const results: SearchResult[] = data.features.map((feature: any) => ({
+          place_id: feature.properties.place_id,
+          formatted: feature.properties.formatted,
+          lat: feature.properties.lat,
+          lon: feature.properties.lon,
+          address_line1: feature.properties.address_line1,
+          address_line2: feature.properties.address_line2,
+          city: feature.properties.city,
+          country: feature.properties.country,
+          name: feature.properties.name,
+        }));
+        setSearchResults(results);
+        setShowResults(true);
+      }
+    } catch (error) {
+      console.log("Search error:", error);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    
+    if (searchTimeout.current) {
+      clearTimeout(searchTimeout.current);
+    }
+
+    searchTimeout.current = setTimeout(() => {
+      searchLocations(text);
+    }, 300);
+  };
+
+  const handleSelectResult = (result: SearchResult) => {
+    const locationData: LocationData = {
+      location: result.city && result.country ? `${result.city}, ${result.country}` : result.formatted,
+      address: result.formatted,
+      city: result.city || "",
+      country: result.country || "",
+      venue: result.name || result.address_line1 || result.formatted.split(",")[0],
+      latitude: result.lat,
+      longitude: result.lon,
+    };
+
+    setSelectedLocation(locationData);
+    setMapCenter({ latitude: result.lat, longitude: result.lon });
+    setSearchQuery(result.formatted);
+    setShowResults(false);
+
+    // Animate map to selected location
+    mapRef.current?.animateToRegion({
+      latitude: result.lat,
+      longitude: result.lon,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    });
+  };
 
   const getCurrentLocation = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
+        // If permission denied, just use default location
+        setMapCenter(DEFAULT_LOCATION);
+        mapRef.current?.animateToRegion({
+          latitude: DEFAULT_LOCATION.latitude,
+          longitude: DEFAULT_LOCATION.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        });
+        await reverseGeocode(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
         return;
       }
 
       const location = await Location.getCurrentPositionAsync({});
       const { latitude, longitude } = location.coords;
       
-      setCurrentLocation({ latitude, longitude });
-      updateMapUrl(latitude, longitude);
+      setMapCenter({ latitude, longitude });
 
+      // Animate map to current location
+      mapRef.current?.animateToRegion({
+        latitude,
+        longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+      
       // Reverse geocode to get address
       await reverseGeocode(latitude, longitude);
     } catch (error) {
       console.log("Error getting location:", error);
-      updateMapUrl(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
+      // On error, use default location instead of showing alert
+      setMapCenter(DEFAULT_LOCATION);
+      mapRef.current?.animateToRegion({
+        latitude: DEFAULT_LOCATION.latitude,
+        longitude: DEFAULT_LOCATION.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+      await reverseGeocode(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
     }
-  };
-
-  const updateMapUrl = (lat: number, lng: number) => {
-    // Using Google Static Maps API
-    const url = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=15&size=600x300&maptype=roadmap&markers=color:red%7C${lat},${lng}&key=${GOOGLE_PLACES_API_KEY}`;
-    setMapUrl(url);
   };
 
   const reverseGeocode = async (latitude: number, longitude: number) => {
     try {
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_PLACES_API_KEY}`
+        `https://api.geoapify.com/v1/geocode/reverse?lat=${latitude}&lon=${longitude}&apiKey=${GEOAPIFY_API_KEY}`
       );
       const data = await response.json();
 
-      if (data.results && data.results.length > 0) {
-        const result = data.results[0];
-        const locationData = extractLocationData(result);
-        setAddressData(locationData);
-        setSelectedPlace(result);
+      if (data.features && data.features.length > 0) {
+        const feature = data.features[0];
+        const props = feature.properties;
+        
+        const locationData: LocationData = {
+          location: props.city && props.country ? `${props.city}, ${props.country}` : props.formatted,
+          address: props.formatted,
+          city: props.city || "",
+          country: props.country || "",
+          venue: props.name || props.address_line1 || props.formatted.split(",")[0],
+          latitude,
+          longitude,
+        };
+        
+        setSelectedLocation(locationData);
+        setSearchQuery(props.formatted);
       }
     } catch (error) {
       console.log("Reverse geocode error:", error);
     }
   };
 
-  const extractLocationData = (details: any): LocationData => {
-    const components = details?.address_components || [];
-    
-    const getComponent = (types: string[]) => {
-      const component = components.find((c: any) =>
-        types.some((type) => c.types.includes(type))
-      );
-      return component?.long_name || "";
-    };
-
-    const streetNumber = getComponent(["street_number"]);
-    const route = getComponent(["route"]);
-    const subLocality = getComponent(["sublocality", "sublocality_level_1"]);
-    const locality = getComponent(["locality"]);
-    const city = locality || getComponent(["administrative_area_level_2"]);
-    const state = getComponent(["administrative_area_level_1"]);
-    const country = getComponent(["country"]);
-    const postalCode = getComponent(["postal_code"]);
-
-    const addressParts = [
-      streetNumber && route ? `${streetNumber} ${route}` : route,
-      subLocality,
-      city,
-      state,
-      postalCode,
-    ].filter(Boolean);
-
-    const address = addressParts.join(", ");
-    const venue = details?.name || details?.formatted_address?.split(",")[0] || "";
-    const location = city && country ? `${city}, ${country}` : details?.formatted_address || "";
-
-    const geometry = details?.geometry;
-    const lat = geometry?.location?.lat || currentLocation.latitude;
-    const lng = geometry?.location?.lng || currentLocation.longitude;
-
-    return {
-      location,
-      address: address || details?.formatted_address || "",
-      city,
-      country,
-      venue,
-      latitude: lat,
-      longitude: lng,
-    };
-  };
-
-  const handlePlaceSelect = async (data: any, details: any = null) => {
-    if (details) {
-      setSelectedPlace(details);
-      const locationData = extractLocationData(details);
-      setAddressData(locationData);
-      
-      // Update map
-      const lat = details.geometry.location.lat;
-      const lng = details.geometry.location.lng;
-      updateMapUrl(lat, lng);
-    }
-  };
-
   const handleUseCurrentLocation = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("Permission Denied", "Please allow location access to use this feature.");
-        return;
-      }
-
-      const location = await Location.getCurrentPositionAsync({});
-      const { latitude, longitude } = location.coords;
-      
-      await reverseGeocode(latitude, longitude);
-    } catch (error) {
-      Alert.alert("Error", "Could not get current location.");
-    }
+    await getCurrentLocation();
   };
 
   const handleConfirm = () => {
-    if (addressData) {
-      onSelectLocation(addressData);
+    if (selectedLocation) {
+      onSelectLocation(selectedLocation);
       onClose();
     } else {
-      Alert.alert("No Location Selected", "Please search and select a location first.");
+      Alert.alert("No Location Selected", "Please search for a location or use current location.");
     }
   };
+
+  const renderSearchResult = ({ item }: { item: SearchResult }) => (
+    <TouchableOpacity
+      style={styles.resultItem}
+      onPress={() => handleSelectResult(item)}
+    >
+      <MapPin size={18} color={Theme.colors.primary} style={styles.resultIcon} />
+      <View style={styles.resultTextContainer}>
+        <Text style={styles.resultTitle} numberOfLines={1}>
+          {item.name || item.address_line1 || item.formatted.split(",")[0]}
+        </Text>
+        <Text style={styles.resultSubtitle} numberOfLines={1}>
+          {item.formatted}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
 
   return (
     <Modal
@@ -210,8 +266,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
       transparent={true}
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.modalOverlay} edges={["top", "left", "right"]}>
-        <View style={[styles.modalContainer, { paddingBottom: insets.bottom }]}>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContainer, { paddingBottom: insets.bottom || 20 }]}>
           {/* Header */}
           <LinearGradient
             colors={[Theme.colors.primary, Theme.colors.secondary]}
@@ -228,33 +284,39 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             </TouchableOpacity>
           </LinearGradient>
 
-          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          <ScrollView 
+            style={styles.scrollView} 
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             {/* Search Bar */}
             <View style={styles.searchWrapper}>
-              <GooglePlacesAutocomplete
-                placeholder="Search for a venue or address..."
-                onPress={handlePlaceSelect}
-                fetchDetails={true}
-                query={{
-                  key: GOOGLE_PLACES_API_KEY,
-                  language: "en",
-                }}
-                styles={{
-                  container: styles.autocompleteContainer,
-                  textInput: styles.textInput,
-                  listView: styles.listView,
-                  row: styles.row,
-                  separator: styles.separator,
-                  description: styles.description,
-                }}
-                textInputProps={{
-                  placeholderTextColor: Theme.colors.mutedForeground,
-                  returnKeyType: "search",
-                }}
-                enablePoweredByContainer={false}
-                minLength={2}
-                debounce={300}
-              />
+              <View style={styles.searchInputContainer}>
+                <Search size={20} color={Theme.colors.mutedForeground} style={styles.searchIcon} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search for a venue or address..."
+                  placeholderTextColor={Theme.colors.mutedForeground}
+                  value={searchQuery}
+                  onChangeText={handleSearchChange}
+                  returnKeyType="search"
+                />
+                {isSearching && (
+                  <ActivityIndicator size="small" color={Theme.colors.primary} />
+                )}
+              </View>
+
+              {/* Search Results Dropdown */}
+              {showResults && searchResults.length > 0 && (
+                <View style={styles.resultsContainer}>
+                  <FlatList
+                    data={searchResults}
+                    renderItem={renderSearchResult}
+                    keyExtractor={(item) => item.place_id}
+                    scrollEnabled={false}
+                  />
+                </View>
+              )}
             </View>
 
             {/* Current Location Button */}
@@ -266,52 +328,79 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               <Text style={styles.currentLocationText}>Use Current Location</Text>
             </TouchableOpacity>
 
-            {/* Map Preview */}
-            {mapUrl ? (
-              <View style={styles.mapContainer}>
-                <Image 
-                  source={{ uri: mapUrl }} 
-                  style={styles.mapImage}
-                  resizeMode="cover"
-                />
-                <View style={styles.mapOverlay}>
-                  <View style={styles.markerContainer}>
-                    <View style={styles.marker}>
-                      <MapPin size={20} color="#fff" />
+            {/* Map Section */}
+            <View style={styles.mapSection}>
+              <Text style={styles.mapSectionTitle}>Pick on Map</Text>
+              <Text style={styles.mapSectionSubtitle}>
+                Drag the map to move the pin. The pin shows your selected location.
+              </Text>
+
+              {/* Interactive MapView */}
+              <View style={styles.mapWrapper}>
+                <MapView
+                  ref={mapRef}
+                  style={StyleSheet.absoluteFillObject}
+                  initialRegion={{
+                    latitude: mapCenter.latitude,
+                    longitude: mapCenter.longitude,
+                    latitudeDelta: 0.05,
+                    longitudeDelta: 0.05,
+                  }}
+                  onRegionChangeComplete={(region) => {
+                    setMapCenter({ latitude: region.latitude, longitude: region.longitude });
+                    reverseGeocode(region.latitude, region.longitude);
+                  }}
+                >
+                  <UrlTile
+                    urlTemplate={`https://maps.geoapify.com/v1/tile/osm-bright/{z}/{x}/{y}.png?apiKey=${GEOAPIFY_API_KEY}`}
+                    maximumZ={19}
+                    flipY={false}
+                    zIndex={1}
+                  />
+                </MapView>
+
+                {/* Fixed Center Pin — does not move */}
+                <View pointerEvents="none" style={styles.pinOverlay}>
+                  <View style={styles.pinContainer}>
+                    <View style={styles.pin}>
+                      <MapPin size={24} color="#fff" />
                     </View>
-                    <View style={styles.markerArrow} />
+                    <View style={styles.pinArrow} />
                   </View>
                 </View>
+
+                {/* Center on current location button */}
+                <TouchableOpacity
+                  style={styles.centerButton}
+                  onPress={getCurrentLocation}
+                >
+                  <Crosshair size={20} color={Theme.colors.primary} />
+                </TouchableOpacity>
               </View>
-            ) : (
-              <View style={styles.mapPlaceholder}>
-                <MapPin size={40} color={Theme.colors.mutedForeground} />
-                <Text style={styles.mapPlaceholderText}>Map will appear here</Text>
-              </View>
-            )}
+            </View>
 
             {/* Selected Location Info */}
-            {addressData ? (
+            {selectedLocation ? (
               <View style={styles.infoContainer}>
                 <View style={styles.infoHeader}>
                   <Check size={16} color="#22c55e" />
                   <Text style={styles.infoTitle}>Location Selected</Text>
                 </View>
                 <Text style={styles.infoVenue} numberOfLines={1}>
-                  {addressData.venue}
+                  {selectedLocation.venue}
                 </Text>
                 <Text style={styles.infoAddress} numberOfLines={2}>
-                  {addressData.address}
+                  {selectedLocation.address}
                 </Text>
                 <Text style={styles.infoDetails}>
-                  {addressData.city}{addressData.city && addressData.country ? ", " : ""}{addressData.country}
+                  {selectedLocation.city}{selectedLocation.city && selectedLocation.country ? ", " : ""}{selectedLocation.country}
                 </Text>
               </View>
             ) : (
               <View style={styles.infoContainerEmpty}>
-                <Search size={24} color={Theme.colors.mutedForeground} />
+                <MapPin size={32} color={Theme.colors.mutedForeground} />
                 <Text style={styles.infoEmptyText}>
-                  Search for a location or use current location
+                  Search for a location, use current location, or pick on map
                 </Text>
               </View>
             )}
@@ -319,7 +408,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             {/* Instructions */}
             <View style={styles.instructionsContainer}>
               <Text style={styles.instructionsText}>
-                💡 Tip: Type the venue name or address in the search box above, then select from the list to auto-fill all fields.
+                💡 Tip: Search for a location, tap "Use Current Location", or use the arrow buttons on the map to adjust the pin position.
               </Text>
             </View>
           </ScrollView>
@@ -336,14 +425,14 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             <TouchableOpacity
               style={[
                 styles.confirmButton,
-                !addressData && styles.confirmButtonDisabled,
+                !selectedLocation && styles.confirmButtonDisabled,
               ]}
               onPress={handleConfirm}
-              disabled={!addressData}
+              disabled={!selectedLocation}
             >
               <LinearGradient
                 colors={
-                  addressData
+                  selectedLocation
                     ? [Theme.colors.primary, Theme.colors.secondary]
                     : ["#666", "#888"]
                 }
@@ -356,7 +445,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             </TouchableOpacity>
           </View>
         </View>
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 };
@@ -371,7 +460,8 @@ const styles = StyleSheet.create({
     backgroundColor: Theme.colors.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: "80%",
+    maxHeight: "90%",
+    minHeight: "60%",
     overflow: "hidden",
   },
   header: {
@@ -395,47 +485,64 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   scrollView: {
-    flex: 1,
+    flexGrow: 1,
   },
   searchWrapper: {
     paddingHorizontal: 16,
     paddingTop: 16,
     zIndex: 10,
   },
-  autocompleteContainer: {
-    flex: 0,
-  },
-  textInput: {
+  searchInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: Theme.colors.card,
-    color: Theme.colors.foreground,
-    fontSize: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: Theme.colors.border,
+    paddingHorizontal: 12,
     height: 50,
   },
-  listView: {
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    color: Theme.colors.foreground,
+    fontSize: 16,
+    paddingVertical: 12,
+  },
+  resultsContainer: {
     backgroundColor: Theme.colors.card,
     borderRadius: 12,
     marginTop: 4,
     maxHeight: 200,
     borderWidth: 1,
     borderColor: Theme.colors.border,
+    overflow: "hidden",
   },
-  row: {
+  resultItem: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: Theme.colors.card,
+    borderBottomWidth: 1,
+    borderBottomColor: Theme.colors.border,
   },
-  separator: {
-    height: 1,
-    backgroundColor: Theme.colors.border,
+  resultIcon: {
+    marginRight: 12,
   },
-  description: {
+  resultTextContainer: {
+    flex: 1,
+  },
+  resultTitle: {
     color: Theme.colors.foreground,
     fontSize: 14,
+    fontWeight: "600",
+  },
+  resultSubtitle: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 12,
+    marginTop: 2,
   },
   currentLocationButton: {
     flexDirection: "row",
@@ -455,37 +562,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  mapContainer: {
-    marginHorizontal: 16,
+  mapSection: {
     marginTop: 16,
-    height: 200,
+    paddingHorizontal: 16,
+  },
+  mapSectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Theme.colors.foreground,
+    marginBottom: 4,
+  },
+  mapSectionSubtitle: {
+    fontSize: 12,
+    color: Theme.colors.mutedForeground,
+    marginBottom: 12,
+  },
+  mapWrapper: {
+    height: 250,
     borderRadius: 16,
     overflow: "hidden",
     position: "relative",
     backgroundColor: Theme.colors.card,
   },
-  mapImage: {
-    width: "100%",
-    height: "100%",
-  },
-  mapPlaceholder: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    height: 200,
-    borderRadius: 16,
-    backgroundColor: Theme.colors.card,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-    borderStyle: "dashed",
-  },
-  mapPlaceholderText: {
-    color: Theme.colors.mutedForeground,
-    marginTop: 12,
-    fontSize: 14,
-  },
-  mapOverlay: {
+  pinOverlay: {
     position: "absolute",
     top: 0,
     left: 0,
@@ -494,13 +593,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  markerContainer: {
+  pinContainer: {
     alignItems: "center",
+    marginTop: -20,
   },
-  marker: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  pin: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: Theme.colors.primary,
     alignItems: "center",
     justifyContent: "center",
@@ -512,16 +612,32 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-  markerArrow: {
+  pinArrow: {
     width: 0,
     height: 0,
-    borderLeftWidth: 8,
-    borderRightWidth: 8,
-    borderTopWidth: 10,
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderTopWidth: 12,
     borderLeftColor: "transparent",
     borderRightColor: "transparent",
     borderTopColor: Theme.colors.primary,
-    marginTop: -3,
+    marginTop: -4,
+  },
+  centerButton: {
+    position: "absolute",
+    bottom: 8,
+    right: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Theme.colors.card,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   infoContainer: {
     marginHorizontal: 16,
