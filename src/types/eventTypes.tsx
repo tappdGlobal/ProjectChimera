@@ -51,12 +51,22 @@ export interface Event {
 
   tickets: Ticket[];
 
-  // NEW → private event security
+  // public event verification
   pinVerified?: boolean;
 
   // timestamps (backend adds these)
   createdAt?: string;
   updatedAt?: string;
+}
+
+/* ================= PUBLIC PIN API ================= */
+
+export interface PublicPinResponse {
+  message: string;
+}
+
+export interface VerifyPinPayload {
+  pin: string;
 }
 
 /* ================= DRAFT EVENT ================= */

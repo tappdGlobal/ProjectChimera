@@ -19,8 +19,8 @@ interface EventState {
   fetchCategories: () => Promise<void>;
 
   // private event PIN
-  generatePrivatePin: () => Promise<void>;
-  verifyPrivatePin: (pin: string) => Promise<boolean>;
+  generatePublicPin: () => Promise<void>;
+  verifyPublicPin: (pin: string) => Promise<boolean>;
 
   // drafts
   fetchDraftEvents: () => Promise<void>;
@@ -90,11 +90,11 @@ export const useEventStore = create<EventState>((set) => ({
 
   /* ================= PRIVATE EVENT PIN ================= */
 
-  generatePrivatePin: async () => {
+  generatePublicPin: async () => {
     try {
       set({ loading: true, error: null });
 
-      await eventApi.generatePrivateEventPin();
+      await eventApi.generatePublicEventPin();
 
       set({ loading: false });
     } catch (err: unknown) {
@@ -109,11 +109,11 @@ export const useEventStore = create<EventState>((set) => ({
     }
   },
 
-  verifyPrivatePin: async (pin) => {
+  verifyPublicPin: async (pin) => {
     try {
       set({ loading: true, error: null });
 
-      await eventApi.verifyPrivateEventPin(pin);
+      await eventApi.verifyPublicEventPin(pin);
 
       set({ loading: false });
 
