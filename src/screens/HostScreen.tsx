@@ -2589,6 +2589,14 @@ export function HostScreen({ route }: any) {
           handleLocalFieldChange("date", `${dd}-${mm}-${yyyy}`);
         }}
         onCancel={() => setShowDatePicker(false)}
+        customModalProps={{
+          style: {
+            backgroundColor: Theme.colors.background,
+          },
+        }}
+        customPickerIOSStyle={{
+          backgroundColor: Theme.colors.background,
+        }}
       />
 
       {/* Time Picker Modal */}
@@ -2605,6 +2613,14 @@ export function HostScreen({ route }: any) {
           handleLocalFieldChange("time", `${hh}:${mm}`);
         }}
         onCancel={() => setShowTimePicker(false)}
+        customModalProps={{
+          style: {
+            backgroundColor: Theme.colors.background,
+          },
+        }}
+        customPickerIOSStyle={{
+          backgroundColor: Theme.colors.background,
+        }}
       />
 
       {/* Location Picker Modal */}
