@@ -7,7 +7,7 @@ export function TransactionTabContent() {
   const { bookings, fetchMyBookings, loading } = useBookingStore();
 
   useEffect(() => {
-    fetchMyBookings();
+    fetchMyBookings({ status: "BOOKED" });
   }, []);
 
   // Only successful bookings

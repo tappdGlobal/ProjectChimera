@@ -21,7 +21,7 @@ export function EventTabContent() {
   const [showComingSoon, setShowComingSoon] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   useEffect(() => {
-    fetchMyBookings();
+    fetchMyBookings({ status: "BOOKED" });
   }, []);
 
   const getEventStatus = (eventDate?: string, eventTime?: string) => {

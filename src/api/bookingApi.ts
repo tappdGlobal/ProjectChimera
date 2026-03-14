@@ -48,8 +48,6 @@ export const getMyBookingsApi = async (params?: {
 
     return response;
   } catch (error: any) {
-    console.log("❌ GET MY BOOKINGS ERROR:", error);
-    console.log("⚠️ BACKEND ERROR:", error?.response?.data);
 
     throw error;
   }

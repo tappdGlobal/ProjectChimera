@@ -118,8 +118,6 @@ export const useBookingStore = create<BookingState>((set) => ({
 
     const res = await getMyBookingsApi(params);
 
-    console.log("📥 FULL API RESPONSE:", res);
-    console.log("📦 BOOKINGS ARRAY:", res?.data);
 
     set({
       bookings: res?.data || [],

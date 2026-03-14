@@ -20,7 +20,7 @@ export function TicketTabContent() {
     const [selectedBooking, setSelectedBooking] = useState<any>(null);
 
     useEffect(() => {
-        fetchMyBookings();
+        fetchMyBookings({ status: "BOOKED" });
     }, []);
 
     const getEventStatus = (eventDate: string, eventTime: string) => {
