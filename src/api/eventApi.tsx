@@ -142,12 +142,14 @@ export const eventApi = {
 
   /* ================= PRIVATE EVENT PIN ================= */
 
-  generatePrivateEventPin: async (): Promise<{ message: string }> => {
+  /* ================= PUBLIC EVENT PIN ================= */
+
+  generatePublicEventPin: async (): Promise<{ message: string }> => {
     const res = await apiClient.post("/events/public/generate-pin");
     return res.data;
   },
 
-  verifyPrivateEventPin: async (
+  verifyPublicEventPin: async (
     pin: string
   ): Promise<{ message: string }> => {
     const res = await apiClient.post("/events/public/verify-pin", {
