@@ -640,8 +640,9 @@ export function EventInteractionSection() {
       >
         <SafeAreaView style={commentStyles.modalContainer}>
           <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
             style={commentStyles.keyboardView}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
           >
             <View style={commentStyles.modalContent}>
               {/* Header */}
