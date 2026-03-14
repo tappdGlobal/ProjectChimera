@@ -252,15 +252,15 @@ export function HostScreen({ route }: any) {
   const [activeTab, setActiveTab] = useState<
     "private" | "public" | "published"
   >("private");
-  const eventType = activeTab === "public" ? "public" : "private";
+  const eventType = activeTab;
 
   const {
     createEvent,
     saveDraft,
     updateDraft,
     publishDraft,
-    generatePrivatePin,
-    verifyPrivatePin,
+    generatePublicPin,
+    verifyPublicPin,
     loading: creatingEvent,
     error: eventError,
   } = useEventStore();
@@ -275,8 +275,8 @@ export function HostScreen({ route }: any) {
   const [showPublicVerification, setShowPublicVerification] = useState(false);
   const [pin, setPin] = useState("");
   const [isPinVerified, setIsPinVerified] = useState(false);
-
-
+  const [resendTimer, setResendTimer] = useState(0);
+  const [locationHandled, setLocationHandled] = useState(false);
   const [localFormData, setLocalFormData] =
     useState<EventForm>(initialFormData);
 
@@ -332,7 +332,8 @@ export function HostScreen({ route }: any) {
   }
   // Effect to load editing draft if provided
   useEffect(() => {
-    if (!editingDraft || draftId !== null) return;
+    if (!editingDraft) return;
+    if (draftId) return;
 
     console.log("🧩 Mapping draft to form:", editingDraft);
 
@@ -384,36 +385,70 @@ export function HostScreen({ route }: any) {
       tickets: editingDraft.tickets ?? [],
     });
   }, [editingDraft]);
+  useEffect(() => {
+    if (resendTimer === 0) return;
 
-  // Effect to handle selected location from LocationPickerScreen
+    const timer = setTimeout(() => {
+      setResendTimer(resendTimer - 1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [resendTimer]);
+
+
   useEffect(() => {
     const selectedLocation = route?.params?.selectedLocation;
-    if (selectedLocation) {
-      console.log("📍 Received location from picker:", selectedLocation);
-      setLocalFormData((prev) => ({
-        ...prev,
-        location: selectedLocation.address,
-        address: selectedLocation.address,
-        city: selectedLocation.city,
-        country: selectedLocation.country || "India",
-        venue: selectedLocation.venue,
-        latitude: selectedLocation.latitude,
-        longitude: selectedLocation.longitude,
-      }));
-      // Clear any location-related errors
-      setErrors((prev) => ({
-        ...prev,
-        location: "",
-        address: "",
-        city: "",
-        country: "",
-        venue: "",
-      }));
-      // Clear the param to prevent re-processing
-      navigation.setParams({ selectedLocation: undefined });
-    }
+
+    if (!selectedLocation) return;
+
+    console.log("📍 Received location:", selectedLocation);
+
+    setLocalFormData((prev) => ({
+      ...prev,
+      location: selectedLocation.address || "",
+      address: selectedLocation.address || "",
+      city: selectedLocation.city || "",
+      country: selectedLocation.country || "India",
+      venue: selectedLocation.venue || "",
+      latitude: selectedLocation.latitude,
+      longitude: selectedLocation.longitude,
+    }));
+
+    setErrors((prev) => ({
+      ...prev,
+      location: "",
+      address: "",
+      city: "",
+      country: "",
+      venue: "",
+    }));
+
+    // 🔥 CLEAR PARAM AFTER USING IT
+    navigation.setParams({ selectedLocation: undefined });
+
   }, [route?.params?.selectedLocation]);
 
+
+  const handleResendPin = async () => {
+    if (resendTimer > 0) return;
+
+    try {
+      await generatePublicPin();
+
+      Toast.show({
+        type: "success",
+        text1: "PIN Resent",
+        text2: "New PIN sent to Tappd Event Management Team",
+      });
+
+      setResendTimer(30);
+    } catch (err) {
+      Toast.show({
+        type: "error",
+        text1: "Failed to resend PIN",
+      });
+    }
+  };
   // Handler for all standard text/number inputs
   const handleLocalFieldChange = useCallback(
     (field: keyof EventForm, value: any) => {
@@ -683,6 +718,75 @@ export function HostScreen({ route }: any) {
 
   // PUBLIC EVENT PIN FLOW
 
+  const createEventAfterVerification = async () => {
+    try {
+      const imageFiles = await Promise.all(
+        localFormData.photos.map((uri, index) => uriToFile(uri, index))
+      );
+
+      const payload = {
+        eventName: localFormData.name,
+        genre: localFormData.genre,
+        category: localFormData.category,
+
+        eventType: (activeTab === "public" ? "public" : "private") as
+          | "public"
+          | "private",
+
+        eventDate: toISODateTime(localFormData.date, localFormData.time),
+        eventTime: localFormData.time,
+
+        location: localFormData.location,
+        address: localFormData.address,
+        city: localFormData.city,
+        country: localFormData.country,
+        venue: localFormData.venue,
+        latitude: localFormData.latitude,
+        longitude: localFormData.longitude,
+
+        maxCapacity: localFormData.maxOccupancy,
+        ageLimit: mapAgeLimit(localFormData.ageRestriction),
+        allowance: mapAllowance(localFormData.genderAllowance),
+
+        allowAlcohol: localFormData.alcoholAllowed,
+        allowSmokingAreas: localFormData.smokingAllowed,
+
+        description: localFormData.description,
+
+        images: imageFiles,
+
+        tickets: localFormData.tickets.map((t) => ({
+          ticketLabel: t.name,
+          ticketType: "PAID" as const,
+          price: t.price,
+          currency: "INR",
+          serviceChargePercentage: SERVICE_CHARGE_PERCENT,
+          quantityTotal: t.quantityTotal,
+        })),
+      };
+
+      let response;
+
+      if (draftId) {
+        await updateDraft(draftId, payload);
+        response = await publishDraft(draftId);
+      } else {
+        response = await createEvent(payload);
+      }
+
+      Toast.show({
+        type: "success",
+        text1: "Event created successfully 🎉",
+      });
+
+      setLocalFormData(initialFormData);
+    } catch (err) {
+      Toast.show({
+        type: "error",
+        text1: "Failed to create event",
+      });
+    }
+  };
 
   const handlePublishEvent = async () => {
     // 1️⃣ Validate form first
@@ -706,20 +810,21 @@ export function HostScreen({ route }: any) {
     // 2️⃣ Public event PIN flow (only after validation)
     if (activeTab === "public" && !isPinVerified) {
       try {
-        await generatePrivatePin();
+        await generatePublicPin();
 
         Toast.show({
           type: "success",
-          text1: "Password Generated",
-          text2: "Password sent to Event Management Team of Tappd",
+          text1: "PIN Generated",
+          text2: "Verification PIN sent to Tappd Event Management Team",
         });
 
         setShowPinModal(true);
+        setResendTimer(30); // start countdown
         return;
       } catch (err) {
         Toast.show({
           type: "error",
-          text1: "Failed to generate password",
+          text1: "Failed to generate PIN",
         });
         return;
       }
@@ -883,19 +988,29 @@ export function HostScreen({ route }: any) {
   };
 
   const handleVerifyPin = async () => {
+    if (pin.length !== 6) {
+      Toast.show({
+        type: "error",
+        text1: "Enter valid 6 digit PIN",
+      });
+      return;
+    }
+
     try {
-      await verifyPrivatePin(pin);
+      await verifyPublicPin(pin);
 
       Toast.show({
         type: "success",
-        text1: "PIN verified",
+        text1: "PIN verified successfully",
       });
 
       setIsPinVerified(true);
       setShowPinModal(false);
       setPin("");
-      // Continue publishing
-      handlePublishEvent();
+
+      // 🔥 CREATE EVENT AFTER PIN VERIFICATION
+      await createEventAfterVerification();
+
     } catch (err) {
       Toast.show({
         type: "error",
@@ -1195,7 +1310,7 @@ export function HostScreen({ route }: any) {
                 </View>
                 <TouchableOpacity
                   style={styles.locationSelectButton}
-                  onPress={() => navigation.navigate(SCREEN_NAMES.LOCATION_PICKER)}
+                  onPress={() => navigation.navigate(SCREEN_NAMES.LOCATION_PICKER as never)}
                   activeOpacity={0.8}
                 >
                   <Text
@@ -2473,8 +2588,26 @@ export function HostScreen({ route }: any) {
               <X size={20} color="#FFFFFF" />
             </TouchableOpacity>
 
-            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "600", marginBottom: 16 }}>
+            <Text
+              style={{
+                color: "#fff",
+                fontSize: 18,
+                fontWeight: "600",
+                marginBottom: 6,
+              }}
+            >
               Enter Verification PIN
+            </Text>
+
+            <Text
+              style={{
+                color: "#B9B5D6",
+                fontSize: 13,
+                marginBottom: 16,
+              }}
+            >
+              Verification PIN sent to Tappd Event Management Team.
+              Enter the PIN to create the public event.
             </Text>
 
             <Input
@@ -2484,6 +2617,8 @@ export function HostScreen({ route }: any) {
               keyboardType="numeric"
             />
 
+            {/* VERIFY BUTTON */}
+            {/* VERIFY BUTTON */}
             <TouchableOpacity
               onPress={handleVerifyPin}
               style={{
@@ -2496,6 +2631,28 @@ export function HostScreen({ route }: any) {
             >
               <Text style={{ color: "#fff", fontWeight: "600" }}>
                 Verify PIN
+              </Text>
+            </TouchableOpacity>
+
+            {/* RESEND PIN */}
+            <TouchableOpacity
+              disabled={resendTimer > 0}
+              onPress={handleResendPin}
+              style={{
+                marginTop: 14,
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{
+                  color: resendTimer > 0 ? "#777" : "#E879F9",
+                  fontSize: 13,
+                  fontWeight: "600",
+                }}
+              >
+                {resendTimer > 0
+                  ? `Resend PIN in ${resendTimer}s`
+                  : "Resend PIN"}
               </Text>
             </TouchableOpacity>
 

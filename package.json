@@ -13,7 +13,6 @@
     "@maplibre/maplibre-react-native": "^10.4.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",
-    "@react-native-community/geolocation": "^3.4.0",
     "@react-native-google-signin/google-signin": "^16.1.1",
     "@react-native-ml-kit/barcode-scanning": "^2.0.0",
     "@react-native-picker/picker": "2.11.1",
