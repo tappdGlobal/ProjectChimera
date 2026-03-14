@@ -144,11 +144,11 @@ export type HostStackParamList = {
     editingDraft?: any;
     selectedLocation?: {
       address: string;
-      lat: number;
-      lng: number;
       city: string;
       country: string;
       venue: string;
+      latitude?: number;
+      longitude?: number;
     };
   } | undefined;
 

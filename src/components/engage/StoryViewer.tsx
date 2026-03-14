@@ -17,7 +17,7 @@ import {
 import { Image } from "expo-image";
 import { Video, ResizeMode } from "expo-av";
 import { LinearGradient } from "expo-linear-gradient";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { X, MoreHorizontal, Pause, Play, Heart, Send, Smile, Trash2 } from "lucide-react-native";
 import { Theme } from "../../styles/Theme";
 
@@ -54,6 +54,7 @@ export default function StoryViewer({
   onDelete,
   onView,
 }: Props) {
+  const insets = useSafeAreaInsets();
   const [index, setIndex] = useState(initialIndex);
   const [paused, setPaused] = useState(false);
   const [replyText, setReplyText] = useState("");
@@ -251,7 +252,7 @@ export default function StoryViewer({
 
   return (
     <Modal visible={visible} animationType="fade" transparent>
-      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+      <SafeAreaView style={[styles.container, { paddingBottom: insets.bottom + 8 }]} edges={["top", "left", "right"]}>
         {/* Progress */}
         <View style={styles.progress}>
           {stories.map((_, i) => (

@@ -15,7 +15,7 @@ import * as Location from 'expo-location';
 import { X, MapPin, Search, Navigation, Check } from 'lucide-react-native';
 import { Theme } from '../styles/Theme';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, CommonActions } from '@react-navigation/native';
 
 const GEOAPIFY_KEY = '3cf38a1b693d49e6b1b6433d1f05b0c9';
 
@@ -203,8 +203,13 @@ export default function LocationPickerScreen() {
       };
       
       // Navigate back with selectedLocation param
+      // Use navigate with merge to update existing screen without re-mounting
       // @ts-ignore
-      navigation.navigate('HostMain', { selectedLocation });
+      navigation.navigate({
+        name: 'HostMain',
+        params: { selectedLocation },
+        merge: true,
+      });
     } catch (e) {
       Alert.alert('Error', 'Could not get address. Please try again.');
     } finally {

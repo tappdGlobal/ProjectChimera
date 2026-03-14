@@ -78,6 +78,7 @@ import { PublishedEventsScreen } from "./PublishedEventsScreen";
 import { SCREEN_NAMES } from "../navigation/Routes";
 import { DraftsScreen } from "./DraftsScreen";
 import ComingSoon from "../components/common/ComingSoon";
+import LocationPickerModal from "../components/host/LocationPickerModal";
 import { StatusBar } from "expo-status-bar";
 import { useAnalytics } from "../hooks/useAnalytics";
 const SERVICE_CHARGE_PERCENT = 20;
@@ -280,6 +281,54 @@ export function HostScreen({ route }: any) {
   const [localFormData, setLocalFormData] =
     useState<EventForm>(initialFormData);
 
+  // Save form data to AsyncStorage whenever it changes
+  useEffect(() => {
+    const saveFormData = async () => {
+      try {
+        await AsyncStorage.setItem('hostFormData', JSON.stringify(localFormData));
+      } catch (e) {
+        console.log('Error saving form data:', e);
+      }
+    };
+    saveFormData();
+  }, [localFormData]);
+
+  // Restore form data from AsyncStorage on mount
+  useEffect(() => {
+    console.log('🔄 Attempting to restore form data...');
+    const restoreFormData = async () => {
+      try {
+        const savedData = await AsyncStorage.getItem('hostFormData');
+        console.log('📦 Saved data from storage:', savedData);
+        if (savedData) {
+          const parsedData = JSON.parse(savedData);
+          console.log('📋 Parsed data:', parsedData);
+          // Only restore if we have meaningful data and we're not editing a draft
+          if (!editingDraft && parsedData.name) {
+            console.log('✅ Restoring form data from storage');
+            setLocalFormData(parsedData);
+          } else {
+            console.log('❌ Not restoring - editingDraft:', editingDraft, 'name:', parsedData.name);
+          }
+        } else {
+          console.log('❌ No saved data found');
+        }
+      } catch (e) {
+        console.log('Error restoring form data:', e);
+      }
+    };
+    restoreFormData();
+  }, [editingDraft]);
+
+  // Clear saved form data when event is created or draft is saved
+  const clearSavedFormData = async () => {
+    try {
+      await AsyncStorage.removeItem('hostFormData');
+    } catch (e) {
+      console.log('Error clearing form data:', e);
+    }
+  };
+
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -288,6 +337,7 @@ export function HostScreen({ route }: any) {
   const [popupActiveTab, setPopupActiveTab] = useState("analytics");
   const [cameraOpen, setCameraOpen] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [genreOpen, setGenreOpen] = useState(false);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [ageOpen, setAgeOpen] = useState(false);
@@ -629,6 +679,7 @@ export function HostScreen({ route }: any) {
       setDraftId(null);
       setLocalFormData(initialFormData);
       setActiveTab("private");
+      clearSavedFormData();
 
 
     } catch (err: any) {
@@ -780,6 +831,7 @@ export function HostScreen({ route }: any) {
       });
 
       setLocalFormData(initialFormData);
+      clearSavedFormData();
     } catch (err) {
       Toast.show({
         type: "error",
@@ -960,6 +1012,7 @@ export function HostScreen({ route }: any) {
       console.log("Event created:", response);
 
       setLocalFormData(initialFormData);
+      clearSavedFormData();
     } catch (err: any) {
       console.error("Create event error:", err);
 
@@ -1310,7 +1363,7 @@ export function HostScreen({ route }: any) {
                 </View>
                 <TouchableOpacity
                   style={styles.locationSelectButton}
-                  onPress={() => navigation.navigate(SCREEN_NAMES.LOCATION_PICKER as never)}
+                  onPress={() => setShowLocationPicker(true)}
                   activeOpacity={0.8}
                 >
                   <Text
@@ -2526,6 +2579,7 @@ export function HostScreen({ route }: any) {
         isVisible={showDatePicker}
         mode="date"
         themeVariant="dark"
+        display={Platform.OS === "ios" ? "spinner" : "default"}
         onConfirm={(selectedDate) => {
           console.log("Date confirmed:", selectedDate);
           setShowDatePicker(false);
@@ -2542,6 +2596,7 @@ export function HostScreen({ route }: any) {
         isVisible={showTimePicker}
         mode="time"
         themeVariant="dark"
+        display={Platform.OS === "ios" ? "spinner" : "default"}
         onConfirm={(selectedTime) => {
           console.log("Time confirmed:", selectedTime);
           setShowTimePicker(false);
@@ -2551,6 +2606,27 @@ export function HostScreen({ route }: any) {
         }}
         onCancel={() => setShowTimePicker(false)}
       />
+
+      {/* Location Picker Modal */}
+      <LocationPickerModal
+        visible={showLocationPicker}
+        onClose={() => setShowLocationPicker(false)}
+        onSelectLocation={(locationData) => {
+          setLocalFormData((prev) => ({
+            ...prev,
+            location: locationData.location,
+            address: locationData.address,
+            city: locationData.city,
+            country: locationData.country || "India",
+            venue: locationData.venue,
+            latitude: locationData.latitude,
+            longitude: locationData.longitude,
+          }));
+          setShowLocationPicker(false);
+        }}
+        initialLocation={localFormData.location}
+      />
+
       <ComingSoon visible={showComingSoon} onClose={() => setShowComingSoon(false)} />
 
       <Modal visible={showPinModal} transparent animationType="fade">
