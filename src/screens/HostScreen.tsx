@@ -2589,6 +2589,15 @@ export function HostScreen({ route }: any) {
           handleLocalFieldChange("date", `${dd}-${mm}-${yyyy}`);
         }}
         onCancel={() => setShowDatePicker(false)}
+        modalStyleIOS={{
+          backgroundColor: Theme.colors.background,
+        }}
+        pickerContainerStyleIOS={{
+          backgroundColor: Theme.colors.background,
+        }}
+        customPickerIOSStyle={{
+          backgroundColor: Theme.colors.background,
+        }}
       />
 
       {/* Time Picker Modal */}
@@ -2605,6 +2614,15 @@ export function HostScreen({ route }: any) {
           handleLocalFieldChange("time", `${hh}:${mm}`);
         }}
         onCancel={() => setShowTimePicker(false)}
+        modalStyleIOS={{
+          backgroundColor: Theme.colors.background,
+        }}
+        pickerContainerStyleIOS={{
+          backgroundColor: Theme.colors.background,
+        }}
+        customPickerIOSStyle={{
+          backgroundColor: Theme.colors.background,
+        }}
       />
 
       {/* Location Picker Modal */}
@@ -3551,7 +3569,7 @@ const styles = StyleSheet.create({
   },
 
   dropdownBox: {
-    backgroundColor: "#120C2E",
+    backgroundColor: Theme.colors.background,
     borderRadius: 18,
     paddingVertical: 6,
     maxHeight: 320,
@@ -3572,17 +3590,17 @@ const styles = StyleSheet.create({
   },
 
   dropdownItemText: {
-    color: "#FFFFFF",
+    color: Theme.colors.foreground,
     fontSize: 14,
     fontWeight: "500",
   },
 
   selectTrigger: {
     height: 52,
-    backgroundColor: "#221C3D",
+    backgroundColor: Theme.colors.inputBackground,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: Theme.colors.border,
     paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
@@ -3590,13 +3608,13 @@ const styles = StyleSheet.create({
   },
 
   selectValue: {
-    color: "#FFFFFF",
+    color: Theme.colors.foreground,
     fontSize: 14,
     flex: 1,
   },
 
   selectDropdown: {
-    backgroundColor: "#120C2E",
+    backgroundColor: Theme.colors.background,
     borderRadius: 18,
     paddingVertical: 6,
     marginTop: 8,
@@ -3617,7 +3635,7 @@ const styles = StyleSheet.create({
   },
 
   selectItemText: {
-    color: "#FFFFFF",
+    color: Theme.colors.foreground,
     fontSize: 14,
     fontWeight: "500",
   },
