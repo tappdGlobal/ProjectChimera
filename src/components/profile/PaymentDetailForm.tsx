@@ -101,6 +101,8 @@ export const PaymentDetailForm: React.FC<PaymentDetailFormProps> = ({
                 display={Platform.OS === "ios" ? "spinner" : "calendar"}
                 onChange={onDateChange}
                 maximumDate={new Date()}
+                themeVariant="dark"
+                textColor={Theme.colors.foreground}
               />
             )}
 
@@ -189,7 +191,7 @@ export const PaymentDetailForm: React.FC<PaymentDetailFormProps> = ({
               activeOpacity={0.9}
             >
               <LinearGradient
-                colors={GRADIENT_COLORS.primary}
+                colors={GRADIENT_COLORS.primary as [string, string]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={[
