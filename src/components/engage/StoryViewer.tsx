@@ -252,7 +252,7 @@ export default function StoryViewer({
 
   return (
     <Modal visible={visible} animationType="fade" transparent>
-      <SafeAreaView style={[styles.container, { paddingBottom: insets.bottom + 8 }]} edges={["top", "left", "right"]}>
+      <SafeAreaView style={styles.container} edges={["top", "left", "right", "bottom"]}>
         {/* Progress */}
         <View style={styles.progress}>
           {stories.map((_, i) => (
@@ -541,14 +541,13 @@ const styles = StyleSheet.create({
 
   replyContainer: {
     position: "absolute",
-    bottom: 0,
+    bottom: 8,
     left: 0,
     right: 0,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
-    paddingBottom: Platform.OS === "ios" ? 34 : 16,
-    paddingTop: 12,
+    paddingVertical: 8,
     backgroundColor: "rgba(0,0,0,0.3)",
   },
 

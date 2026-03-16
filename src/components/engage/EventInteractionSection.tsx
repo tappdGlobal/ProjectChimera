@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -164,6 +164,9 @@ export function EventInteractionSection() {
   const [sharePostId, setSharePostId] = useState<string | null>(null);
   const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
 
+  // Screen focus state for video playback control
+  const [isScreenFocused, setIsScreenFocused] = useState(true);
+
   // Load viewed stories from AsyncStorage on mount
   useEffect(() => {
     const loadViewedStories = async () => {
@@ -201,6 +204,16 @@ export function EventInteractionSection() {
     getAllStories();
     fetchFeed();
   }, []);
+
+  // Handle screen focus/blur for video playback control
+  useFocusEffect(
+    useCallback(() => {
+      setIsScreenFocused(true);
+      return () => {
+        setIsScreenFocused(false);
+      };
+    }, [])
+  );
 
   // Debug: Log feed data
   useEffect(() => {
@@ -494,6 +507,7 @@ export function EventInteractionSection() {
             showCommentsInline={selectedPostId === item.id}
             onShareWithFriends={handleShareWithFriends}
             onDelete={handleDeletePost}
+            isVisible={isScreenFocused}
           />
         )}
         refreshControl={

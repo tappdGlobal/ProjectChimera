@@ -52,6 +52,7 @@ interface FeedPostCardProps {
   showCommentsInline?: boolean;
   onShareWithFriends?: (postId: string) => void;
   onDelete?: (postId: string) => void;
+  isVisible?: boolean; // Controls video playback when screen is focused/unfocused
 }
 
 export const FeedPostCard: React.FC<FeedPostCardProps> = ({
@@ -68,6 +69,7 @@ export const FeedPostCard: React.FC<FeedPostCardProps> = ({
   showCommentsInline = false,
   onShareWithFriends,
   onDelete,
+  isVisible = true,
 }) => {
   const navigation = useNavigation<NavigationProp>();
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
@@ -231,7 +233,7 @@ export const FeedPostCard: React.FC<FeedPostCardProps> = ({
             style={styles.videoPlayer}
             resizeMode={ResizeMode.COVER}
             isLooping
-            shouldPlay={index === currentMediaIndex}
+            shouldPlay={isVisible && index === currentMediaIndex}
             useNativeControls={false}
           />
           {/* Expand/Fullscreen Button */}
