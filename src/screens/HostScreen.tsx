@@ -95,6 +95,7 @@ interface EventForm {
   name: string;
   genre: string;
   category: string;
+  customCategory: string;
   date: string; // UI: dd-mm-yyyy
   time: string; // HH:mm
   location: string;
@@ -149,41 +150,200 @@ interface DraftEvent {
 
 
 
-const eventGenres = [
-  "Arts, Culture & Entertainment",
-  "Music & Nightlife",
-  "Social & Lifestyle",
-  "Business & Networking",
-  "Wellness & Personal Growth",
-  "Sports & Outdoors",
-  "Education & Learning",
-  "Community & Causes",
-  "Family & Kids",
-  "Seasonal & Special",
-];
+const OTHER_CATEGORY_VALUE = "__OTHER__";
 
-const eventCategories = [
-  "Theatre Plays",
-  "Stand-up Comedy",
-  "Dance Performances",
-  "Live Bands",
-  "DJ & EDM Nights",
-  "Cocktail Nights",
-  "Rooftop Parties",
-  "Corporate Conferences",
-  "Startup Pitch Nights",
-  "Yoga Retreats",
-  "Sound Healing",
-  "Football Matches",
-  "Cricket Screenings",
-  "Coding Bootcamps",
-  "Tech Hackathons",
-  "Charity Galas",
-  "Fundraisers",
-  "Kids Theatre",
-  "Educational Fun Events",
-  "New Year's Eve Parties",
-];
+const EVENT_CATEGORIES_BY_GENRE: Record<string, string[]> = {
+  "Clubbing / Nightlife": [
+    "Bollywood Nights",
+    "Techno Nights",
+    "Sufi Nights",
+    "EDM Nights",
+    "Hip-Hop Nights",
+    "House Music Nights",
+    "Afrobeat Nights",
+    "Latin Nights",
+    "Retro Nights",
+    "Karaoke Nights",
+    "Ladies Nights",
+    "Silent Disco",
+    "Rooftop Parties",
+    "Pool Parties",
+    "Yacht Parties",
+    "Sundowner Parties",
+    "After Parties",
+  ],
+  "Concerts & Music": [
+    "Live Band Performances",
+    "Indie Music Gigs",
+    "EDM Festivals",
+    "Jazz Nights",
+    "Classical Concerts",
+    "Rap Battles",
+    "Orchestra Performances",
+    "Music Jam Sessions",
+    "Open Mic Music",
+    "Music Festivals",
+  ],
+  "Dining & Social Dining": [
+    "Supper Clubs",
+    "Chef’s Table Experiences",
+    "Gourmet Dinners",
+    "Brunch Socials",
+    "Wine Tasting",
+    "Whiskey Tasting",
+    "Craft Beer Tastings",
+    "Cocktail Masterclasses",
+    "Food Festivals",
+    "Street Food Walks",
+  ],
+  "Art & Culture": [
+    "Art Exhibitions",
+    "Gallery Openings",
+    "Theatre Plays",
+    "Film Screenings",
+    "Poetry Slams",
+    "Cultural Festivals",
+    "Fashion Shows",
+    "Stand-Up Comedy Shows",
+    "Improv Theatre",
+  ],
+  "Creative Workshops": [
+    "Painting Workshops",
+    "Pottery Workshops",
+    "Photography Workshops",
+    "Writing Workshops",
+    "Dance Workshops",
+    "Acting Workshops",
+    "Cooking Classes",
+    "Mixology Workshops",
+  ],
+  "Adventure & Outdoor": [
+    "Trekking",
+    "Hiking",
+    "Camping",
+    "Backpacking Trips",
+    "Cycling Tours",
+    "Kayaking Trips",
+    "Rock Climbing",
+    "Desert Safaris",
+    "Paragliding Experiences",
+    "Surf Camps",
+    "Wildlife Safaris",
+  ],
+  "Travel & Getaways": [
+    "Weekend Getaways",
+    "Road Trips",
+    "Luxury Retreats",
+    "Island Trips",
+    "Ski Trips",
+    "Cultural Tours",
+    "City Exploration Trips",
+    "Cruise Experiences",
+  ],
+  "Fitness & Wellness": [
+    "Yoga Sessions",
+    "Meditation Circles",
+    "Breathwork Sessions",
+    "Sound Healing",
+    "Pilates Classes",
+    "Fitness Bootcamps",
+    "Marathon / Run Clubs",
+    "Dance Fitness Classes",
+    "Ice Bath Experiences",
+    "Wellness Retreats",
+  ],
+  "Social & Networking": [
+    "Networking Mixers",
+    "Founder Meetups",
+    "Startup Pitch Nights",
+    "Investor Meetups",
+    "Community Meetups",
+    "Alumni Meets",
+    "Social Mixers",
+    "Industry Networking Events",
+  ],
+  "Dating Events": [
+    "Speed Dating",
+    "Singles Mixers",
+    "Blind Date Experiences",
+    "Matchmaking Dinners",
+    "Singles Parties",
+    "Dating Workshops",
+  ],
+  "Learning & Skill Building": [
+    "AI Workshops",
+    "Coding Bootcamps",
+    "Startup Masterclasses",
+    "Public Speaking Workshops",
+    "Marketing Workshops",
+    "Finance Workshops",
+    "Leadership Workshops",
+  ],
+  "Business & Professional": [
+    "Conferences",
+    "Summits",
+    "Panel Discussions",
+    "Product Launches",
+    "Corporate Networking Events",
+    "Industry Roundtables",
+  ],
+  "Tech & Startup": [
+    "Hackathons",
+    "AI Meetups",
+    "Web3 Meetups",
+    "Crypto Events",
+    "Developer Meetups",
+    "Product Management Meetups",
+    "Startup Demo Days",
+  ],
+  "Sports & Games": [
+    "Football Matches",
+    "Cricket Matches",
+    "Tennis Matches",
+    "Badminton Meetups",
+    "Golf Events",
+    "Esports Tournaments",
+    "Chess Tournaments",
+    "Board Game Nights",
+  ],
+  "Hobby & Lifestyle": [
+    "Book Clubs",
+    "Photography Walks",
+    "Car Meets",
+    "Bike Ride Meetups",
+    "Anime Meetups",
+    "Gaming Meetups",
+    "Gardening Clubs",
+    "Collectors Meetups",
+  ],
+  "Luxury Experiences": [
+    "Private Members Parties",
+    "Luxury Yacht Events",
+    "Polo Matches",
+    "VIP Networking Events",
+    "Luxury Brand Launches",
+    "Fine Dining Experiences",
+    "Luxury Retreats",
+  ],
+  "Festivals & Celebrations": [
+    "Holi Parties",
+    "Diwali Parties",
+    "Christmas Markets",
+    "New Year Parties",
+    "Oktoberfest Events",
+    "Cultural Carnivals",
+  ],
+  "Community & Causes": [
+    "Charity Galas",
+    "Fundraisers",
+    "Volunteer Events",
+    "Community Drives",
+    "Awareness Walks",
+  ],
+  Others: [],
+};
+
+const eventGenres = Object.keys(EVENT_CATEGORIES_BY_GENRE);
 
 const ageRestrictions = ["16+", "18+", "21+", "25+"];
 const genderOptions = [
@@ -197,6 +357,7 @@ const initialFormData: EventForm = {
   name: "",
   genre: "",
   category: "",
+  customCategory: "",
   date: "",
   time: "",
   location: "",
@@ -641,6 +802,9 @@ export function HostScreen({ route }: any) {
     if (!data.name.trim()) newErrors.name = "Event name is required";
     if (!data.genre) newErrors.genre = "Genre is required";
     if (!data.category) newErrors.category = "Category is required";
+    if (data.category === OTHER_CATEGORY_VALUE && !data.customCategory.trim()) {
+      newErrors.customCategory = "Please enter a custom category";
+    }
     if (!data.date) newErrors.date = "Date is required";
     if (!data.time) newErrors.time = "Time is required";
     if (!data.location.trim()) newErrors.location = "Location is required";
@@ -660,6 +824,19 @@ export function HostScreen({ route }: any) {
 
     return newErrors;
   };
+
+  const getEffectiveCategory = useCallback(
+    (data: Pick<EventForm, "category" | "customCategory">) => {
+      if (data.category === OTHER_CATEGORY_VALUE) {
+        return data.customCategory.trim();
+      }
+      return data.category;
+    },
+    [],
+  );
+
+  const categoriesForSelectedGenre =
+    (localFormData.genre && EVENT_CATEGORIES_BY_GENRE[localFormData.genre]) || [];
 
   const handleSaveDraft = async () => {
     try {
@@ -719,7 +896,10 @@ export function HostScreen({ route }: any) {
 
     if (localFormData.name) payload.eventName = localFormData.name;
     if (localFormData.genre) payload.genre = localFormData.genre;
-    if (localFormData.category) payload.category = localFormData.category;
+    {
+      const effectiveCategory = getEffectiveCategory(localFormData);
+      if (effectiveCategory) payload.category = effectiveCategory;
+    }
 
     payload.eventType = activeTab === "public" ? "public" : "private";
 
@@ -778,7 +958,7 @@ export function HostScreen({ route }: any) {
       const payload = {
         eventName: localFormData.name,
         genre: localFormData.genre,
-        category: localFormData.category,
+        category: getEffectiveCategory(localFormData),
 
         eventType: (activeTab === "public" ? "public" : "private") as
           | "public"
@@ -908,7 +1088,7 @@ export function HostScreen({ route }: any) {
       const payload = {
         eventName: localFormData.name,
         genre: localFormData.genre,
-        category: localFormData.category,
+        category: getEffectiveCategory(localFormData),
 
         eventType: (activeTab === "public" ? "public" : "private") as
           | "public"
@@ -1207,22 +1387,53 @@ export function HostScreen({ route }: any) {
                   <Text style={styles.label}>Category</Text>
                   <TouchableOpacity
                     style={styles.fieldRow}
-                    onPress={() => setCategoryOpen(true)}
+                    onPress={() => {
+                      if (!localFormData.genre) {
+                        Toast.show({
+                          type: "error",
+                          text1: "Select a genre first",
+                        });
+                        return;
+                      }
+                      setCategoryOpen(true);
+                    }}
                   >
                     <Text
                       style={
-                        localFormData.category
+                        localFormData.category &&
+                        (localFormData.category !== OTHER_CATEGORY_VALUE ||
+                          localFormData.customCategory.trim())
                           ? styles.fieldText
                           : styles.placeholderText
                       }
                     >
-                      {localFormData.category || "Select category"}
+                      {localFormData.category === OTHER_CATEGORY_VALUE
+                        ? localFormData.customCategory || "Enter custom category"
+                        : localFormData.category || "Select category"}
                     </Text>
                     <ChevronDown
                       size={18}
                       color={Theme.colors.mutedForeground}
                     />
                   </TouchableOpacity>
+
+                  {localFormData.category === OTHER_CATEGORY_VALUE && (
+                    <View style={{ marginTop: 10 }}>
+                      <Input
+                        style={styles.field}
+                        placeholder="Type your category"
+                        value={localFormData.customCategory}
+                        onChangeText={(v) =>
+                          handleLocalFieldChange("customCategory", v)
+                        }
+                      />
+                      {errors.customCategory && (
+                        <Text style={styles.errorText}>
+                          {errors.customCategory}
+                        </Text>
+                      )}
+                    </View>
+                  )}
                 </View>
               </View>
 
@@ -1762,6 +1973,12 @@ export function HostScreen({ route }: any) {
                     ]}
                     onPress={() => {
                       handleLocalFieldChange("genre", g);
+                      // Reset category when genre changes
+                      setLocalFormData((prev) => ({
+                        ...prev,
+                        category: "",
+                        customCategory: "",
+                      }));
                       setGenreOpen(false);
                     }}
                   >
@@ -1784,7 +2001,7 @@ export function HostScreen({ route }: any) {
         >
           <View style={styles.dropdownBox}>
             <ScrollView keyboardShouldPersistTaps="handled">
-              {eventCategories.map((c) => {
+              {categoriesForSelectedGenre.map((c) => {
                 const selected = c === localFormData.category;
                 return (
                   <TouchableOpacity
@@ -1795,6 +2012,7 @@ export function HostScreen({ route }: any) {
                     ]}
                     onPress={() => {
                       handleLocalFieldChange("category", c);
+                      handleLocalFieldChange("customCategory", "");
                       setCategoryOpen(false);
                     }}
                   >
@@ -1803,6 +2021,24 @@ export function HostScreen({ route }: any) {
                   </TouchableOpacity>
                 );
               })}
+
+              <TouchableOpacity
+                key={OTHER_CATEGORY_VALUE}
+                style={[
+                  styles.dropdownItem,
+                  localFormData.category === OTHER_CATEGORY_VALUE &&
+                    styles.dropdownItemSelected,
+                ]}
+                onPress={() => {
+                  handleLocalFieldChange("category", OTHER_CATEGORY_VALUE);
+                  setCategoryOpen(false);
+                }}
+              >
+                <Text style={styles.dropdownItemText}>Other (Custom)</Text>
+                {localFormData.category === OTHER_CATEGORY_VALUE && (
+                  <CheckCircle2 size={16} color="#FFFFFF" />
+                )}
+              </TouchableOpacity>
             </ScrollView>
           </View>
         </TouchableOpacity>
