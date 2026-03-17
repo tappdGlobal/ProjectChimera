@@ -1,25 +1,14 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { WelcomeScreen } from '../screens/WelcomeScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { ProfileCreationScreen } from '../screens/ProfileCreationScreen';
-import { AnimatedSplashScreen } from '../screens/AnimatedSplashScreen';
 
 import { SCREEN_NAMES, AuthStackParamList } from './Routes';
 
 const Stack = createStackNavigator<AuthStackParamList>();
 
 export const AuthStack = () => {
-  const [showSplash, setShowSplash] = useState(true);
-
-  if (showSplash) {
-    return (
-      <AnimatedSplashScreen
-        onAnimationComplete={() => setShowSplash(false)}
-      />
-    );
-  }
-
   return (
     <Stack.Navigator 
       screenOptions={{
