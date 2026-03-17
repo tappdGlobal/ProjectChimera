@@ -1,15 +1,13 @@
 // src/navigation/AppNavigator.tsx
 
-import React from "react";
+import React, { useState } from "react";
+import { StyleSheet } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
-import { View, Text, StyleSheet, Platform } from "react-native";
+import { View } from "react-native";
 import { SCREEN_NAMES, RootTabParamList, AppStackParamList } from "./Routes";
-// Icons are handled by BottomNavigation component, so we use a simple placeholder
-const Icon = ({ name, color, size }: any) => (
-  <View style={{ width: size, height: size, backgroundColor: color }} />
-);
-import { ExploreScreen } from "../screens/ExploreScreen";
+
+import { AnimatedSplashScreen } from "../screens/AnimatedSplashScreen";
 import { HostStackScreen } from "./HostStack";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { NotificationsScreen } from "../screens/NotificationsScreen";
@@ -18,7 +16,6 @@ import { BottomNavigation } from "./BottomNavigation";
 import { EditProfileScreen } from "../screens/EditProfileScreen";
 import { EventDetailsScreen } from "../screens/EventDetailsScreen";
 import CreatePostScreen from "../screens/CreatePostScreen";
-import { SettingsScreen } from "../screens/SettingsScreen";
 import ExploreStack from "./ExploreStack";
 import EngageStack from "./EngageStack";
 import ChatDetailScreen from "../screens/ChatDetailScreen";
@@ -48,7 +45,7 @@ const MainTabs = () => {
 
       <Tab.Screen
         name={SCREEN_NAMES.RECONNECT}
-        component={ReconnectScreen} // ✅ REAL TAB
+        component={ReconnectScreen}
       />
 
       <Tab.Screen
@@ -65,14 +62,29 @@ const MainTabs = () => {
 };
 
 const AppNavigator = () => {
+  const [showSplash, setShowSplash] = useState(true);
+
+  // ✅ Splash handled here
+  if (showSplash) {
+    return (
+      <AnimatedSplashScreen
+        onAnimationComplete={() => setShowSplash(false)}
+      />
+    );
+  }
+
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: '#0A0A1F' } }}>
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        cardStyle: { backgroundColor: "#0A0A1F" },
+      }}
+    >
       <Stack.Screen
         name={SCREEN_NAMES.MAIN_TABS}
         component={MainTabs}
       />
 
-      {/* 🔔 Notifications opens from bell icon */}
       <Stack.Screen
         name={SCREEN_NAMES.NOTIFICATIONS}
         component={NotificationsScreen}
@@ -93,7 +105,6 @@ const AppNavigator = () => {
         component={CreatePostScreen}
       />
 
-      {/* Chat Detail - accessible from anywhere */}
       <Stack.Screen
         name={SCREEN_NAMES.CHAT_DETAIL}
         component={ChatDetailScreen}
@@ -103,6 +114,7 @@ const AppNavigator = () => {
 };
 
 export default AppNavigator;
+
 
 const styles = StyleSheet.create({
   screenContainer: {
