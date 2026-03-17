@@ -2833,37 +2833,6 @@ export function HostScreen({ route }: any) {
           backgroundColor: "#0a0322",
           borderTopLeftRadius: 20,
           borderTopRightRadius: 20,
-          paddingBottom: 20,
-        }}
-        customPickerIOSStyle={{
-          backgroundColor: "#0a0322",
-        }}
-        customCancelButtonIOS={{
-          container: {
-            backgroundColor: "#1A1A2E",
-            borderRadius: 12,
-            marginHorizontal: 16,
-            marginBottom: 8,
-            marginTop: 8,
-          },
-          text: {
-            color: "#0A84FF",
-            fontSize: 17,
-            fontWeight: "400",
-          },
-        }}
-        customConfirmButtonIOS={{
-          container: {
-            backgroundColor: "#1A1A2E",
-            borderRadius: 12,
-            marginHorizontal: 16,
-            marginBottom: 8,
-          },
-          text: {
-            color: "#0A84FF",
-            fontSize: 17,
-            fontWeight: "600",
-          },
         }}
       />
 
@@ -2889,37 +2858,6 @@ export function HostScreen({ route }: any) {
           backgroundColor: "#0a0322",
           borderTopLeftRadius: 20,
           borderTopRightRadius: 20,
-          paddingBottom: 20,
-        }}
-        customPickerIOSStyle={{
-          backgroundColor: "#0a0322",
-        }}
-        customCancelButtonIOS={{
-          container: {
-            backgroundColor: "#1A1A2E",
-            borderRadius: 12,
-            marginHorizontal: 16,
-            marginBottom: 8,
-            marginTop: 8,
-          },
-          text: {
-            color: "#0A84FF",
-            fontSize: 17,
-            fontWeight: "400",
-          },
-        }}
-        customConfirmButtonIOS={{
-          container: {
-            backgroundColor: "#1A1A2E",
-            borderRadius: 12,
-            marginHorizontal: 16,
-            marginBottom: 8,
-          },
-          text: {
-            color: "#0A84FF",
-            fontSize: 17,
-            fontWeight: "600",
-          },
         }}
       />
 
