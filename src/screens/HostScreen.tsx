@@ -81,7 +81,7 @@ import ComingSoon from "../components/common/ComingSoon";
 import LocationPickerModal from "../components/host/LocationPickerModal";
 import { StatusBar } from "expo-status-bar";
 import { useAnalytics } from "../hooks/useAnalytics";
-const SERVICE_CHARGE_PERCENT = 20;
+const SERVICE_CHARGE_PERCENT = 3.75;
 
 interface TicketType {
   id: string;
@@ -790,7 +790,7 @@ export function HostScreen({ route }: any) {
       return { serviceCharge: 0, hostReceives: 0 };
     }
 
-    const serviceCharge = Math.round(price * (SERVICE_CHARGE_PERCENT / 100));
+    const serviceCharge = price * (SERVICE_CHARGE_PERCENT / 100);
     const hostReceives = price - serviceCharge;
 
     return { serviceCharge, hostReceives };
