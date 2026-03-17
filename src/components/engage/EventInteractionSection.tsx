@@ -167,6 +167,9 @@ export function EventInteractionSection() {
   // Screen focus state for video playback control
   const [isScreenFocused, setIsScreenFocused] = useState(true);
 
+  // Track visible post IDs for video playback control
+  const [visiblePostIds, setVisiblePostIds] = useState<Set<string>>(new Set());
+
   // Load viewed stories from AsyncStorage on mount
   useEffect(() => {
     const loadViewedStories = async () => {
@@ -487,6 +490,16 @@ export function EventInteractionSection() {
     }
   };
 
+  // Handle viewable items change to control video playback
+  const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: Array<{ item: Post }> }) => {
+    const visibleIds = new Set(viewableItems.map(v => v.item.id));
+    setVisiblePostIds(visibleIds);
+  }, []);
+
+  const viewabilityConfig = {
+    itemVisiblePercentThreshold: 50, // Item is considered visible when 50% is in viewport
+  };
+
   return (
     <View style={styles.container}>
       <FlatList
@@ -507,9 +520,11 @@ export function EventInteractionSection() {
             showCommentsInline={selectedPostId === item.id}
             onShareWithFriends={handleShareWithFriends}
             onDelete={handleDeletePost}
-            isVisible={isScreenFocused}
+            isVisible={isScreenFocused && visiblePostIds.has(item.id)}
           />
         )}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
