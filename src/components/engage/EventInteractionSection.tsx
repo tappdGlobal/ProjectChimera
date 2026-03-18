@@ -206,6 +206,7 @@ export function EventInteractionSection() {
   useEffect(() => {
     getAllStories();
     fetchFeed();
+    getFriends(); // Fetch friends list for feed filtering
   }, []);
 
   // Handle screen focus/blur for video playback control
@@ -223,10 +224,20 @@ export function EventInteractionSection() {
     console.log("Feed posts:", feed.length, feed);
   }, [feed]);
 
+  // Filter feed to show only friends' posts and current user's posts
+  const filteredFeed = feed.filter((post) => {
+    const isCurrentUser = post.userId === userId;
+    const isFriend = friends.some((f: any) => 
+      f.user?.id === post.userId || f.userId === post.userId
+    );
+    return isCurrentUser || isFriend;
+  });
+
   const onRefresh = async () => {
     setRefreshing(true);
     await getAllStories();
     await refreshFeed();
+    await getFriends(); // Refresh friends list
     setRefreshing(false);
   };
 
@@ -503,7 +514,7 @@ export function EventInteractionSection() {
   return (
     <View style={styles.container}>
       <FlatList
-        data={feed}
+        data={filteredFeed}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <FeedPostCard
@@ -554,42 +565,44 @@ export function EventInteractionSection() {
           ) : null
         }
         ListHeaderComponent={
-          <ScrollView horizontal style={{ padding: 16 }}>
-            {/* Add Story Button */}
-            <StoryItem
-              key={displayStories[0].id}
-              item={displayStories[0]}
-              onPress={() => setShowUpload(true)}
-            />
-            
-            {/* My Story Badge - only shown if user has stories */}
-            {myStoriesData && (
-              <MyStoryBadge
-                hasStories={true}
-                thumbnailImage={myStoriesData.thumbnailImage}
-                viewed={myStoriesData.viewed}
-                onPress={() => {
-                  // Use 1000 as offset to indicate "my story" (distinguishes from displayStories indices)
-                  setStoryIndex(1000);
-                  setShowStoryModal(true);
-                }}
-              />
-            )}
-            
-            {/* Other Users' Stories */}
-            {displayStories.slice(1).map((story, index) => (
+          <>
+            <ScrollView horizontal style={{ padding: 16 }}>
+              {/* Add Story Button */}
               <StoryItem
-                key={story.id}
-                item={story}
-                onPress={() => {
-                  // Index + 1 because 0 is add-story
-                  // Note: myStoriesData is rendered separately, not in displayStories
-                  setStoryIndex(index + 1);
-                  setShowStoryModal(true);
-                }}
+                key={displayStories[0].id}
+                item={displayStories[0]}
+                onPress={() => setShowUpload(true)}
               />
-            ))}
-          </ScrollView>
+              
+              {/* My Story Badge - only shown if user has stories */}
+              {myStoriesData && (
+                <MyStoryBadge
+                  hasStories={true}
+                  thumbnailImage={myStoriesData.thumbnailImage}
+                  viewed={myStoriesData.viewed}
+                  onPress={() => {
+                    // Use 1000 as offset to indicate "my story" (distinguishes from displayStories indices)
+                    setStoryIndex(1000);
+                    setShowStoryModal(true);
+                  }}
+                />
+              )}
+              
+              {/* Other Users' Stories */}
+              {displayStories.slice(1).map((story, index) => (
+                <StoryItem
+                  key={story.id}
+                  item={story}
+                  onPress={() => {
+                    // Index + 1 because 0 is add-story
+                    // Note: myStoriesData is rendered separately, not in displayStories
+                    setStoryIndex(index + 1);
+                    setShowStoryModal(true);
+                  }}
+                />
+              ))}
+            </ScrollView>
+          </>
         }
       />
 
