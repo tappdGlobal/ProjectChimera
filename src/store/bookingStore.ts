@@ -76,12 +76,16 @@ export const useBookingStore = create<BookingState>((set) => ({
 
       console.log("🆔 BOOKING ID:", booking?.id);
 
-      set((state) => ({
-        bookings: booking
-          ? [booking, ...state.bookings]
-          : state.bookings,
-        loading: false,
-      }));
+      set((state) => {
+        // Check if booking already exists to prevent duplicates
+        const exists = state.bookings.some((b) => b.id === booking?.id);
+        return {
+          bookings: booking && !exists
+            ? [booking, ...state.bookings]
+            : state.bookings,
+          loading: false,
+        };
+      });
 
       return {
         success: true,
@@ -116,11 +120,15 @@ export const useBookingStore = create<BookingState>((set) => ({
 
     set({ loading: true, error: null });
 
-    const res = await getMyBookingsApi(params);
+    const bookings = await getMyBookingsApi(params);
 
+    // Deduplicate bookings by ID to prevent duplicates in UI
+    const uniqueBookings = Array.from(
+      new Map(bookings.map((b) => [b.id, b])).values()
+    );
 
     set({
-      bookings: res?.data || [],
+      bookings: uniqueBookings,
       loading: false,
     });
 
