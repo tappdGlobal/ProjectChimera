@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -29,6 +29,9 @@ import StoryViewer from "./StoryViewer";
 import { UploadContentSheet } from "./UploadContentSheet";
 import { CreateStoryModal } from "./CreateStoryModal";
 import { FeedPostCard } from "./FeedPostCard";
+
+// Memoized version for better performance
+const MemoizedFeedPostCard = React.memo(FeedPostCard);
 import { useStoryStore } from "../../store/storyStore";
 import { useAuthStore } from "../../store/authStore";
 import { usePostStore } from "../../store/postStore";
@@ -138,14 +141,16 @@ export function EventInteractionSection() {
 
   const { stories, getAllStories, deleteStory, viewStory } = useStoryStore();
   const { 
-    feed, 
+    friendsFeed,
+    eventFeed,
     fetchFriendsFeed,
     refreshFriendsFeed,
     loadMoreFriendsFeed,
     fetchMyEventsFeed,
     refreshMyEventsFeed,
     loadMoreMyEventsFeed,
-    hasMore, 
+    friendsHasMore,
+    eventHasMore,
     loading: postsLoading, 
     error: postsError,
     likePost, 
@@ -221,14 +226,22 @@ export function EventInteractionSection() {
     }
   }, [viewedStories]);
 
+  // Load both feeds on mount for instant switching
   useEffect(() => {
     getAllStories();
-    if (activeFeed === 'friends') {
-      fetchFriendsFeed();
-    } else if (activeFeed === 'event') {
-      fetchMyEventsFeed();
-    }
+    // Pre-load both feeds so switching is instant
+    fetchFriendsFeed();
+    fetchMyEventsFeed();
     getFriends();
+  }, []);
+
+  // Refresh current feed when tab changes (but data is already there)
+  useEffect(() => {
+    if (activeFeed === 'friends') {
+      refreshFriendsFeed();
+    } else if (activeFeed === 'event') {
+      refreshMyEventsFeed();
+    }
   }, [activeFeed]);
 
   // Handle screen focus/blur for video playback control
@@ -241,13 +254,12 @@ export function EventInteractionSection() {
     }, [])
   );
 
-  // Debug: Log feed data
-  useEffect(() => {
-    console.log("Feed posts:", feed.length, feed);
-  }, [feed]);
-
-  // Use feed directly from store (already filtered by backend)
-  const filteredFeed = feed;
+  // Use the appropriate feed based on active tab - memoized for performance
+  const currentFeed = useMemo(() => 
+    activeFeed === 'friends' ? friendsFeed : eventFeed,
+    [activeFeed, friendsFeed, eventFeed]
+  );
+  const currentHasMore = activeFeed === 'friends' ? friendsHasMore : eventHasMore;
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -262,7 +274,7 @@ export function EventInteractionSection() {
   };
 
   const onLoadMore = async () => {
-    if (hasMore && !postsLoading) {
+    if (currentHasMore && !postsLoading) {
       if (activeFeed === 'friends') {
         await loadMoreFriendsFeed();
       } else if (activeFeed === 'event') {
@@ -451,7 +463,7 @@ export function EventInteractionSection() {
     // Close modal immediately for better UX
     handleCloseShareFriends();
     
-    const post = feed.find(p => p.id === sharePostId);
+    const post = currentFeed.find((p: Post) => p.id === sharePostId);
     if (!post) return;
     
     // Create share message with post ID for clickable link
@@ -571,7 +583,7 @@ export function EventInteractionSection() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.All,
       allowsEditing: true,
-      aspect: [4, 3],
+      aspect: [9, 16],
       quality: 1,
     });
 
@@ -582,7 +594,10 @@ export function EventInteractionSection() {
         type: asset.type === 'video' ? 'video' : 'image',
       });
       setShowMediaPickerModal(false);
-      setShowCreateEventPostModal(true);
+      // Small delay to ensure smooth modal transition
+      setTimeout(() => {
+        setShowCreateEventPostModal(true);
+      }, 50);
     }
   };
 
@@ -597,7 +612,7 @@ export function EventInteractionSection() {
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.All,
       allowsEditing: true,
-      aspect: [4, 3],
+      aspect: [9, 16],
       quality: 1,
     });
 
@@ -608,7 +623,10 @@ export function EventInteractionSection() {
         type: asset.type === 'video' ? 'video' : 'image',
       });
       setShowMediaPickerModal(false);
-      setShowCreateEventPostModal(true);
+      // Small delay to ensure smooth modal transition
+      setTimeout(() => {
+        setShowCreateEventPostModal(true);
+      }, 50);
     }
   };
 
@@ -672,10 +690,16 @@ export function EventInteractionSection() {
   return (
     <View style={styles.container}>
       <FlatList
-        data={filteredFeed}
+        data={currentFeed}
         keyExtractor={(item) => item.id}
+        extraData={activeFeed}
+        initialNumToRender={5}
+        maxToRenderPerBatch={5}
+        windowSize={3}
+        removeClippedSubviews={true}
+        getItemLayout={(data, index) => ({ length: 400, offset: 400 * index, index })}
         renderItem={({ item }) => (
-          <FeedPostCard
+          <MemoizedFeedPostCard
             post={item}
             comments={selectedPostId === item.id ? comments : []}
             currentUserAvatar={undefined}
@@ -704,7 +728,7 @@ export function EventInteractionSection() {
         onEndReached={onLoadMore}
         onEndReachedThreshold={0.5}
         ListFooterComponent={
-          postsLoading && feed.length > 0 ? (
+          postsLoading && currentFeed.length > 0 ? (
             <View style={{ padding: 20, alignItems: "center" }}>
               <ActivityIndicator size="small" color={Theme.colors.primary} />
             </View>

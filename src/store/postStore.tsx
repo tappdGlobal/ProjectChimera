@@ -30,6 +30,8 @@ import { useUserStore } from "./userStore";
 
 interface PostState {
   feed: Post[];
+  friendsFeed: Post[];
+  eventFeed: Post[];
   userPosts: Post[];
   selectedPost: Post | null;
   comments: Comment[];
@@ -52,7 +54,11 @@ interface PostState {
   loading: boolean;
   error: string | null;
   hasMore: boolean;
+  friendsHasMore: boolean;
+  eventHasMore: boolean;
   nextCursor: string | undefined;
+  friendsNextCursor: string | undefined;
+  eventNextCursor: string | undefined;
   currentEventId: string | null;
 
   createPost: (data: CreatePostPayload) => Promise<void>;
@@ -102,6 +108,8 @@ const DEFAULT_COMMENTS_LIMIT = 20;
 
 export const usePostStore = create<PostState>((set, get) => ({
   feed: [],
+  friendsFeed: [],
+  eventFeed: [],
   userPosts: [],
   selectedPost: null,
   comments: [],
@@ -111,7 +119,11 @@ export const usePostStore = create<PostState>((set, get) => ({
   loading: false,
   error: null,
   hasMore: true,
+  friendsHasMore: true,
+  eventHasMore: true,
   nextCursor: undefined,
+  friendsNextCursor: undefined,
+  eventNextCursor: undefined,
   currentEventId: null,
 
   createPost: async (data) => {
@@ -191,7 +203,13 @@ export const usePostStore = create<PostState>((set, get) => ({
   // ================= FRIENDS FEED =================
   fetchFriendsFeed: async (page: number = 1, limit: number = DEFAULT_LIMIT) => {
     try {
-      set({ loading: true, error: null });
+      // Don't set loading if we already have data (for faster switching)
+      const currentFeed = get().friendsFeed;
+      if (currentFeed.length === 0) {
+        set({ loading: true });
+      }
+      set({ error: null });
+      
       const res = await getFriendsFeedApi(page, limit);
       const postsData = (res as any).data?.data || (res as any).data || res || [];
       const hasMoreData = (res as any).data?.hasMore ?? (Array.isArray(postsData) && postsData.length === limit);
@@ -200,9 +218,9 @@ export const usePostStore = create<PostState>((set, get) => ({
       const friendsPosts = (Array.isArray(postsData) ? postsData : []).filter((post: Post) => !post.eventId);
       
       set({ 
-        feed: friendsPosts, 
-        hasMore: hasMoreData,
-        nextCursor: hasMoreData ? String(page + 1) : undefined,
+        friendsFeed: friendsPosts, 
+        friendsHasMore: hasMoreData,
+        friendsNextCursor: hasMoreData ? String(page + 1) : undefined,
         loading: false 
       });
     } catch (err: any) {
@@ -213,16 +231,16 @@ export const usePostStore = create<PostState>((set, get) => ({
 
   refreshFriendsFeed: async () => {
     const { fetchFriendsFeed } = get();
-    set({ nextCursor: undefined, hasMore: true });
+    set({ friendsNextCursor: undefined, friendsHasMore: true });
     await fetchFriendsFeed(1, DEFAULT_LIMIT);
   },
 
   loadMoreFriendsFeed: async () => {
-    const { nextCursor, feed, loading, hasMore } = get();
+    const { friendsNextCursor, friendsFeed, loading, friendsHasMore } = get();
     
-    if (!hasMore || loading || !nextCursor) return;
+    if (!friendsHasMore || loading || !friendsNextCursor) return;
     
-    const nextPage = parseInt(nextCursor, 10);
+    const nextPage = parseInt(friendsNextCursor, 10);
     if (isNaN(nextPage)) return;
     
     try {
@@ -235,13 +253,13 @@ export const usePostStore = create<PostState>((set, get) => ({
       const friendsPosts = (Array.isArray(postsData) ? postsData : []).filter((post: Post) => !post.eventId);
       
       // Merge and deduplicate
-      const allPosts = [...feed, ...friendsPosts];
+      const allPosts = [...friendsFeed, ...friendsPosts];
       const uniquePosts = [...new Map(allPosts.map(p => [p.id, p])).values()];
       
       set({ 
-        feed: uniquePosts,
-        hasMore: hasMoreData,
-        nextCursor: hasMoreData ? String(nextPage + 1) : undefined,
+        friendsFeed: uniquePosts,
+        friendsHasMore: hasMoreData,
+        friendsNextCursor: hasMoreData ? String(nextPage + 1) : undefined,
         loading: false 
       });
     } catch (err: any) {
@@ -258,9 +276,9 @@ export const usePostStore = create<PostState>((set, get) => ({
       const postsData = (res as any).data?.data || (res as any).data || res || [];
       const hasMoreData = (res as any).data?.hasMore ?? (Array.isArray(postsData) && postsData.length === limit);
       set({ 
-        feed: Array.isArray(postsData) ? postsData : [], 
-        hasMore: hasMoreData,
-        nextCursor: hasMoreData ? String(page + 1) : undefined,
+        eventFeed: Array.isArray(postsData) ? postsData : [], 
+        eventHasMore: hasMoreData,
+        eventNextCursor: hasMoreData ? String(page + 1) : undefined,
         loading: false 
       });
     } catch (err: any) {
@@ -268,9 +286,9 @@ export const usePostStore = create<PostState>((set, get) => ({
       // Handle 403 error - user hasn't booked the event
       if (err.response?.status === 403) {
         set({ 
-          feed: [], 
-          hasMore: false,
-          nextCursor: undefined,
+          eventFeed: [], 
+          eventHasMore: false,
+          eventNextCursor: undefined,
           loading: false,
           error: "You need to book this event to see posts."
         });
@@ -282,16 +300,16 @@ export const usePostStore = create<PostState>((set, get) => ({
 
   refreshEventFeed: async (eventId: string) => {
     const { fetchEventFeed } = get();
-    set({ nextCursor: undefined, hasMore: true });
+    set({ eventNextCursor: undefined, eventHasMore: true });
     await fetchEventFeed(eventId, 1, DEFAULT_LIMIT);
   },
 
   loadMoreEventFeed: async () => {
-    const { nextCursor, feed, loading, hasMore, currentEventId } = get();
+    const { eventNextCursor, eventFeed, loading, eventHasMore, currentEventId } = get();
     
-    if (!hasMore || loading || !nextCursor || !currentEventId) return;
+    if (!eventHasMore || loading || !eventNextCursor || !currentEventId) return;
     
-    const nextPage = parseInt(nextCursor, 10);
+    const nextPage = parseInt(eventNextCursor, 10);
     if (isNaN(nextPage)) return;
     
     try {
@@ -301,9 +319,9 @@ export const usePostStore = create<PostState>((set, get) => ({
       const hasMoreData = (res as any).data?.hasMore ?? (Array.isArray(postsData) && postsData.length === DEFAULT_LIMIT);
       
       set({ 
-        feed: [...feed, ...(Array.isArray(postsData) ? postsData : [])],
-        hasMore: hasMoreData,
-        nextCursor: hasMoreData ? String(nextPage + 1) : undefined,
+        eventFeed: [...eventFeed, ...(Array.isArray(postsData) ? postsData : [])],
+        eventHasMore: hasMoreData,
+        eventNextCursor: hasMoreData ? String(nextPage + 1) : undefined,
         loading: false 
       });
     } catch (err: any) {
@@ -315,14 +333,20 @@ export const usePostStore = create<PostState>((set, get) => ({
   // ================= MY EVENTS FEED (Auto-aggregated from booked events) =================
   fetchMyEventsFeed: async (page: number = 1, limit: number = DEFAULT_LIMIT) => {
     try {
-      set({ loading: true, error: null, currentEventId: null });
+      // Don't set loading if we already have data (for faster switching)
+      const currentFeed = get().eventFeed;
+      if (currentFeed.length === 0) {
+        set({ loading: true });
+      }
+      set({ error: null, currentEventId: null });
+      
       const posts = await getMyEventsFeedApi(page, limit);
       const hasMoreData = posts.length === limit;
       
       set({ 
-        feed: posts, 
-        hasMore: hasMoreData,
-        nextCursor: hasMoreData ? String(page + 1) : undefined,
+        eventFeed: posts, 
+        eventHasMore: hasMoreData,
+        eventNextCursor: hasMoreData ? String(page + 1) : undefined,
         loading: false 
       });
     } catch (err: any) {
@@ -333,16 +357,16 @@ export const usePostStore = create<PostState>((set, get) => ({
 
   refreshMyEventsFeed: async () => {
     const { fetchMyEventsFeed } = get();
-    set({ nextCursor: undefined, hasMore: true });
+    set({ eventNextCursor: undefined, eventHasMore: true });
     await fetchMyEventsFeed(1, DEFAULT_LIMIT);
   },
 
   loadMoreMyEventsFeed: async () => {
-    const { nextCursor, feed, loading, hasMore } = get();
+    const { eventNextCursor, eventFeed, loading, eventHasMore } = get();
     
-    if (!hasMore || loading || !nextCursor) return;
+    if (!eventHasMore || loading || !eventNextCursor) return;
     
-    const nextPage = parseInt(nextCursor, 10);
+    const nextPage = parseInt(eventNextCursor, 10);
     if (isNaN(nextPage)) return;
     
     try {
@@ -351,13 +375,13 @@ export const usePostStore = create<PostState>((set, get) => ({
       const hasMoreData = newPosts.length === DEFAULT_LIMIT;
       
       // Merge and deduplicate
-      const allPosts = [...feed, ...newPosts];
+      const allPosts = [...eventFeed, ...newPosts];
       const uniquePosts = [...new Map(allPosts.map(p => [p.id, p])).values()];
       
       set({ 
-        feed: uniquePosts,
-        hasMore: hasMoreData,
-        nextCursor: hasMoreData ? String(nextPage + 1) : undefined,
+        eventFeed: uniquePosts,
+        eventHasMore: hasMoreData,
+        eventNextCursor: hasMoreData ? String(nextPage + 1) : undefined,
         loading: false 
       });
     } catch (err: any) {

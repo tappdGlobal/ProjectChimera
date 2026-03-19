@@ -396,7 +396,10 @@ React.useEffect(() => {
 
             <TouchableOpacity
               style={styles.settingsRow}
-              onPress={() => setShowDeleteAccountModal(true)}
+              onPress={() => {
+                setShowSettings(false);
+                setTimeout(() => setShowDeleteAccountModal(true), 100);
+              }}
             >
               <Trash2
                 size={18}
