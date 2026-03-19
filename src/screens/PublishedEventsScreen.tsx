@@ -49,6 +49,8 @@ import {
   DialogDescription,
 } from "../components/ui/Dialog";
 import { useHostStore } from "../store/hostStore";
+import { RedeemModalOptimized } from "../components/host/RedeemModalOptimized";
+import Toast from "react-native-toast-message";
 
 interface PublishedEvent {
   id: string;
@@ -170,7 +172,7 @@ const EventCard = React.memo(({ event, onPress }: EventCardProps) => (
         <View style={styles.eventCardHeader}>
           <Text style={styles.eventCardTitle}>{event.name}</Text>
           <View style={[styles.statusBadge, { borderColor: "rgba(255,255,255,0.2)" }]}>
-            <Text style={[styles.statusText, { color: getStatusColor(event.status).color }]}>{event.status}</Text>
+            <Text style={[styles.statusText, { color: getStatusColor(event.status || 'upcoming').color }]}>{event.status || 'Upcoming'}</Text>
           </View>
         </View>
         <Text style={styles.eventCardLocation}>{event.location}</Text>
@@ -180,7 +182,7 @@ const EventCard = React.memo(({ event, onPress }: EventCardProps) => (
             <Text style={styles.metricLabel}>Registrations</Text>
           </View>
           <View style={styles.metricItemRight}>
-            <Text style={styles.metricBigNumberGreen}>{formatCurrency(event.netEarnings)}</Text>
+            <Text style={styles.metricBigNumberGreen}>{formatCurrency(event.netEarnings || 0)}</Text>
             <Text style={styles.metricLabel}>Net Earnings</Text>
           </View>
         </View>
@@ -660,6 +662,15 @@ export function PublishedEventsScreen() {
   const navigation = useNavigation();
   const { events, analyticsMap, loading, fetchHostEvents, fetchAllEventsAnalytics } = useHostStore();
   const [selectedEvent, setSelectedEvent] = useState<PublishedEvent | null>(null);
+  const [showRedeemModal, setShowRedeemModal] = useState(false);
+
+  const handleRedeemSuccess = useCallback((message: string) => {
+    Toast.show({
+      type: 'success',
+      text1: 'Success!',
+      text2: message,
+    });
+  }, []);
 
   // Fetch host events and their analytics on mount
   useEffect(() => {
@@ -675,10 +686,10 @@ export function PublishedEventsScreen() {
       const eventIds = events.map(e => e.id);
       fetchAllEventsAnalytics(eventIds);
     }
-  }, [events.length]);
+  }, [events.length, fetchAllEventsAnalytics]); // Add fetchAllEventsAnalytics to dependencies
 
   // Transform HostEvent to PublishedEvent format with analytics data
-  const transformedEvents: PublishedEvent[] = events.map(event => {
+  const transformedEvents: PublishedEvent[] = useMemo(() => events.map(event => {
     const analytics = analyticsMap.get(event.id);
     return {
       id: event.id,
@@ -687,13 +698,13 @@ export function PublishedEventsScreen() {
       time: new Date(event.eventDatetime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
       location: event.location,
       category: event.category,
-      registrations: event.bookedCount,
       maxOccupancy: event.maxCapacity,
-      rating: 4.7, // Default rating since API doesn't provide it
+      registrations: event.bookedCount,
       revenue: analytics?.earnings?.totalEarnings ?? 0,
       serviceCharge: analytics?.earnings?.tappdServiceCharge ?? 0,
       netEarnings: analytics?.earnings?.netEarnings ?? 0,
       totalReviews: 0,
+      rating: 4.7, // Add default rating
       connections: analytics?.engagement?.connectionsMade ?? 0,
       status: "upcoming" as const,
       image: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&q=80",
@@ -701,11 +712,17 @@ export function PublishedEventsScreen() {
       checkedInCount: event.checkedInCount,
       reviews: [],
     };
-  });
+  }), [events, analyticsMap]);
 
   // Calculate totals from real data
-  const totalEarnings = transformedEvents.reduce((sum, e) => sum + (e.netEarnings || 0), 0);
-  const totalRegistrations = events.reduce((sum, e) => sum + e.bookedCount, 0);
+  const totalEarnings = useMemo(() => 
+    transformedEvents.reduce((sum, e) => sum + (e.netEarnings || 0), 0), 
+    [transformedEvents]
+  );
+  const totalRegistrations = useMemo(() => 
+    events.reduce((sum, e) => sum + e.bookedCount, 0), 
+    [events]
+  );
 
   return (
     <SafeAreaView style={[styles.flex1, { backgroundColor: Theme.colors.background }]} edges={["top", "left", "right"]}>
@@ -740,6 +757,24 @@ export function PublishedEventsScreen() {
             <Text style={styles.secondaryStatText}>{events.length} events published</Text>
             <Text style={styles.secondaryStatText}>Avg. 4.7★ rating</Text>
           </View>
+          
+          {/* Available to Withdraw Section */}
+          <View style={styles.withdrawSection}>
+            <View style={styles.withdrawInfo}>
+              <Text style={styles.withdrawLabel}>Available to Withdraw</Text>
+              <Text style={styles.withdrawAmount}>₹{totalEarnings.toLocaleString()}</Text>
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.redeemButton,
+                totalEarnings < 100 && styles.redeemButtonDisabled
+              ]}
+              onPress={() => setShowRedeemModal(true)}
+              disabled={totalEarnings < 100}
+            >
+              <Text style={styles.redeemButtonText}>Redeem Earnings</Text>
+            </TouchableOpacity>
+          </View>
           <EarningsChart />
           <View style={styles.eventsListContainer}>
             {transformedEvents.length === 0 ? (
@@ -767,6 +802,14 @@ export function PublishedEventsScreen() {
             onClose={() => setSelectedEvent(null)}
           />
         )}
+        
+        {/* Redeem Modal */}
+        <RedeemModalOptimized
+          visible={showRedeemModal}
+          onClose={() => setShowRedeemModal(false)}
+          availableBalance={totalEarnings}
+          onSuccess={handleRedeemSuccess}
+        />
       </View>
     </SafeAreaView>
   );
@@ -944,4 +987,44 @@ const styles = StyleSheet.create({
   scanConfirmButton: { flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#C026D3', alignItems: 'center' },
   scanConfirmButtonDisabled: { backgroundColor: 'rgba(192, 38, 211, 0.5)' },
   scanConfirmButtonText: { color: 'white', fontSize: 14, fontWeight: '600' },
+  
+  // Withdraw Section
+  withdrawSection: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    backgroundColor: '#110C24', 
+    borderRadius: 16, 
+    padding: 20, 
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  withdrawInfo: { flex: 1 },
+  withdrawLabel: { 
+    fontSize: 14, 
+    color: Theme.colors.mutedForeground, 
+    marginBottom: 4 
+  },
+  withdrawAmount: { 
+    fontSize: 24, 
+    fontWeight: 'bold', 
+    color: Theme.colors.primary 
+  },
+  redeemButton: { 
+    backgroundColor: Theme.colors.primary, 
+    paddingHorizontal: 20, 
+    paddingVertical: 12, 
+    borderRadius: 12,
+    opacity: 1,
+  },
+  redeemButtonDisabled: { 
+    backgroundColor: '#374151', 
+    opacity: 0.6 
+  },
+  redeemButtonText: { 
+    color: Theme.colors.primaryForeground, 
+    fontSize: 14, 
+    fontWeight: '600' 
+  },
 });
