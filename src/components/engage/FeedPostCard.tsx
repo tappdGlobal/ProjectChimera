@@ -103,6 +103,8 @@ export const FeedPostCard: React.FC<FeedPostCardProps> = ({
   // Use isLiked from API response, fallback to false
   const isLiked = post.isLiked ?? false;
   const likesCount = post.likesCount ?? 0;
+  
+  console.log(`[FeedPostCard ${post.id}] isLiked:`, isLiked, "likesCount:", likesCount);
 
   const handleLike = useCallback(() => {
     // Call the parent handler with the current like state
