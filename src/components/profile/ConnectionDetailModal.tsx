@@ -13,7 +13,7 @@ import Modal from "react-native-modal";
 import { LinearGradient } from "expo-linear-gradient";
 import { Theme, GRADIENT_COLORS } from "../../styles/Theme";
 import { X, ArrowLeft, MessageCircle, UserMinus, AlertTriangle } from "lucide-react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useConnectionStore } from "../../store/connectionStore";
 import { useNavigation } from "@react-navigation/native";
 import { SCREEN_NAMES } from "../../navigation/Routes";
@@ -101,6 +101,7 @@ export const ConnectionDetailModal = ({
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number>(0);
   const { unfriendConnection } = useConnectionStore();
   const navigation = useAppNavigation();
+  const insets = useSafeAreaInsets();
 
   if (!user) return null;
 
@@ -147,7 +148,7 @@ export const ConnectionDetailModal = ({
       animationOut="slideOutDown"
       backdropTransitionOutTiming={0}
     >
-      <SafeAreaView style={styles.container} edges={["top"]}>
+      <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
         {/* HEADER */}
         <LinearGradient
           colors={GRADIENT_COLORS.primary as [string, string]}
@@ -184,7 +185,7 @@ export const ConnectionDetailModal = ({
         {/* CONTENT */}
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 20 }]}
         >
           {/* NAME & AGE (NO BOX) */}
           <Text style={styles.name}>{user.name}</Text>

@@ -30,7 +30,7 @@ export default function CreatePostScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute();
   const { imageUri, mediaType = 'image' } = route.params as RouteParams;
-  const { createPost, loading } = usePostStore();
+  const { createPost, loading, refreshFriendsFeed } = usePostStore();
 
   const [caption, setCaption] = useState("");
   const [music, setMusic] = useState("");
@@ -64,6 +64,9 @@ export default function CreatePostScreen() {
       };
 
       await createPost(postData);
+
+      // Refresh friends feed to show the new post
+      await refreshFriendsFeed();
 
       Toast.show({
         type: "success",

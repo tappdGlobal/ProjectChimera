@@ -17,7 +17,7 @@ import {
 import { Image } from "expo-image";
 import { Video, ResizeMode } from "expo-av";
 import { LinearGradient } from "expo-linear-gradient";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { X, MoreHorizontal, Pause, Play, Heart, Send, Smile, Trash2 } from "lucide-react-native";
 import { Theme } from "../../styles/Theme";
 
@@ -54,6 +54,7 @@ export default function StoryViewer({
   onDelete,
   onView,
 }: Props) {
+  const insets = useSafeAreaInsets();
   const [index, setIndex] = useState(initialIndex);
   const [paused, setPaused] = useState(false);
   const [replyText, setReplyText] = useState("");
@@ -251,7 +252,7 @@ export default function StoryViewer({
 
   return (
     <Modal visible={visible} animationType="fade" transparent>
-      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+      <SafeAreaView style={styles.container} edges={["top", "left", "right", "bottom"]}>
         {/* Progress */}
         <View style={styles.progress}>
           {stories.map((_, i) => (
@@ -540,14 +541,13 @@ const styles = StyleSheet.create({
 
   replyContainer: {
     position: "absolute",
-    bottom: 0,
+    bottom: 8,
     left: 0,
     right: 0,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
-    paddingBottom: Platform.OS === "ios" ? 34 : 16,
-    paddingTop: 12,
+    paddingVertical: 8,
     backgroundColor: "rgba(0,0,0,0.3)",
   },
 

@@ -14,7 +14,10 @@ const HostStack = createStackNavigator();
 
 export function HostStackScreen() {
   return (
-    <HostStack.Navigator screenOptions={{ headerShown: false }}>
+    <HostStack.Navigator 
+      screenOptions={{ headerShown: false }}
+      detachInactiveScreens={false}
+    >
       <HostStack.Screen
         name={SCREEN_NAMES.HOST_MAIN}
         component={HostScreen}

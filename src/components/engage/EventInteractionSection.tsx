@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -17,17 +17,21 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { Theme } from "../../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
-import { Plus, X, Send, Check } from "lucide-react-native";
+import { Plus, X, Send, Check, Camera, Image as ImageIcon, ChevronDown } from "lucide-react-native";
+import * as ImagePicker from "expo-image-picker";
 import StoryViewer from "./StoryViewer";
 import { UploadContentSheet } from "./UploadContentSheet";
 import { CreateStoryModal } from "./CreateStoryModal";
 import { FeedPostCard } from "./FeedPostCard";
+
+// Memoized version for better performance
+const MemoizedFeedPostCard = React.memo(FeedPostCard);
 import { useStoryStore } from "../../store/storyStore";
 import { useAuthStore } from "../../store/authStore";
 import { usePostStore } from "../../store/postStore";
@@ -131,15 +135,24 @@ export function EventInteractionSection() {
   const [showCreateStory, setShowCreateStory] = useState(false);
   const [storyMedia, setStoryMedia] = useState<{ uri: string; type: 'image' | 'video' } | null>(null);
   const [viewedStories, setViewedStories] = useState<Set<string>>(new Set());
+  
+  // Feed type state: 'friends' or 'event'
+  const [activeFeed, setActiveFeed] = useState<'friends' | 'event'>('friends');
 
   const { stories, getAllStories, deleteStory, viewStory } = useStoryStore();
   const { 
-    feed, 
-    fetchFeed, 
-    refreshFeed, 
-    loadMoreFeed, 
-    hasMore, 
+    friendsFeed,
+    eventFeed,
+    fetchFriendsFeed,
+    refreshFriendsFeed,
+    loadMoreFriendsFeed,
+    fetchMyEventsFeed,
+    refreshMyEventsFeed,
+    loadMoreMyEventsFeed,
+    friendsHasMore,
+    eventHasMore,
     loading: postsLoading, 
+    error: postsError,
     likePost, 
     unlikePost,
     comments,
@@ -163,6 +176,22 @@ export function EventInteractionSection() {
   const [showShareFriendsModal, setShowShareFriendsModal] = useState(false);
   const [sharePostId, setSharePostId] = useState<string | null>(null);
   const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
+
+  // Screen focus state for video playback control
+  const [isScreenFocused, setIsScreenFocused] = useState(true);
+
+  // Track visible post IDs for video playback control
+  const [visiblePostIds, setVisiblePostIds] = useState<Set<string>>(new Set());
+
+  // Event Post Creation Modal states
+  const [showCreateEventPostModal, setShowCreateEventPostModal] = useState(false);
+  const [showMediaPickerModal, setShowMediaPickerModal] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState<{ uri: string; type: 'image' | 'video' } | null>(null);
+  const [eventPostCaption, setEventPostCaption] = useState("");
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [userBookings, setUserBookings] = useState<any[]>([]);
+  const [showEventDropdown, setShowEventDropdown] = useState(false);
+  const [creatingPost, setCreatingPost] = useState(false);
 
   // Load viewed stories from AsyncStorage on mount
   useEffect(() => {
@@ -197,26 +226,60 @@ export function EventInteractionSection() {
     }
   }, [viewedStories]);
 
+  // Load both feeds on mount for instant switching
   useEffect(() => {
     getAllStories();
-    fetchFeed();
+    // Pre-load both feeds so switching is instant
+    fetchFriendsFeed();
+    fetchMyEventsFeed();
+    getFriends();
   }, []);
 
-  // Debug: Log feed data
+  // Refresh current feed when tab changes (but data is already there)
   useEffect(() => {
-    console.log("Feed posts:", feed.length, feed);
-  }, [feed]);
+    if (activeFeed === 'friends') {
+      refreshFriendsFeed();
+    } else if (activeFeed === 'event') {
+      refreshMyEventsFeed();
+    }
+  }, [activeFeed]);
+
+  // Handle screen focus/blur for video playback control
+  useFocusEffect(
+    useCallback(() => {
+      setIsScreenFocused(true);
+      return () => {
+        setIsScreenFocused(false);
+      };
+    }, [])
+  );
+
+  // Use the appropriate feed based on active tab - memoized for performance
+  const currentFeed = useMemo(() => 
+    activeFeed === 'friends' ? friendsFeed : eventFeed,
+    [activeFeed, friendsFeed, eventFeed]
+  );
+  const currentHasMore = activeFeed === 'friends' ? friendsHasMore : eventHasMore;
 
   const onRefresh = async () => {
     setRefreshing(true);
     await getAllStories();
-    await refreshFeed();
+    if (activeFeed === 'friends') {
+      await refreshFriendsFeed();
+    } else if (activeFeed === 'event') {
+      await refreshMyEventsFeed();
+    }
+    await getFriends();
     setRefreshing(false);
   };
 
   const onLoadMore = async () => {
-    if (hasMore && !postsLoading) {
-      await loadMoreFeed();
+    if (currentHasMore && !postsLoading) {
+      if (activeFeed === 'friends') {
+        await loadMoreFriendsFeed();
+      } else if (activeFeed === 'event') {
+        await loadMoreMyEventsFeed();
+      }
     }
   };
 
@@ -400,7 +463,7 @@ export function EventInteractionSection() {
     // Close modal immediately for better UX
     handleCloseShareFriends();
     
-    const post = feed.find(p => p.id === sharePostId);
+    const post = currentFeed.find((p: Post) => p.id === sharePostId);
     if (!post) return;
     
     // Create share message with post ID for clickable link
@@ -466,21 +529,202 @@ export function EventInteractionSection() {
   const handleDeletePost = async (postId: string) => {
     try {
       await usePostStore.getState().deletePost(postId);
-      // Refresh feed after deletion
-      await refreshFeed();
+      // Refresh feed after deletion based on active feed type
+      if (activeFeed === 'friends') {
+        await refreshFriendsFeed();
+      } else if (activeFeed === 'event') {
+        await refreshMyEventsFeed();
+      }
     } catch (error) {
       console.error("Failed to delete post:", error);
       Alert.alert("Error", "Failed to delete post. Please try again.");
     }
   };
 
+  // Handle viewable items change to control video playback
+  const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: Array<{ item: Post }> }) => {
+    const visibleIds = new Set(viewableItems.map(v => v.item.id));
+    setVisiblePostIds(visibleIds);
+  }, []);
+
+  const viewabilityConfig = {
+    itemVisiblePercentThreshold: 50, // Item is considered visible when 50% is in viewport
+  };
+
+  // ================= EVENT POST CREATION FUNCTIONS =================
+
+  // Load user's bookings for event selection
+  const loadUserBookings = async () => {
+    try {
+      const { getMyBookingsApi } = await import("../../api/bookingApi");
+      const response = await getMyBookingsApi();
+      const bookings = Array.isArray(response) ? response : (response as any)?.data || [];
+      setUserBookings(bookings);
+    } catch (error) {
+      console.error("Failed to load bookings:", error);
+      setUserBookings([]);
+    }
+  };
+
+  // Handle opening media picker
+  const handleOpenMediaPicker = () => {
+    setShowMediaPickerModal(true);
+    loadUserBookings();
+  };
+
+  // Pick image from gallery
+  const pickImage = async () => {
+    // Close modal first on iOS to prevent modal stacking issues
+    if (Platform.OS === 'ios') {
+      setShowMediaPickerModal(false);
+      // Small delay to let modal close before opening image picker
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please grant permission to access your photos');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      allowsEditing: true,
+      aspect: [9, 16],
+      quality: 1,
+      videoMaxDuration: 60,
+      presentationStyle: Platform.OS === 'ios' ? ImagePicker.UIImagePickerPresentationStyle.FULL_SCREEN : undefined,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const asset = result.assets[0];
+      setSelectedMedia({
+        uri: asset.uri,
+        type: asset.type === 'video' ? 'video' : 'image',
+      });
+      // Delay for iOS to ensure smooth modal transition after image picker closes
+      setTimeout(() => {
+        setShowCreateEventPostModal(true);
+      }, Platform.OS === 'ios' ? 500 : 100);
+    }
+    
+    // Close modal on Android after selection
+    if (Platform.OS !== 'ios') {
+      setShowMediaPickerModal(false);
+    }
+  };
+
+  // Take photo with camera
+  const takePhoto = async () => {
+    // Close modal first on iOS to prevent modal stacking issues
+    if (Platform.OS === 'ios') {
+      setShowMediaPickerModal(false);
+      // Small delay to let modal close before opening camera
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please grant permission to access your camera');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      allowsEditing: true,
+      aspect: [9, 16],
+      quality: 1,
+      presentationStyle: Platform.OS === 'ios' ? ImagePicker.UIImagePickerPresentationStyle.FULL_SCREEN : undefined,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const asset = result.assets[0];
+      setSelectedMedia({
+        uri: asset.uri,
+        type: asset.type === 'video' ? 'video' : 'image',
+      });
+      // Delay for iOS to ensure smooth modal transition after camera closes
+      setTimeout(() => {
+        setShowCreateEventPostModal(true);
+      }, Platform.OS === 'ios' ? 500 : 100);
+    }
+    
+    // Close modal on Android after selection
+    if (Platform.OS !== 'ios') {
+      setShowMediaPickerModal(false);
+    }
+  };
+
+  // Handle creating event post
+  const handleCreateEventPost = async () => {
+    if (!selectedMedia || !selectedEventId) {
+      Alert.alert('Error', 'Please select media and an event');
+      return;
+    }
+
+    setCreatingPost(true);
+    try {
+      const { createPost } = usePostStore.getState();
+      
+      const filename = selectedMedia.uri.split('/').pop() || 'post.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const type = selectedMedia.type === 'video' 
+        ? (match ? `video/${match[1]}` : 'video/mp4')
+        : (match ? `image/${match[1]}` : 'image/jpeg');
+
+      await createPost({
+        caption: eventPostCaption || undefined,
+        allowComments: true,
+        isCarousel: false,
+        eventId: selectedEventId,
+        media: [{
+          uri: selectedMedia.uri,
+          name: filename,
+          type: type,
+        }],
+      });
+
+      // Reset and close modal
+      setShowCreateEventPostModal(false);
+      setSelectedMedia(null);
+      setEventPostCaption('');
+      setSelectedEventId(null);
+      
+      // Refresh the feed
+      refreshMyEventsFeed();
+      
+      Alert.alert('Success', 'Post created successfully!');
+    } catch (error: any) {
+      console.error('Failed to create post:', error);
+      Alert.alert('Error', error.message || 'Failed to create post');
+    } finally {
+      setCreatingPost(false);
+    }
+  };
+
+  // Close modals and reset state
+  const handleCloseCreateModal = () => {
+    setShowCreateEventPostModal(false);
+    setShowMediaPickerModal(false);
+    setSelectedMedia(null);
+    setEventPostCaption('');
+    setSelectedEventId(null);
+    setShowEventDropdown(false);
+  };
+
   return (
     <View style={styles.container}>
       <FlatList
-        data={feed}
+        data={currentFeed}
         keyExtractor={(item) => item.id}
+        extraData={activeFeed}
+        initialNumToRender={5}
+        maxToRenderPerBatch={5}
+        windowSize={3}
+        removeClippedSubviews={true}
+        getItemLayout={(data, index) => ({ length: 400, offset: 400 * index, index })}
         renderItem={({ item }) => (
-          <FeedPostCard
+          <MemoizedFeedPostCard
             post={item}
             comments={selectedPostId === item.id ? comments : []}
             currentUserAvatar={undefined}
@@ -494,8 +738,11 @@ export function EventInteractionSection() {
             showCommentsInline={selectedPostId === item.id}
             onShareWithFriends={handleShareWithFriends}
             onDelete={handleDeletePost}
+            isVisible={isScreenFocused && visiblePostIds.has(item.id)}
           />
         )}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -506,7 +753,7 @@ export function EventInteractionSection() {
         onEndReached={onLoadMore}
         onEndReachedThreshold={0.5}
         ListFooterComponent={
-          postsLoading && feed.length > 0 ? (
+          postsLoading && currentFeed.length > 0 ? (
             <View style={{ padding: 20, alignItems: "center" }}>
               <ActivityIndicator size="small" color={Theme.colors.primary} />
             </View>
@@ -525,42 +772,79 @@ export function EventInteractionSection() {
           ) : null
         }
         ListHeaderComponent={
-          <ScrollView horizontal style={{ padding: 16 }}>
-            {/* Add Story Button */}
-            <StoryItem
-              key={displayStories[0].id}
-              item={displayStories[0]}
-              onPress={() => setShowUpload(true)}
-            />
-            
-            {/* My Story Badge - only shown if user has stories */}
-            {myStoriesData && (
-              <MyStoryBadge
-                hasStories={true}
-                thumbnailImage={myStoriesData.thumbnailImage}
-                viewed={myStoriesData.viewed}
-                onPress={() => {
-                  // Use 1000 as offset to indicate "my story" (distinguishes from displayStories indices)
-                  setStoryIndex(1000);
-                  setShowStoryModal(true);
-                }}
-              />
-            )}
-            
-            {/* Other Users' Stories */}
-            {displayStories.slice(1).map((story, index) => (
+          <>
+            <ScrollView horizontal style={{ padding: 16 }}>
+              {/* Add Story Button */}
               <StoryItem
-                key={story.id}
-                item={story}
-                onPress={() => {
-                  // Index + 1 because 0 is add-story
-                  // Note: myStoriesData is rendered separately, not in displayStories
-                  setStoryIndex(index + 1);
-                  setShowStoryModal(true);
-                }}
+                key={displayStories[0].id}
+                item={displayStories[0]}
+                onPress={() => setShowUpload(true)}
               />
-            ))}
-          </ScrollView>
+              
+              {/* My Story Badge - only shown if user has stories */}
+              {myStoriesData && (
+                <MyStoryBadge
+                  hasStories={true}
+                  thumbnailImage={myStoriesData.thumbnailImage}
+                  viewed={myStoriesData.viewed}
+                  onPress={() => {
+                    // Use 1000 as offset to indicate "my story" (distinguishes from displayStories indices)
+                    setStoryIndex(1000);
+                    setShowStoryModal(true);
+                  }}
+                />
+              )}
+              
+              {/* Other Users' Stories */}
+              {displayStories.slice(1).map((story, index) => (
+                <StoryItem
+                  key={story.id}
+                  item={story}
+                  onPress={() => {
+                    // Index + 1 because 0 is add-story
+                    // Note: myStoriesData is rendered separately, not in displayStories
+                    setStoryIndex(index + 1);
+                    setShowStoryModal(true);
+                  }}
+                />
+              ))}
+            </ScrollView>
+
+            {/* Feed Type Tabs */}
+            <View style={styles.feedTabsContainer}>
+              <TouchableOpacity
+                style={[styles.feedTab, activeFeed === 'friends' && styles.feedTabActive]}
+                onPress={() => setActiveFeed('friends')}
+              >
+                <Text style={[styles.feedTabText, activeFeed === 'friends' && styles.feedTabTextActive]}>
+                  Friends
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.feedTab, activeFeed === 'event' && styles.feedTabActive]}
+                onPress={() => setActiveFeed('event')}
+              >
+                <Text style={[styles.feedTabText, activeFeed === 'event' && styles.feedTabTextActive]}>
+                  Event
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Event Feed Header with Create Post Button */}
+            {activeFeed === 'event' && (
+              <View style={styles.eventFeedHeader}>
+                <Text style={styles.eventFeedInfoText}>
+                  Posts from events you've booked
+                </Text>
+                <TouchableOpacity
+                  style={styles.createEventPostButton}
+                  onPress={handleOpenMediaPicker}
+                >
+                  <Plus size={20} color={Theme.colors.primaryForeground} />
+                </TouchableOpacity>
+              </View>
+            )}
+          </>
         }
       />
 
@@ -640,8 +924,9 @@ export function EventInteractionSection() {
       >
         <SafeAreaView style={commentStyles.modalContainer}>
           <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
             style={commentStyles.keyboardView}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
           >
             <View style={commentStyles.modalContent}>
               {/* Header */}
@@ -744,6 +1029,172 @@ export function EventInteractionSection() {
           </SafeAreaView>
         </View>
       </Modal>
+
+      {/* ================= MEDIA PICKER MODAL ================= */}
+      <Modal
+        visible={showMediaPickerModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowMediaPickerModal(false)}
+        statusBarTranslucent={true}
+        supportedOrientations={['portrait', 'landscape']}
+      >
+        <View style={eventPostStyles.modalOverlayCentered}>
+          <View style={eventPostStyles.mediaPickerContainerCentered}>
+            <Text style={eventPostStyles.modalTitle}>Create Event Post</Text>
+            <Text style={eventPostStyles.modalSubtitle}>Select media to upload</Text>
+            
+            <View style={eventPostStyles.mediaOptions}>
+              <TouchableOpacity style={eventPostStyles.mediaOption} onPress={pickImage}>
+                <View style={eventPostStyles.mediaOptionIcon}>
+                  <ImageIcon size={32} color={Theme.colors.primary} />
+                </View>
+                <Text style={eventPostStyles.mediaOptionText}>Gallery</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={eventPostStyles.mediaOption} onPress={takePhoto}>
+                <View style={eventPostStyles.mediaOptionIcon}>
+                  <Camera size={32} color={Theme.colors.primary} />
+                </View>
+                <Text style={eventPostStyles.mediaOptionText}>Camera</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <TouchableOpacity
+              style={eventPostStyles.cancelButton}
+              onPress={() => setShowMediaPickerModal(false)}
+            >
+              <Text style={eventPostStyles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ================= CREATE EVENT POST MODAL ================= */}
+      <Modal
+        visible={showCreateEventPostModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCloseCreateModal}
+        statusBarTranslucent={true}
+        supportedOrientations={['portrait', 'landscape']}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={eventPostStyles.modalOverlayCentered}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        >
+          <View style={eventPostStyles.createPostContainerCentered}>
+            {/* Header */}
+            <View style={eventPostStyles.createPostHeader}>
+              <TouchableOpacity onPress={handleCloseCreateModal}>
+                <X size={24} color="#fff" />
+              </TouchableOpacity>
+              <Text style={eventPostStyles.createPostTitle}>New Event Post</Text>
+              <TouchableOpacity
+                onPress={handleCreateEventPost}
+                disabled={!selectedMedia || !selectedEventId || creatingPost}
+              >
+                {creatingPost ? (
+                  <ActivityIndicator size="small" color={Theme.colors.primary} />
+                ) : (
+                  <Send size={24} color={selectedMedia && selectedEventId ? Theme.colors.primary : Theme.colors.mutedForeground} />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={eventPostStyles.createPostContent}>
+              {/* Selected Media Preview */}
+              {selectedMedia && (
+                <View style={eventPostStyles.mediaPreview}>
+                  <Image
+                    source={{ uri: selectedMedia.uri }}
+                    style={eventPostStyles.mediaPreviewImage}
+                    contentFit="cover"
+                  />
+                  {selectedMedia.type === 'video' && (
+                    <View style={eventPostStyles.videoIndicator}>
+                      <Text style={eventPostStyles.videoIndicatorText}>VIDEO</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* Event Selection Dropdown */}
+              <View style={eventPostStyles.eventSelectionContainer}>
+                <Text style={eventPostStyles.eventSelectionLabel}>Select Event *</Text>
+                <TouchableOpacity
+                  style={eventPostStyles.eventDropdown}
+                  onPress={() => setShowEventDropdown(!showEventDropdown)}
+                >
+                  <Text style={selectedEventId ? eventPostStyles.eventDropdownTextSelected : eventPostStyles.eventDropdownText}>
+                    {selectedEventId
+                      ? (() => {
+                          const booking = userBookings.find((b: any) => (b.eventId || b.event?.id) === selectedEventId);
+                          return booking?.event?.eventName || booking?.event?.name || booking?.eventName || 'Selected Event';
+                        })()
+                      : 'Choose an event'}
+                  </Text>
+                  <ChevronDown size={20} color={Theme.colors.mutedForeground} />
+                </TouchableOpacity>
+
+                {/* Dropdown Options */}
+                {showEventDropdown && (
+                  <View style={eventPostStyles.dropdownOptions}>
+                    {userBookings.length === 0 ? (
+                      <Text style={eventPostStyles.noEventsText}>No booked events found</Text>
+                    ) : (
+                      [...new Map(userBookings.map((b: any) => {
+                        const eventId = b.eventId || b.event?.id;
+                        return [eventId, b];
+                      })).values()].map((booking: any, index: number) => {
+                        const eventId = booking.eventId || booking.event?.id;
+                        // Event name can be in different fields depending on API response
+                        const eventName = booking.event?.eventName || booking.event?.name || booking.eventName || 'Unknown Event';
+                        return (
+                          <TouchableOpacity
+                            key={`${eventId}-${index}`}
+                            style={[
+                              eventPostStyles.dropdownOption,
+                              selectedEventId === eventId && eventPostStyles.dropdownOptionSelected,
+                            ]}
+                            onPress={() => {
+                              setSelectedEventId(eventId);
+                              setShowEventDropdown(false);
+                            }}
+                          >
+                            <Text style={eventPostStyles.dropdownOptionText}>{eventName}</Text>
+                            {selectedEventId === eventId && (
+                              <Check size={16} color={Theme.colors.primary} />
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })
+                    )}
+                  </View>
+                )}
+              </View>
+
+              {/* Caption Input */}
+              <View style={eventPostStyles.captionContainer}>
+                <Text style={eventPostStyles.captionLabel}>Caption</Text>
+                <TextInput
+                  style={eventPostStyles.captionInput}
+                  placeholder="Write a caption..."
+                  placeholderTextColor={Theme.colors.mutedForeground}
+                  value={eventPostCaption}
+                  onChangeText={setEventPostCaption}
+                  multiline
+                  maxLength={500}
+                />
+                <Text style={eventPostStyles.captionCounter}>
+                  {eventPostCaption.length}/500
+                </Text>
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -827,6 +1278,299 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 8,
     marginLeft: 1,
+  },
+
+  // Feed Tabs Styles
+  feedTabsContainer: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+  },
+  feedTab: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    alignItems: "center",
+  },
+  feedTabActive: {
+    backgroundColor: Theme.colors.primary,
+  },
+  feedTabText: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  feedTabTextActive: {
+    color: Theme.colors.primaryForeground,
+    fontWeight: "600",
+  },
+
+  // Event Feed Header Styles
+  eventFeedHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+  },
+  eventFeedInfoText: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 13,
+    flex: 1,
+  },
+  createEventPostButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Theme.colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 12,
+  },
+});
+
+/* ---------------- EVENT POST CREATION STYLES ---------------- */
+
+const eventPostStyles = StyleSheet.create({
+  // Modal Overlay
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: Theme.colors.background,
+  },
+  modalOverlayCentered: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+
+  // Media Picker Modal
+  mediaPickerContainer: {
+    backgroundColor: Theme.colors.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
+  },
+  mediaPickerContainerFullScreen: {
+    flex: 1,
+    backgroundColor: Theme.colors.background,
+    paddingHorizontal: 20,
+    paddingTop: 40,
+    paddingBottom: 40,
+    justifyContent: 'center',
+  },
+  mediaPickerContainerCentered: {
+    backgroundColor: Theme.colors.background,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 320,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    color: Theme.colors.foreground,
+    fontSize: 18,
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 14,
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  mediaOptions: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginBottom: 24,
+  },
+  mediaOption: {
+    alignItems: "center",
+    padding: 20,
+  },
+  mediaOptionIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  mediaOptionText: {
+    color: Theme.colors.foreground,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  cancelButton: {
+    paddingVertical: 16,
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 16,
+  },
+
+  // Create Post Modal
+  createPostContainer: {
+    flex: 1,
+    backgroundColor: Theme.colors.background,
+    height: '100%',
+  },
+  createPostContainerCentered: {
+    backgroundColor: Theme.colors.background,
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 400,
+    height: '80%',
+    overflow: 'hidden',
+  },
+  createPostHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+  },
+  createPostTitle: {
+    color: Theme.colors.foreground,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  createPostContent: {
+    flex: 1,
+    padding: 16,
+  },
+
+  // Media Preview
+  mediaPreview: {
+    width: "100%",
+    height: 300,
+    borderRadius: 12,
+    overflow: "hidden",
+    marginBottom: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+  },
+  mediaPreviewImage: {
+    width: "100%",
+    height: "100%",
+  },
+  videoIndicator: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  videoIndicatorText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+  // Event Selection
+  eventSelectionContainer: {
+    marginBottom: 20,
+  },
+  eventSelectionLabel: {
+    color: Theme.colors.foreground,
+    fontSize: 14,
+    fontWeight: "500",
+    marginBottom: 8,
+  },
+  eventDropdown: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+  },
+  eventDropdownText: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 14,
+  },
+  eventDropdownTextSelected: {
+    color: Theme.colors.foreground,
+    fontSize: 14,
+  },
+  dropdownOptions: {
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    borderRadius: 8,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    maxHeight: 200,
+  },
+  dropdownOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.05)",
+  },
+  dropdownOptionSelected: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+  },
+  dropdownOptionText: {
+    color: Theme.colors.foreground,
+    fontSize: 14,
+  },
+  noEventsText: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 14,
+    textAlign: "center",
+    padding: 16,
+  },
+
+  // Caption
+  captionContainer: {
+    marginBottom: 20,
+  },
+  captionLabel: {
+    color: Theme.colors.foreground,
+    fontSize: 14,
+    fontWeight: "500",
+    marginBottom: 8,
+  },
+  captionInput: {
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    color: Theme.colors.foreground,
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    minHeight: 100,
+    textAlignVertical: "top",
+  },
+  captionCounter: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 12,
+    textAlign: "right",
+    marginTop: 4,
   },
 });
 

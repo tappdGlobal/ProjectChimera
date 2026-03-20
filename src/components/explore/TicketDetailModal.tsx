@@ -5,6 +5,8 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
+  Platform,
+  Alert,
 } from "react-native";
 import { Theme, GRADIENT_COLORS } from "../../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
@@ -34,35 +36,50 @@ export function TicketDetailModal({ booking, onClose }: Props) {
 
       const uri = await ticketRef.current.capture();
 
-      // ask user for Downloads folder permission
-      const permissions =
-        await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+      if (Platform.OS === "ios") {
+        // iOS: Use share sheet to allow user to save to photos or share
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(uri, {
+            mimeType: "image/png",
+            dialogTitle: "Save Ticket",
+            UTI: "public.png",
+          });
+        } else {
+          Alert.alert("Error", "Sharing is not available on this device");
+        }
+      } else {
+        // Android: Use StorageAccessFramework to save to Downloads
+        const permissions =
+          await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
 
-      if (!permissions.granted) {
-        alert("Permission required to save file");
-        return;
+        if (!permissions.granted) {
+          Alert.alert("Permission Required", "Permission required to save file");
+          return;
+        }
+
+        const base64 = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        const fileName = `ticket_${booking.id}.png`;
+
+        const newFileUri =
+          await FileSystem.StorageAccessFramework.createFileAsync(
+            permissions.directoryUri,
+            fileName,
+            "image/png"
+          );
+
+        await FileSystem.writeAsStringAsync(newFileUri, base64, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        Alert.alert("Success", "Ticket downloaded successfully!");
       }
-
-      const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      const fileName = `ticket_${booking.id}.png`;
-
-      const newFileUri =
-        await FileSystem.StorageAccessFramework.createFileAsync(
-          permissions.directoryUri,
-          fileName,
-          "image/png"
-        );
-
-      await FileSystem.writeAsStringAsync(newFileUri, base64, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      alert("Ticket downloaded successfully!");
     } catch (error) {
       console.log("Ticket download failed:", error);
+      Alert.alert("Error", "Failed to download ticket. Please try again.");
     }
   };
 

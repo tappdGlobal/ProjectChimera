@@ -2,6 +2,9 @@ import { create } from "zustand";
 import {
   createPostApi,
   getFeedPostsApi,
+  getFriendsFeedApi,
+  getEventFeedApi,
+  getMyEventsFeedApi,
   getPostByIdApi,
   updatePostApi,
   deletePostApi,
@@ -24,9 +27,12 @@ import {
   ShareListResponse,
 } from "../api/postApi";
 import { useUserStore } from "./userStore";
+import { useAuthStore } from "./authStore";
 
 interface PostState {
   feed: Post[];
+  friendsFeed: Post[];
+  eventFeed: Post[];
   userPosts: Post[];
   selectedPost: Post | null;
   comments: Comment[];
@@ -49,12 +55,33 @@ interface PostState {
   loading: boolean;
   error: string | null;
   hasMore: boolean;
+  friendsHasMore: boolean;
+  eventHasMore: boolean;
   nextCursor: string | undefined;
+  friendsNextCursor: string | undefined;
+  eventNextCursor: string | undefined;
+  currentEventId: string | null;
 
   createPost: (data: CreatePostPayload) => Promise<void>;
   fetchFeed: (cursor?: string, limit?: number) => Promise<void>;
   loadMoreFeed: () => Promise<void>;
   refreshFeed: () => Promise<void>;
+  
+  // Friends Feed
+  fetchFriendsFeed: (page?: number, limit?: number) => Promise<void>;
+  refreshFriendsFeed: () => Promise<void>;
+  loadMoreFriendsFeed: () => Promise<void>;
+  
+  // Event Feed
+  fetchEventFeed: (eventId: string, page?: number, limit?: number) => Promise<void>;
+  refreshEventFeed: (eventId: string) => Promise<void>;
+  loadMoreEventFeed: () => Promise<void>;
+  
+  // My Events Feed (Auto-aggregated from booked events)
+  fetchMyEventsFeed: (page?: number, limit?: number) => Promise<void>;
+  refreshMyEventsFeed: () => Promise<void>;
+  loadMoreMyEventsFeed: () => Promise<void>;
+  
   fetchPostById: (postId: string) => Promise<void>;
   fetchUserPosts: (userId: string) => Promise<void>;
   updatePost: (postId: string, data: UpdatePostPayload) => Promise<void>;
@@ -82,6 +109,8 @@ const DEFAULT_COMMENTS_LIMIT = 20;
 
 export const usePostStore = create<PostState>((set, get) => ({
   feed: [],
+  friendsFeed: [],
+  eventFeed: [],
   userPosts: [],
   selectedPost: null,
   comments: [],
@@ -91,7 +120,12 @@ export const usePostStore = create<PostState>((set, get) => ({
   loading: false,
   error: null,
   hasMore: true,
+  friendsHasMore: true,
+  eventHasMore: true,
   nextCursor: undefined,
+  friendsNextCursor: undefined,
+  eventNextCursor: undefined,
+  currentEventId: null,
 
   createPost: async (data) => {
     try {
@@ -165,6 +199,220 @@ export const usePostStore = create<PostState>((set, get) => ({
     const { fetchFeed } = get();
     set({ nextCursor: undefined, hasMore: true });
     await fetchFeed(undefined, DEFAULT_LIMIT);
+  },
+
+  // ================= FRIENDS FEED =================
+  fetchFriendsFeed: async (page: number = 1, limit: number = DEFAULT_LIMIT) => {
+    try {
+      // Don't set loading if we already have data (for faster switching)
+      const currentFeed = get().friendsFeed;
+      if (currentFeed.length === 0) {
+        set({ loading: true });
+      }
+      set({ error: null });
+      
+      // Get current user ID from auth store
+      const { userId: currentUserId } = useAuthStore.getState();
+      
+      // Fetch friends feed (required)
+      const friendsRes = await getFriendsFeedApi(page, limit);
+      const friendsData = (friendsRes as any).data?.data || (friendsRes as any).data || friendsRes || [];
+      const hasMoreData = (friendsRes as any).data?.hasMore ?? (Array.isArray(friendsData) && friendsData.length === limit);
+      
+      // Filter out posts that have an eventId (those belong in Event Feed)
+      const friendsPosts = (Array.isArray(friendsData) ? friendsData : []).filter((post: Post) => !post.eventId);
+      
+      // Try to fetch user's own posts (optional - may fail with 500)
+      let userPosts: Post[] = [];
+      if (currentUserId) {
+        try {
+          const userPostsRes = await getPostsByUserApi(currentUserId, page, limit);
+          const userPostsData = (userPostsRes as any).data?.data || (userPostsRes as any).data || userPostsRes || [];
+          userPosts = (Array.isArray(userPostsData) ? userPostsData : []).filter((post: Post) => !post.eventId);
+        } catch (userPostsErr) {
+          console.log("Failed to fetch user posts (optional):", userPostsErr);
+          // Continue without user posts - friends feed is the main data
+        }
+      }
+      
+      // Merge friends posts and user posts, then sort by createdAt (newest first)
+      const allPosts = [...friendsPosts, ...userPosts];
+      const uniquePosts = [...new Map(allPosts.map(p => [p.id, p])).values()];
+      const sortedPosts = uniquePosts.sort((a: Post, b: Post) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      
+      set({ 
+        friendsFeed: sortedPosts, 
+        friendsHasMore: hasMoreData,
+        friendsNextCursor: hasMoreData ? String(page + 1) : undefined,
+        loading: false 
+      });
+    } catch (err: any) {
+      console.error("Fetch friends feed error:", err);
+      set({ loading: false, error: err.message });
+    }
+  },
+
+  refreshFriendsFeed: async () => {
+    const { fetchFriendsFeed } = get();
+    set({ friendsNextCursor: undefined, friendsHasMore: true });
+    await fetchFriendsFeed(1, DEFAULT_LIMIT);
+  },
+
+  loadMoreFriendsFeed: async () => {
+    const { friendsNextCursor, friendsFeed, loading, friendsHasMore } = get();
+    
+    if (!friendsHasMore || loading || !friendsNextCursor) return;
+    
+    const nextPage = parseInt(friendsNextCursor, 10);
+    if (isNaN(nextPage)) return;
+    
+    try {
+      set({ loading: true, error: null });
+      const res = await getFriendsFeedApi(nextPage, DEFAULT_LIMIT);
+      const postsData = (res as any).data?.data || (res as any).data || res || [];
+      const hasMoreData = (res as any).data?.hasMore ?? (Array.isArray(postsData) && postsData.length === DEFAULT_LIMIT);
+      
+      // Filter out posts that have an eventId (those belong in Event Feed)
+      const friendsPosts = (Array.isArray(postsData) ? postsData : []).filter((post: Post) => !post.eventId);
+      
+      // Merge and deduplicate
+      const allPosts = [...friendsFeed, ...friendsPosts];
+      const uniquePosts = [...new Map(allPosts.map(p => [p.id, p])).values()];
+      
+      set({ 
+        friendsFeed: uniquePosts,
+        friendsHasMore: hasMoreData,
+        friendsNextCursor: hasMoreData ? String(nextPage + 1) : undefined,
+        loading: false 
+      });
+    } catch (err: any) {
+      console.error("Load more friends feed error:", err);
+      set({ loading: false, error: err.message });
+    }
+  },
+
+  // ================= EVENT FEED =================
+  fetchEventFeed: async (eventId: string, page: number = 1, limit: number = DEFAULT_LIMIT) => {
+    try {
+      set({ loading: true, error: null, currentEventId: eventId });
+      const res = await getEventFeedApi(eventId, page, limit);
+      const postsData = (res as any).data?.data || (res as any).data || res || [];
+      const hasMoreData = (res as any).data?.hasMore ?? (Array.isArray(postsData) && postsData.length === limit);
+      set({ 
+        eventFeed: Array.isArray(postsData) ? postsData : [], 
+        eventHasMore: hasMoreData,
+        eventNextCursor: hasMoreData ? String(page + 1) : undefined,
+        loading: false 
+      });
+    } catch (err: any) {
+      console.error("Fetch event feed error:", err);
+      // Handle 403 error - user hasn't booked the event
+      if (err.response?.status === 403) {
+        set({ 
+          eventFeed: [], 
+          eventHasMore: false,
+          eventNextCursor: undefined,
+          loading: false,
+          error: "You need to book this event to see posts."
+        });
+      } else {
+        set({ loading: false, error: err.message });
+      }
+    }
+  },
+
+  refreshEventFeed: async (eventId: string) => {
+    const { fetchEventFeed } = get();
+    set({ eventNextCursor: undefined, eventHasMore: true });
+    await fetchEventFeed(eventId, 1, DEFAULT_LIMIT);
+  },
+
+  loadMoreEventFeed: async () => {
+    const { eventNextCursor, eventFeed, loading, eventHasMore, currentEventId } = get();
+    
+    if (!eventHasMore || loading || !eventNextCursor || !currentEventId) return;
+    
+    const nextPage = parseInt(eventNextCursor, 10);
+    if (isNaN(nextPage)) return;
+    
+    try {
+      set({ loading: true, error: null });
+      const res = await getEventFeedApi(currentEventId, nextPage, DEFAULT_LIMIT);
+      const postsData = (res as any).data?.data || (res as any).data || res || [];
+      const hasMoreData = (res as any).data?.hasMore ?? (Array.isArray(postsData) && postsData.length === DEFAULT_LIMIT);
+      
+      set({ 
+        eventFeed: [...eventFeed, ...(Array.isArray(postsData) ? postsData : [])],
+        eventHasMore: hasMoreData,
+        eventNextCursor: hasMoreData ? String(nextPage + 1) : undefined,
+        loading: false 
+      });
+    } catch (err: any) {
+      console.error("Load more event feed error:", err);
+      set({ loading: false, error: err.message });
+    }
+  },
+
+  // ================= MY EVENTS FEED (Auto-aggregated from booked events) =================
+  fetchMyEventsFeed: async (page: number = 1, limit: number = DEFAULT_LIMIT) => {
+    try {
+      // Don't set loading if we already have data (for faster switching)
+      const currentFeed = get().eventFeed;
+      if (currentFeed.length === 0) {
+        set({ loading: true });
+      }
+      set({ error: null, currentEventId: null });
+      
+      const posts = await getMyEventsFeedApi(page, limit);
+      const hasMoreData = posts.length === limit;
+      
+      set({ 
+        eventFeed: posts, 
+        eventHasMore: hasMoreData,
+        eventNextCursor: hasMoreData ? String(page + 1) : undefined,
+        loading: false 
+      });
+    } catch (err: any) {
+      console.error("Fetch my events feed error:", err);
+      set({ loading: false, error: err.message });
+    }
+  },
+
+  refreshMyEventsFeed: async () => {
+    const { fetchMyEventsFeed } = get();
+    set({ eventNextCursor: undefined, eventHasMore: true });
+    await fetchMyEventsFeed(1, DEFAULT_LIMIT);
+  },
+
+  loadMoreMyEventsFeed: async () => {
+    const { eventNextCursor, eventFeed, loading, eventHasMore } = get();
+    
+    if (!eventHasMore || loading || !eventNextCursor) return;
+    
+    const nextPage = parseInt(eventNextCursor, 10);
+    if (isNaN(nextPage)) return;
+    
+    try {
+      set({ loading: true, error: null });
+      const newPosts = await getMyEventsFeedApi(nextPage, DEFAULT_LIMIT);
+      const hasMoreData = newPosts.length === DEFAULT_LIMIT;
+      
+      // Merge and deduplicate
+      const allPosts = [...eventFeed, ...newPosts];
+      const uniquePosts = [...new Map(allPosts.map(p => [p.id, p])).values()];
+      
+      set({ 
+        eventFeed: uniquePosts,
+        eventHasMore: hasMoreData,
+        eventNextCursor: hasMoreData ? String(nextPage + 1) : undefined,
+        loading: false 
+      });
+    } catch (err: any) {
+      console.error("Load more my events feed error:", err);
+      set({ loading: false, error: err.message });
+    }
   },
 
   fetchPostById: async (postId) => {

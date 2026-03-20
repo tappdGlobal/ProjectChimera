@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
-  Alert,
   ScrollView,
   Dimensions,
   TextInput,
@@ -15,11 +14,10 @@ import {
   FlatList,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { X, MapPin, Check, Navigation, Search, Crosshair } from "lucide-react-native";
+import { X, MapPin, Check, Search, Navigation } from "lucide-react-native";
 import { Theme } from "../../styles/Theme";
 import { LinearGradient } from "expo-linear-gradient";
-import * as Location from "expo-location";
-import MapView, { UrlTile } from "react-native-maps";
+import { WebView } from "react-native-webview";
 
 interface LocationData {
   location: string;
@@ -38,13 +36,14 @@ interface LocationPickerModalProps {
   initialLocation?: string;
 }
 
-const GEOAPIFY_API_KEY = "2c3c85c5f29947d58a663a5a4dd5e5f5"; // Replace with your actual Geoapify API key
+const GEOAPIFY_API_KEY = "3cf38a1b693d49e6b1b6433d1f05b0c9";
 const { width, height } = Dimensions.get("window");
 
 // Default to Delhi, India
 const DEFAULT_LOCATION = {
   latitude: 28.6139,
   longitude: 77.2090,
+  zoom: 15,
 };
 
 interface SearchResult {
@@ -52,207 +51,237 @@ interface SearchResult {
   formatted: string;
   lat: number;
   lon: number;
-  address_line1?: string;
-  address_line2?: string;
   city?: string;
   country?: string;
   name?: string;
 }
 
-export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
+const getMapHTML = (apiKey: string, lat: number, lng: number, zoom: number) => `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { margin: 0; padding: 0; overflow: hidden; }
+    #map { height: 100vh; width: 100vw; }
+    .center-pin {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -100%);
+      z-index: 1000;
+      pointer-events: none;
+    }
+    .pin-icon {
+      width: 40px;
+      height: 40px;
+      background: #b482c2;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      border: 3px solid white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="center-pin"><div class="pin-icon"></div></div>
+  <script>
+    const map = L.map('map', {
+      center: [${lat}, ${lng}],
+      zoom: ${zoom},
+      zoomControl: false,
+      attributionControl: false
+    });
+    L.tileLayer('https://maps.geoapify.com/v1/tile/osm-bright/{z}/{x}/{y}.png?apiKey=${apiKey}', {
+      maxZoom: 19,
+      attribution: 'Powered by Geoapify'
+    }).addTo(map);
+    map.on('moveend', function() {
+      const center = map.getCenter();
+      window.ReactNativeWebView.postMessage(JSON.stringify({
+        type: 'locationChange',
+        latitude: center.lat,
+        longitude: center.lng,
+        zoom: map.getZoom()
+      }));
+    });
+    window.addEventListener('message', function(event) {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'setLocation') {
+          map.setView([data.latitude, data.longitude], data.zoom || 15, { animate: true });
+        }
+      } catch (e) {}
+    });
+    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'mapReady' }));
+  </script>
+</body>
+</html>
+`;
+
+export default function LocationPickerModal({
   visible,
   onClose,
   onSelectLocation,
-  initialLocation = "",
-}) => {
+  initialLocation,
+}: LocationPickerModalProps) {
   const insets = useSafeAreaInsets();
-  const mapRef = useRef<MapView>(null);
+  const webViewRef = useRef<WebView>(null);
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState<LocationData | null>(null);
-  const [mapCenter, setMapCenter] = useState(DEFAULT_LOCATION);
-  const [showResults, setShowResults] = useState(false);
-  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState({
+    latitude: DEFAULT_LOCATION.latitude,
+    longitude: DEFAULT_LOCATION.longitude,
+    zoom: DEFAULT_LOCATION.zoom,
+  });
+  const [mapReady, setMapReady] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Get current location on mount
+  // Debounced search
   useEffect(() => {
-    if (visible) {
-      getCurrentLocation();
-    }
-  }, [visible]);
-
-  const searchLocations = useCallback(async (query: string) => {
-    if (!query.trim() || query.length < 2) {
+    if (searchQuery.length < 2) {
       setSearchResults([]);
-      setShowResults(false);
       return;
     }
 
+    const timeoutId = setTimeout(() => {
+      performSearch(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  const performSearch = async (query: string) => {
     setIsSearching(true);
     try {
       const response = await fetch(
-        `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(query)}&apiKey=${GEOAPIFY_API_KEY}&limit=5`
+        `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(
+          query
+        )}&limit=5&filter=countrycode:in&apiKey=${GEOAPIFY_API_KEY}`
       );
       const data = await response.json();
-
       if (data.features) {
-        const results: SearchResult[] = data.features.map((feature: any) => ({
-          place_id: feature.properties.place_id,
-          formatted: feature.properties.formatted,
-          lat: feature.properties.lat,
-          lon: feature.properties.lon,
-          address_line1: feature.properties.address_line1,
-          address_line2: feature.properties.address_line2,
-          city: feature.properties.city,
-          country: feature.properties.country,
-          name: feature.properties.name,
-        }));
-        setSearchResults(results);
-        setShowResults(true);
+        setSearchResults(
+          data.features.map((feature: any) => ({
+            place_id: feature.properties.place_id,
+            formatted: feature.properties.formatted,
+            lat: feature.properties.lat,
+            lon: feature.properties.lon,
+            city: feature.properties.city,
+            country: feature.properties.country,
+            name: feature.properties.name,
+          }))
+        );
       }
     } catch (error) {
-      console.log("Search error:", error);
+      console.error("Search error:", error);
     } finally {
       setIsSearching(false);
     }
-  }, []);
-
-  const handleSearchChange = (text: string) => {
-    setSearchQuery(text);
-    
-    if (searchTimeout.current) {
-      clearTimeout(searchTimeout.current);
-    }
-
-    searchTimeout.current = setTimeout(() => {
-      searchLocations(text);
-    }, 300);
   };
 
-  const handleSelectResult = (result: SearchResult) => {
-    const locationData: LocationData = {
-      location: result.city && result.country ? `${result.city}, ${result.country}` : result.formatted,
-      address: result.formatted,
-      city: result.city || "",
-      country: result.country || "",
-      venue: result.name || result.address_line1 || result.formatted.split(",")[0],
+  const handleSearchResultSelect = (result: SearchResult) => {
+    setSelectedLocation({
       latitude: result.lat,
       longitude: result.lon,
-    };
-
-    setSelectedLocation(locationData);
-    setMapCenter({ latitude: result.lat, longitude: result.lon });
-    setSearchQuery(result.formatted);
-    setShowResults(false);
-
-    // Animate map to selected location
-    mapRef.current?.animateToRegion({
-      latitude: result.lat,
-      longitude: result.lon,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
+      zoom: 16,
     });
+    
+    // Update map via WebView
+    if (webViewRef.current && mapReady) {
+      webViewRef.current.postMessage(
+        JSON.stringify({
+          type: "setLocation",
+          latitude: result.lat,
+          longitude: result.lon,
+          zoom: 16,
+        })
+      );
+    }
+    
+    setSearchResults([]);
+    setSearchQuery("");
   };
 
-  const getCurrentLocation = async () => {
+  const handleWebViewMessage = (event: any) => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        // If permission denied, just use default location
-        setMapCenter(DEFAULT_LOCATION);
-        mapRef.current?.animateToRegion({
-          latitude: DEFAULT_LOCATION.latitude,
-          longitude: DEFAULT_LOCATION.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === "locationChange") {
+        setSelectedLocation({
+          latitude: data.latitude,
+          longitude: data.longitude,
+          zoom: data.zoom,
         });
-        await reverseGeocode(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
-        return;
+      } else if (data.type === "mapReady") {
+        setMapReady(true);
       }
-
-      const location = await Location.getCurrentPositionAsync({});
-      const { latitude, longitude } = location.coords;
-      
-      setMapCenter({ latitude, longitude });
-
-      // Animate map to current location
-      mapRef.current?.animateToRegion({
-        latitude,
-        longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      });
-      
-      // Reverse geocode to get address
-      await reverseGeocode(latitude, longitude);
-    } catch (error) {
-      console.log("Error getting location:", error);
-      // On error, use default location instead of showing alert
-      setMapCenter(DEFAULT_LOCATION);
-      mapRef.current?.animateToRegion({
-        latitude: DEFAULT_LOCATION.latitude,
-        longitude: DEFAULT_LOCATION.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      });
-      await reverseGeocode(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
+    } catch (e) {
+      console.error("WebView message error:", e);
     }
   };
 
-  const reverseGeocode = async (latitude: number, longitude: number) => {
+  const reverseGeocode = async (lat: number, lon: number): Promise<LocationData> => {
     try {
       const response = await fetch(
-        `https://api.geoapify.com/v1/geocode/reverse?lat=${latitude}&lon=${longitude}&apiKey=${GEOAPIFY_API_KEY}`
+        `https://api.geoapify.com/v1/geocode/reverse?lat=${lat}&lon=${lon}&apiKey=${GEOAPIFY_API_KEY}`
       );
       const data = await response.json();
-
+      
       if (data.features && data.features.length > 0) {
-        const feature = data.features[0];
-        const props = feature.properties;
-        
-        const locationData: LocationData = {
-          location: props.city && props.country ? `${props.city}, ${props.country}` : props.formatted,
-          address: props.formatted,
-          city: props.city || "",
-          country: props.country || "",
-          venue: props.name || props.address_line1 || props.formatted.split(",")[0],
-          latitude,
-          longitude,
+        const feature = data.features[0].properties;
+        return {
+          location: feature.formatted || `${lat}, ${lon}`,
+          address: feature.formatted || `${lat}, ${lon}`,
+          city: feature.city || feature.county || "",
+          country: feature.country || "India",
+          venue: feature.name || feature.street || "",
+          latitude: lat,
+          longitude: lon,
         };
-        
-        setSelectedLocation(locationData);
-        setSearchQuery(props.formatted);
       }
     } catch (error) {
-      console.log("Reverse geocode error:", error);
+      console.error("Reverse geocode error:", error);
     }
+    
+    return {
+      location: `${lat.toFixed(6)}, ${lon.toFixed(6)}`,
+      address: `${lat.toFixed(6)}, ${lon.toFixed(6)}`,
+      city: "",
+      country: "India",
+      venue: "",
+      latitude: lat,
+      longitude: lon,
+    };
   };
 
-  const handleUseCurrentLocation = async () => {
-    await getCurrentLocation();
-  };
-
-  const handleConfirm = () => {
-    if (selectedLocation) {
-      onSelectLocation(selectedLocation);
-      onClose();
-    } else {
-      Alert.alert("No Location Selected", "Please search for a location or use current location.");
-    }
+  const handleConfirm = async () => {
+    setIsLoading(true);
+    const locationData = await reverseGeocode(
+      selectedLocation.latitude,
+      selectedLocation.longitude
+    );
+    setIsLoading(false);
+    onSelectLocation(locationData);
   };
 
   const renderSearchResult = ({ item }: { item: SearchResult }) => (
     <TouchableOpacity
-      style={styles.resultItem}
-      onPress={() => handleSelectResult(item)}
+      style={styles.searchResult}
+      onPress={() => handleSearchResultSelect(item)}
     >
-      <MapPin size={18} color={Theme.colors.primary} style={styles.resultIcon} />
-      <View style={styles.resultTextContainer}>
-        <Text style={styles.resultTitle} numberOfLines={1}>
-          {item.name || item.address_line1 || item.formatted.split(",")[0]}
+      <MapPin size={20} color={Theme.colors.primary} />
+      <View style={styles.searchResultText}>
+        <Text style={styles.searchResultTitle} numberOfLines={1}>
+          {item.name || item.formatted}
         </Text>
-        <Text style={styles.resultSubtitle} numberOfLines={1}>
+        <Text style={styles.searchResultSubtitle} numberOfLines={1}>
           {item.formatted}
         </Text>
       </View>
@@ -263,481 +292,252 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
     <Modal
       visible={visible}
       animationType="slide"
-      transparent={true}
+      presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContainer, { paddingBottom: insets.bottom || 20 }]}>
-          {/* Header */}
-          <LinearGradient
-            colors={[Theme.colors.primary, Theme.colors.secondary]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={[styles.header, { paddingTop: insets.top > 0 ? 8 : 16 }]}
-          >
-            <View style={styles.headerContent}>
-              <MapPin size={24} color="#fff" />
-              <Text style={styles.headerTitle}>Select Location</Text>
+      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <X size={24} color={Theme.colors.foreground} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Select Location</Text>
+          <View style={styles.placeholder} />
+        </View>
+
+        {/* Search Section */}
+        <View style={styles.searchSection}>
+          <View style={styles.searchInputContainer}>
+            <Search size={20} color={Theme.colors.mutedForeground} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search location..."
+              placeholderTextColor={Theme.colors.mutedForeground}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {isSearching && (
+              <ActivityIndicator size="small" color={Theme.colors.primary} />
+            )}
+          </View>
+          
+          {/* Search Results - Inside search section to avoid overlap */}
+          {searchResults.length > 0 && (
+            <View style={styles.searchResultsContainer}>
+              <FlatList
+                data={searchResults}
+                renderItem={renderSearchResult}
+                keyExtractor={(item) => item.place_id}
+                keyboardShouldPersistTaps="handled"
+              />
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={24} color="#fff" />
-            </TouchableOpacity>
-          </LinearGradient>
+          )}
+        </View>
 
-          <ScrollView 
-            style={styles.scrollView} 
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            {/* Search Bar */}
-            <View style={styles.searchWrapper}>
-              <View style={styles.searchInputContainer}>
-                <Search size={20} color={Theme.colors.mutedForeground} style={styles.searchIcon} />
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="Search for a venue or address..."
-                  placeholderTextColor={Theme.colors.mutedForeground}
-                  value={searchQuery}
-                  onChangeText={handleSearchChange}
-                  returnKeyType="search"
-                />
-                {isSearching && (
-                  <ActivityIndicator size="small" color={Theme.colors.primary} />
-                )}
-              </View>
-
-              {/* Search Results Dropdown */}
-              {showResults && searchResults.length > 0 && (
-                <View style={styles.resultsContainer}>
-                  <FlatList
-                    data={searchResults}
-                    renderItem={renderSearchResult}
-                    keyExtractor={(item) => item.place_id}
-                    scrollEnabled={false}
-                  />
-                </View>
-              )}
-            </View>
-
-            {/* Current Location Button */}
-            <TouchableOpacity 
-              style={styles.currentLocationButton}
-              onPress={handleUseCurrentLocation}
-            >
-              <Navigation size={18} color={Theme.colors.primary} />
-              <Text style={styles.currentLocationText}>Use Current Location</Text>
-            </TouchableOpacity>
-
-            {/* Map Section */}
-            <View style={styles.mapSection}>
-              <Text style={styles.mapSectionTitle}>Pick on Map</Text>
-              <Text style={styles.mapSectionSubtitle}>
-                Drag the map to move the pin. The pin shows your selected location.
-              </Text>
-
-              {/* Interactive MapView */}
-              <View style={styles.mapWrapper}>
-                <MapView
-                  ref={mapRef}
-                  style={StyleSheet.absoluteFillObject}
-                  initialRegion={{
-                    latitude: mapCenter.latitude,
-                    longitude: mapCenter.longitude,
-                    latitudeDelta: 0.05,
-                    longitudeDelta: 0.05,
-                  }}
-                  onRegionChangeComplete={(region) => {
-                    setMapCenter({ latitude: region.latitude, longitude: region.longitude });
-                    reverseGeocode(region.latitude, region.longitude);
-                  }}
-                >
-                  <UrlTile
-                    urlTemplate={`https://maps.geoapify.com/v1/tile/osm-bright/{z}/{x}/{y}.png?apiKey=${GEOAPIFY_API_KEY}`}
-                    maximumZ={19}
-                    flipY={false}
-                    zIndex={1}
-                  />
-                </MapView>
-
-                {/* Fixed Center Pin — does not move */}
-                <View pointerEvents="none" style={styles.pinOverlay}>
-                  <View style={styles.pinContainer}>
-                    <View style={styles.pin}>
-                      <MapPin size={24} color="#fff" />
-                    </View>
-                    <View style={styles.pinArrow} />
-                  </View>
-                </View>
-
-                {/* Center on current location button */}
-                <TouchableOpacity
-                  style={styles.centerButton}
-                  onPress={getCurrentLocation}
-                >
-                  <Crosshair size={20} color={Theme.colors.primary} />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Selected Location Info */}
-            {selectedLocation ? (
-              <View style={styles.infoContainer}>
-                <View style={styles.infoHeader}>
-                  <Check size={16} color="#22c55e" />
-                  <Text style={styles.infoTitle}>Location Selected</Text>
-                </View>
-                <Text style={styles.infoVenue} numberOfLines={1}>
-                  {selectedLocation.venue}
-                </Text>
-                <Text style={styles.infoAddress} numberOfLines={2}>
-                  {selectedLocation.address}
-                </Text>
-                <Text style={styles.infoDetails}>
-                  {selectedLocation.city}{selectedLocation.city && selectedLocation.country ? ", " : ""}{selectedLocation.country}
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.infoContainerEmpty}>
-                <MapPin size={32} color={Theme.colors.mutedForeground} />
-                <Text style={styles.infoEmptyText}>
-                  Search for a location, use current location, or pick on map
-                </Text>
+        {/* Map */}
+        <View style={styles.mapContainer}>
+          <WebView
+            ref={webViewRef}
+            style={styles.map}
+            source={{
+              html: getMapHTML(
+                GEOAPIFY_API_KEY,
+                selectedLocation.latitude,
+                selectedLocation.longitude,
+                selectedLocation.zoom
+              ),
+            }}
+            onMessage={handleWebViewMessage}
+            javaScriptEnabled={true}
+            domStorageEnabled={true}
+            startInLoadingState={true}
+            renderLoading={() => (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={Theme.colors.primary} />
               </View>
             )}
-
-            {/* Instructions */}
-            <View style={styles.instructionsContainer}>
-              <Text style={styles.instructionsText}>
-                💡 Tip: Search for a location, tap "Use Current Location", or use the arrow buttons on the map to adjust the pin position.
-              </Text>
-            </View>
-          </ScrollView>
-
-          {/* Footer Buttons */}
-          <View style={styles.footer}>
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={onClose}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[
-                styles.confirmButton,
-                !selectedLocation && styles.confirmButtonDisabled,
-              ]}
-              onPress={handleConfirm}
-              disabled={!selectedLocation}
-            >
-              <LinearGradient
-                colors={
-                  selectedLocation
-                    ? [Theme.colors.primary, Theme.colors.secondary]
-                    : ["#666", "#888"]
-                }
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.confirmButtonGradient}
-              >
-                <Text style={styles.confirmButtonText}>Confirm Location</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+          />
+          
+          {/* Center Pin Overlay */}
+          <View style={styles.centerPinContainer} pointerEvents="none">
+            <View style={styles.pinIcon} />
           </View>
         </View>
-      </View>
+
+        {/* Bottom Panel */}
+        <View style={styles.bottomPanel}>
+          <View style={styles.locationInfo}>
+            <MapPin size={20} color={Theme.colors.primary} />
+            <Text style={styles.coordinates} numberOfLines={1}>
+              {selectedLocation.latitude.toFixed(6)}, {selectedLocation.longitude.toFixed(6)}
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.confirmButton}
+            onPress={handleConfirm}
+            disabled={isLoading}
+          >
+            <LinearGradient
+              colors={["#a9016d", "#740182"]}
+              style={styles.gradientButton}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Check size={20} color="#fff" />
+                  <Text style={styles.confirmButtonText}>Confirm Location</Text>
+                </>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     </Modal>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  modalOverlay: {
+  container: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    justifyContent: "flex-end",
-  },
-  modalContainer: {
     backgroundColor: Theme.colors.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: "90%",
-    minHeight: "60%",
-    overflow: "hidden",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Theme.colors.border,
   },
-  headerContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
+  closeButton: {
+    padding: 8,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#fff",
+    color: Theme.colors.foreground,
   },
-  closeButton: {
-    padding: 4,
+  placeholder: {
+    width: 40,
   },
-  scrollView: {
-    flexGrow: 1,
-  },
-  searchWrapper: {
+  searchSection: {
     paddingHorizontal: 16,
-    paddingTop: 16,
-    zIndex: 10,
+    paddingVertical: 12,
+    zIndex: 100,
   },
   searchInputContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Theme.colors.card,
     borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderWidth: 1,
     borderColor: Theme.colors.border,
-    paddingHorizontal: 12,
-    height: 50,
-  },
-  searchIcon: {
-    marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    color: Theme.colors.foreground,
+    marginLeft: 8,
     fontSize: 16,
-    paddingVertical: 12,
+    color: Theme.colors.foreground,
   },
-  resultsContainer: {
+  searchResultsContainer: {
+    marginTop: 8,
+    maxHeight: 200,
     backgroundColor: Theme.colors.card,
     borderRadius: 12,
-    marginTop: 4,
-    maxHeight: 200,
     borderWidth: 1,
     borderColor: Theme.colors.border,
-    overflow: "hidden",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
-  resultItem: {
+  searchResult: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: Theme.colors.border,
   },
-  resultIcon: {
-    marginRight: 12,
-  },
-  resultTextContainer: {
+  searchResultText: {
+    marginLeft: 12,
     flex: 1,
   },
-  resultTitle: {
+  searchResultTitle: {
+    fontSize: 16,
+    fontWeight: "500",
     color: Theme.colors.foreground,
-    fontSize: 14,
-    fontWeight: "600",
   },
-  resultSubtitle: {
+  searchResultSubtitle: {
+    fontSize: 14,
     color: Theme.colors.mutedForeground,
-    fontSize: 12,
     marginTop: 2,
   },
-  currentLocationButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginHorizontal: 16,
-    marginTop: 12,
-    paddingVertical: 12,
-    backgroundColor: "rgba(180, 130, 194, 0.1)",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-  },
-  currentLocationText: {
-    color: Theme.colors.primary,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  mapSection: {
-    marginTop: 16,
-    paddingHorizontal: 16,
-  },
-  mapSectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: Theme.colors.foreground,
-    marginBottom: 4,
-  },
-  mapSectionSubtitle: {
-    fontSize: 12,
-    color: Theme.colors.mutedForeground,
-    marginBottom: 12,
-  },
-  mapWrapper: {
-    height: 250,
-    borderRadius: 16,
-    overflow: "hidden",
+  mapContainer: {
+    flex: 1,
     position: "relative",
-    backgroundColor: Theme.colors.card,
   },
-  pinOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: "center",
+  map: {
+    flex: 1,
+  },
+  loadingContainer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: Theme.colors.background,
     justifyContent: "center",
-  },
-  pinContainer: {
     alignItems: "center",
-    marginTop: -20,
   },
-  pin: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Theme.colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 3,
-    borderColor: "#fff",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  pinArrow: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 10,
-    borderRightWidth: 10,
-    borderTopWidth: 12,
-    borderLeftColor: "transparent",
-    borderRightColor: "transparent",
-    borderTopColor: Theme.colors.primary,
-    marginTop: -4,
-  },
-  centerButton: {
+  centerPinContainer: {
     position: "absolute",
-    bottom: 8,
-    right: 8,
+    top: "50%",
+    left: "50%",
+    marginLeft: -20,
+    marginTop: -40,
+    zIndex: 1000,
+  },
+  pinIcon: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: Theme.colors.card,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    backgroundColor: Theme.colors.primary,
+    borderRadius: 50,
+    borderBottomRightRadius: 0,
+    transform: [{ rotate: "-45deg" }],
+    borderWidth: 3,
+    borderColor: "#fff",
   },
-  infoContainer: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: 16,
-    backgroundColor: Theme.colors.card,
-    borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: "#22c55e",
-  },
-  infoContainerEmpty: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: 24,
-    backgroundColor: Theme.colors.card,
-    borderRadius: 12,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-    borderStyle: "dashed",
-  },
-  infoEmptyText: {
-    color: Theme.colors.mutedForeground,
-    fontSize: 14,
-    marginTop: 8,
-    textAlign: "center",
-  },
-  infoHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  infoTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#22c55e",
-  },
-  infoVenue: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: Theme.colors.foreground,
-    marginBottom: 4,
-  },
-  infoAddress: {
-    fontSize: 14,
-    color: Theme.colors.mutedForeground,
-    marginBottom: 4,
-    lineHeight: 20,
-  },
-  infoDetails: {
-    fontSize: 13,
-    color: Theme.colors.primary,
-    fontWeight: "500",
-  },
-  instructionsContainer: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 20,
-    padding: 12,
-    backgroundColor: "rgba(180, 130, 194, 0.1)",
-    borderRadius: 8,
-  },
-  instructionsText: {
-    fontSize: 12,
-    color: Theme.colors.mutedForeground,
-    lineHeight: 18,
-  },
-  footer: {
-    flexDirection: "row",
-    gap: 12,
+  bottomPanel: {
     paddingHorizontal: 16,
     paddingVertical: 16,
+    backgroundColor: Theme.colors.card,
     borderTopWidth: 1,
     borderTopColor: Theme.colors.border,
-    backgroundColor: Theme.colors.background,
   },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: Theme.colors.card,
+  locationInfo: {
+    flexDirection: "row",
     alignItems: "center",
+    marginBottom: 12,
   },
-  cancelButtonText: {
-    color: Theme.colors.foreground,
-    fontSize: 16,
-    fontWeight: "600",
+  coordinates: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: Theme.colors.mutedForeground,
   },
   confirmButton: {
-    flex: 1,
     borderRadius: 12,
     overflow: "hidden",
   },
-  confirmButtonDisabled: {
-    opacity: 0.5,
-  },
-  confirmButtonGradient: {
-    paddingVertical: 14,
+  gradientButton: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    gap: 8,
   },
   confirmButtonText: {
     color: "#fff",
@@ -745,5 +545,3 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
-
-export default LocationPickerModal;
