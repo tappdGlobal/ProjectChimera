@@ -14,7 +14,6 @@ export const addToWishlistApi = async (
   eventId: string
 ): Promise<void> => {
   try {
-    if (__DEV__) console.log("🟡 addToWishlistApi:", eventId);
 
     await apiClient.post("/wishlist/add", { eventId });
 
@@ -29,9 +28,7 @@ export const addToWishlistApi = async (
     }
 
     // 🚨 REAL ERROR ONLY
-    if (__DEV__) {
-      console.error("❌ addToWishlistApi error:", error?.response?.data || error);
-    }
+    
 
     throw error;
   }
@@ -44,7 +41,6 @@ export const removeFromWishlistApi = async (
   eventId: string
 ): Promise<void> => {
   try {
-    if (__DEV__) console.log("🟡 removeFromWishlistApi:", eventId);
 
     await apiClient.delete("/wishlist/remove", {
       data: { eventId },
@@ -60,10 +56,7 @@ export const removeFromWishlistApi = async (
       throw error; // store handles gracefully
     }
 
-    // 🚨 REAL ERROR ONLY
-    if (__DEV__) {
-      console.error("❌ removeFromWishlistApi error:", error?.response?.data || error);
-    }
+    
 
     throw error;
   }
@@ -74,7 +67,6 @@ export const removeFromWishlistApi = async (
 
 export const getWishlistApi = async (): Promise<WishlistEvent[]> => {
   try {
-    if (__DEV__) console.log("🟡 Fetching wishlist...");
 
     const response = await apiClient.get("/wishlist");
 
@@ -88,9 +80,7 @@ export const getWishlistApi = async (): Promise<WishlistEvent[]> => {
 
   } catch (error: any) {
 
-    if (__DEV__) {
-      console.error("❌ Wishlist fetch error:", error?.response?.data || error);
-    }
+   
 
     return [];
   }
@@ -114,10 +104,6 @@ export const checkWishlistStatusApi = async (
 
   } catch (error: any) {
 
-    if (__DEV__) {
-      console.error("❌ checkWishlistStatusApi error:", error?.response?.data || error);
-    }
-
     throw error;
   }
 };
@@ -132,9 +118,7 @@ export const getPopularWishlistApi = async (): Promise<WishlistEvent[]> => {
 
   } catch (error: any) {
 
-    if (__DEV__) {
-      console.error("❌ Popular wishlist error:", error?.response?.data || error);
-    }
+    
 
     return [];
   }

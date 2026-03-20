@@ -43,7 +43,7 @@ export default function App() {
     ) {
       isFetchingUserRef.current = true;
 
-      console.log("[App] Fetching user profile on app start...");
+     
 
       fetchUser(userId).finally(() => {
         isFetchingUserRef.current = false;
@@ -55,16 +55,14 @@ export default function App() {
 
     const init = async () => {
       try {
-        console.log("App starting on:", Platform.OS);
 
         if (Platform.OS !== "web") {
           await databaseService.initDatabase();
           await syncService.syncActions();
         }
 
-        console.log("App initialization complete");
+       
       } catch (error: any) {
-        console.error("App initialization error:", error);
         setInitError(error?.message || "Failed to initialize app");
       }
     };
@@ -75,12 +73,11 @@ export default function App() {
   // Connect socket when user is authenticated
   useEffect(() => {
     if (isAuthenticated && token && !socketInitialized.current) {
-      console.log("[App] Connecting socket with token...");
+      
       socketService.connect(token);
 
       // Set up global message receiver
       socketService.onReceiveMessage((message) => {
-        console.log("[App] Received message via socket:", message);
         receiveMessage(message);
       });
 
@@ -89,7 +86,6 @@ export default function App() {
 
     // Disconnect socket when user logs out
     if (!isAuthenticated && socketInitialized.current) {
-      console.log("[App] Disconnecting socket...");
       socketService.disconnect();
       socketInitialized.current = false;
     }
@@ -108,7 +104,6 @@ export default function App() {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>Error: {initError}</Text>
-        <Text style={styles.errorSubtext}>Check console</Text>
       </View>
     );
   }

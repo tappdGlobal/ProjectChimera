@@ -81,7 +81,7 @@ import ComingSoon from "../components/common/ComingSoon";
 import LocationPickerModal from "../components/host/LocationPickerModal";
 import { StatusBar } from "expo-status-bar";
 import { useAnalytics } from "../hooks/useAnalytics";
-const SERVICE_CHARGE_PERCENT = 3.75;
+const SERVICE_CHARGE_PERCENT = 6;
 
 interface TicketType {
   id: string;

@@ -16,11 +16,9 @@ export const generateQR = async (): Promise<GenerateQRResponse> => {
   try {
     const data = await apiClient.post<GenerateQRResponse>("/qr/generate");
 
-    console.log("✅ QR Generate API Data:", data);
 
     return data;
   } catch (error: any) {
-    console.log("❌ QR Generate API Error:", error?.message || error);
     throw error;
   }
 };
@@ -37,11 +35,8 @@ export const previewQR = async (
       payload
     );
 
-    console.log("✅ QR Preview API Data:", data);
-
     return data;
   } catch (error: any) {
-    console.log("❌ QR Preview API Error:", error?.message || error);
     throw error;
   }
 };
@@ -58,11 +53,9 @@ export const scanQR = async (
       payload
     );
 
-    console.log("✅ QR Scan API Data:", data);
 
     return data;
   } catch (error: any) {
-    console.log("❌ QR Scan API Error:", error?.message || error);
     throw error;
   }
 };

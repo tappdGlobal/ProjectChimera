@@ -34,28 +34,21 @@ export const usePaymentStore = create<PaymentState>((set) => ({
 
   createOrder: async (bookingId: string) => {
     try {
-      console.log("📤 CREATE ORDER REQUEST - bookingId:", bookingId);
 
       set({ loading: true, error: null });
 
       const res = await createPaymentOrderApi({ bookingId });
 
-      console.log("📥 CREATE ORDER API RESPONSE:", res);
 
       const order = res?.data;
-
-      console.log("🧾 RAZORPAY ORDER:", order);
 
       set({
         order,
         loading: false,
       });
 
-      console.log("🎟 Razorpay Order Stored In State:", order);
-
       return order; // return order for Razorpay checkout
     } catch (error: any) {
-      console.log("❌ CREATE ORDER ERROR:", error);
 
       set({
         error: error?.response?.data?.message || "Order creation failed",
@@ -74,11 +67,6 @@ export const usePaymentStore = create<PaymentState>((set) => ({
     razorpay_signature
   ) => {
     try {
-      console.log("📤 VERIFY PAYMENT REQUEST:", {
-        razorpay_order_id,
-        razorpay_payment_id,
-        razorpay_signature,
-      });
 
       set({ loading: true });
 
@@ -88,8 +76,6 @@ export const usePaymentStore = create<PaymentState>((set) => ({
         razorpay_signature,
       });
 
-      console.log("📥 VERIFY PAYMENT API RESPONSE:", res);
-
       const verified = res?.data;
 
       set({
@@ -97,9 +83,7 @@ export const usePaymentStore = create<PaymentState>((set) => ({
         loading: false,
       });
 
-      console.log("🎫 VERIFIED BOOKING STORED:", verified);
     } catch (error: any) {
-      console.log("❌ VERIFY PAYMENT ERROR:", error);
 
       set({
         error:
@@ -112,7 +96,6 @@ export const usePaymentStore = create<PaymentState>((set) => ({
   /* ================= RESET ================= */
 
   reset: () => {
-    console.log("♻️ RESET PAYMENT STORE");
 
     set({
       order: null,

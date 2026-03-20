@@ -5,10 +5,8 @@ import { EventAnalytics, Guest, Attendance, HostEvent } from "../types/hostTypes
 /* ================= HOST EVENTS LIST ================= */
 
 export const getHostEventsApi = async (): Promise<ApiResponse<HostEvent[]>> => {
-  console.log('[API] Fetching host events...');
+  
   const response = await apiClient.get('/host/events');
-  console.log('[API] Host events full response:', JSON.stringify(response, null, 2));
-  console.log('[API] Host events data:', JSON.stringify(response.data, null, 2));
   return response;
 };
 
