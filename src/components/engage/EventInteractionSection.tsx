@@ -30,8 +30,31 @@ import { UploadContentSheet } from "./UploadContentSheet";
 import { CreateStoryModal } from "./CreateStoryModal";
 import { FeedPostCard } from "./FeedPostCard";
 
-// Memoized version for better performance
-const MemoizedFeedPostCard = React.memo(FeedPostCard);
+// Memoized version for better performance - but re-render when isLiked changes
+const MemoizedFeedPostCard = React.memo(FeedPostCard, (prevProps, nextProps) => {
+  // Re-render if post isLiked state changed
+  if (prevProps.post.isLiked !== nextProps.post.isLiked) {
+    return false; // Re-render
+  }
+  // Re-render if likesCount changed
+  if (prevProps.post.likesCount !== nextProps.post.likesCount) {
+    return false; // Re-render
+  }
+  // Re-render if post ID changed (different post)
+  if (prevProps.post.id !== nextProps.post.id) {
+    return false; // Re-render
+  }
+  // Re-render if comments visibility changed
+  if (prevProps.showCommentsInline !== nextProps.showCommentsInline) {
+    return false; // Re-render
+  }
+  // Re-render if visibility changed (for video playback)
+  if (prevProps.isVisible !== nextProps.isVisible) {
+    return false; // Re-render
+  }
+  // Otherwise, don't re-render
+  return true;
+});
 import { useStoryStore } from "../../store/storyStore";
 import { useAuthStore } from "../../store/authStore";
 import { usePostStore } from "../../store/postStore";

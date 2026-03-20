@@ -238,7 +238,19 @@ export const usePostStore = create<PostState>((set, get) => ({
       // Merge friends posts and user posts, then sort by createdAt (newest first)
       const allPosts = [...friendsPosts, ...userPosts];
       const uniquePosts = [...new Map(allPosts.map(p => [p.id, p])).values()];
-      const sortedPosts = uniquePosts.sort((a: Post, b: Post) => 
+      
+      // Preserve local isLiked state when refreshing
+      const existingFeed = get().friendsFeed;
+      const postsWithPreservedLikes = uniquePosts.map((newPost: Post) => {
+        const existingPost = existingFeed.find(p => p.id === newPost.id);
+        // If we have local like state and API doesn't provide it, preserve it
+        if (existingPost && existingPost.isLiked && !newPost.isLiked) {
+          return { ...newPost, isLiked: true };
+        }
+        return newPost;
+      });
+      
+      const sortedPosts = postsWithPreservedLikes.sort((a: Post, b: Post) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       
@@ -300,8 +312,20 @@ export const usePostStore = create<PostState>((set, get) => ({
       const res = await getEventFeedApi(eventId, page, limit);
       const postsData = (res as any).data?.data || (res as any).data || res || [];
       const hasMoreData = (res as any).data?.hasMore ?? (Array.isArray(postsData) && postsData.length === limit);
+      
+      // Preserve local isLiked state when refreshing
+      const existingEventFeed = get().eventFeed;
+      const postsWithPreservedLikes = (Array.isArray(postsData) ? postsData : []).map((newPost: Post) => {
+        const existingPost = existingEventFeed.find(p => p.id === newPost.id);
+        // If we have local like state and API doesn't provide it, preserve it
+        if (existingPost && existingPost.isLiked && !newPost.isLiked) {
+          return { ...newPost, isLiked: true };
+        }
+        return newPost;
+      });
+      
       set({ 
-        eventFeed: Array.isArray(postsData) ? postsData : [], 
+        eventFeed: postsWithPreservedLikes, 
         eventHasMore: hasMoreData,
         eventNextCursor: hasMoreData ? String(page + 1) : undefined,
         loading: false 
@@ -477,15 +501,15 @@ export const usePostStore = create<PostState>((set, get) => ({
   likePost: async (postId) => {
     // Optimistic update - update UI immediately
     set((state) => {
-      const post = state.feed.find((p) => p.id === postId);
-      if (post && post.isLiked) return state; // Already liked, don't update
+      const updatePost = (p: Post) =>
+        p.id === postId
+          ? { ...p, likesCount: (p.likesCount || 0) + 1, isLiked: true }
+          : p;
       
       return {
-        feed: state.feed.map((p) =>
-          p.id === postId
-            ? { ...p, likesCount: (p.likesCount || 0) + 1, isLiked: true }
-            : p
-        ),
+        feed: state.feed.map(updatePost),
+        friendsFeed: state.friendsFeed.map(updatePost),
+        eventFeed: state.eventFeed.map(updatePost),
         selectedPost:
           state.selectedPost?.id === postId
             ? { ...state.selectedPost, likesCount: (state.selectedPost.likesCount || 0) + 1, isLiked: true }
@@ -496,33 +520,47 @@ export const usePostStore = create<PostState>((set, get) => ({
     try {
       const res = await likePostApi(postId);
       const { liked, likesCount } = res.data || {};
+      
+      console.log(`[likePost API] postId: ${postId}, liked: ${liked}, likesCount: ${likesCount}`);
 
-      // Sync with server response
-      set((state) => ({
-        feed: state.feed.map((p) =>
-          p.id === postId
-            ? { ...p, likesCount: likesCount ?? p.likesCount, isLiked: liked ?? true }
-            : p
-        ),
-        selectedPost:
-          state.selectedPost?.id === postId
-            ? { ...state.selectedPost, likesCount: likesCount ?? state.selectedPost.likesCount, isLiked: liked ?? true }
-            : state.selectedPost,
-      }));
+      // Sync with server response - ONLY if server confirms like
+      if (liked === true) {
+        set((state) => {
+          const syncPost = (p: Post) =>
+            p.id === postId
+              ? { ...p, likesCount: likesCount ?? p.likesCount, isLiked: true }
+              : p;
+          return {
+            feed: state.feed.map(syncPost),
+            friendsFeed: state.friendsFeed.map(syncPost),
+            eventFeed: state.eventFeed.map(syncPost),
+            selectedPost:
+              state.selectedPost?.id === postId
+                ? { ...state.selectedPost, likesCount: likesCount ?? state.selectedPost.likesCount, isLiked: true }
+                : state.selectedPost,
+          };
+        });
+      } else {
+        console.log(`[likePost API] Server did not confirm like, keeping optimistic state`);
+      }
     } catch (err: any) {
       console.error("Like post error:", err);
       // Revert on error
-      set((state) => ({
-        feed: state.feed.map((p) =>
+      set((state) => {
+        const revertPost = (p: Post) =>
           p.id === postId
             ? { ...p, likesCount: Math.max(0, (p.likesCount || 0) - 1), isLiked: false }
-            : p
-        ),
-        selectedPost:
-          state.selectedPost?.id === postId
-            ? { ...state.selectedPost, likesCount: Math.max(0, (state.selectedPost.likesCount || 0) - 1), isLiked: false }
-            : state.selectedPost,
-      }));
+            : p;
+        return {
+          feed: state.feed.map(revertPost),
+          friendsFeed: state.friendsFeed.map(revertPost),
+          eventFeed: state.eventFeed.map(revertPost),
+          selectedPost:
+            state.selectedPost?.id === postId
+              ? { ...state.selectedPost, likesCount: Math.max(0, (state.selectedPost.likesCount || 0) - 1), isLiked: false }
+              : state.selectedPost,
+        };
+      });
       set({ error: err.message });
     }
   },
@@ -530,15 +568,15 @@ export const usePostStore = create<PostState>((set, get) => ({
   unlikePost: async (postId) => {
     // Optimistic update - update UI immediately
     set((state) => {
-      const post = state.feed.find((p) => p.id === postId);
-      if (post && !post.isLiked) return state; // Already unliked, don't update
+      const updatePost = (p: Post) =>
+        p.id === postId
+          ? { ...p, likesCount: Math.max(0, (p.likesCount || 0) - 1), isLiked: false }
+          : p;
       
       return {
-        feed: state.feed.map((p) =>
-          p.id === postId
-            ? { ...p, likesCount: Math.max(0, (p.likesCount || 0) - 1), isLiked: false }
-            : p
-        ),
+        feed: state.feed.map(updatePost),
+        friendsFeed: state.friendsFeed.map(updatePost),
+        eventFeed: state.eventFeed.map(updatePost),
         selectedPost:
           state.selectedPost?.id === postId
             ? { ...state.selectedPost, likesCount: Math.max(0, (state.selectedPost.likesCount || 0) - 1), isLiked: false }
@@ -551,31 +589,39 @@ export const usePostStore = create<PostState>((set, get) => ({
       const { liked, likesCount } = res.data || {};
 
       // Sync with server response
-      set((state) => ({
-        feed: state.feed.map((p) =>
+      set((state) => {
+        const syncPost = (p: Post) =>
           p.id === postId
             ? { ...p, likesCount: likesCount ?? p.likesCount, isLiked: liked ?? false }
-            : p
-        ),
-        selectedPost:
-          state.selectedPost?.id === postId
-            ? { ...state.selectedPost, likesCount: likesCount ?? state.selectedPost.likesCount, isLiked: liked ?? false }
-            : state.selectedPost,
-      }));
+            : p;
+        return {
+          feed: state.feed.map(syncPost),
+          friendsFeed: state.friendsFeed.map(syncPost),
+          eventFeed: state.eventFeed.map(syncPost),
+          selectedPost:
+            state.selectedPost?.id === postId
+              ? { ...state.selectedPost, likesCount: likesCount ?? state.selectedPost.likesCount, isLiked: liked ?? false }
+              : state.selectedPost,
+        };
+      });
     } catch (err: any) {
       console.error("Unlike post error:", err);
       // Revert on error
-      set((state) => ({
-        feed: state.feed.map((p) =>
+      set((state) => {
+        const revertPost = (p: Post) =>
           p.id === postId
             ? { ...p, likesCount: (p.likesCount || 0) + 1, isLiked: true }
-            : p
-        ),
-        selectedPost:
-          state.selectedPost?.id === postId
-            ? { ...state.selectedPost, likesCount: (state.selectedPost.likesCount || 0) + 1, isLiked: true }
-            : state.selectedPost,
-      }));
+            : p;
+        return {
+          feed: state.feed.map(revertPost),
+          friendsFeed: state.friendsFeed.map(revertPost),
+          eventFeed: state.eventFeed.map(revertPost),
+          selectedPost:
+            state.selectedPost?.id === postId
+              ? { ...state.selectedPost, likesCount: (state.selectedPost.likesCount || 0) + 1, isLiked: true }
+              : state.selectedPost,
+        };
+      });
       set({ error: err.message });
     }
   },

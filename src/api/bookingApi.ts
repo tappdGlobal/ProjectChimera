@@ -11,17 +11,41 @@ import {
 
 /* ================= CREATE BOOKING ================= */
 
+// Track recent requests to prevent duplicates
+const recentRequests = new Map<string, number>();
+
 export const createBookingApi = async (
   data: CreateBookingRequest
 ): Promise<Booking> => {
   try {
-
+    // Create unique key for this request
+    const requestKey = `${data.eventId}-${data.ticketId}`;
+    const now = Date.now();
+    
+    // Check if same request was made in last 10 seconds
+    const lastRequest = recentRequests.get(requestKey);
+    if (lastRequest && now - lastRequest < 10000) {
+      console.log("🚫 API BLOCKED: Duplicate request detected", requestKey);
+      throw new Error("Duplicate booking request");
+    }
+    
+    // Track this request
+    recentRequests.set(requestKey, now);
+    console.log("📤 API CALL:", requestKey, data);
+    
     const response = await apiClient.post("/bookings", data);
-
-
+    
+    console.log("📥 API RESPONSE:", response);
+    
+    // Handle different response formats
+    if (response?.data) {
+      return response.data;
+    }
+    if (response?.booking) {
+      return response.booking;
+    }
     return response;
   } catch (error: any) {
-
     throw error;
   }
 };
@@ -38,8 +62,19 @@ export const getMyBookingsApi = async (params?: {
       params,
     });
 
-
-    return response;
+    // Handle different response formats
+    if (Array.isArray(response)) {
+      return response;
+    }
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data;
+    }
+    if (response?.bookings && Array.isArray(response.bookings)) {
+      return response.bookings;
+    }
+    
+    // Return empty array if no valid data found
+    return [];
   } catch (error: any) {
 
     throw error;
