@@ -33,9 +33,15 @@ export const redeemService = {
    */
   async requestRedemption(amount: number, bankDetails: BankDetails): Promise<RedeemResponse> {
     try {
+      // Backend expects nested bankDetails with accountName (not accountHolderName)
       const payload = {
         amount,
-        bankDetails
+        bankDetails: {
+          accountNumber: bankDetails.accountNumber,
+          accountName: bankDetails.accountName,
+          bankName: bankDetails.bankName,
+          ifsc: bankDetails.ifsc
+        }
       };
       console.log('🔵 REDEEM PAYLOAD:', JSON.stringify(payload, null, 2));
       

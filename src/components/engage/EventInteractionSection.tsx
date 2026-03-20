@@ -594,10 +594,10 @@ export function EventInteractionSection() {
         type: asset.type === 'video' ? 'video' : 'image',
       });
       setShowMediaPickerModal(false);
-      // Small delay to ensure smooth modal transition
+      // Delay for iOS to ensure smooth modal transition after image picker closes
       setTimeout(() => {
         setShowCreateEventPostModal(true);
-      }, 50);
+      }, Platform.OS === 'ios' ? 300 : 100);
     }
   };
 
@@ -623,10 +623,10 @@ export function EventInteractionSection() {
         type: asset.type === 'video' ? 'video' : 'image',
       });
       setShowMediaPickerModal(false);
-      // Small delay to ensure smooth modal transition
+      // Delay for iOS to ensure smooth modal transition after camera closes
       setTimeout(() => {
         setShowCreateEventPostModal(true);
-      }, 50);
+      }, Platform.OS === 'ios' ? 300 : 100);
     }
   };
 
@@ -1011,6 +1011,8 @@ export function EventInteractionSection() {
         transparent={true}
         animationType="fade"
         onRequestClose={() => setShowMediaPickerModal(false)}
+        statusBarTranslucent={true}
+        supportedOrientations={['portrait', 'landscape']}
       >
         <View style={eventPostStyles.modalOverlayCentered}>
           <View style={eventPostStyles.mediaPickerContainerCentered}>
@@ -1049,6 +1051,8 @@ export function EventInteractionSection() {
         transparent={true}
         animationType="fade"
         onRequestClose={handleCloseCreateModal}
+        statusBarTranslucent={true}
+        supportedOrientations={['portrait', 'landscape']}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}

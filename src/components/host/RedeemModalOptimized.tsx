@@ -40,7 +40,7 @@ const RedeemModalContent = React.memo<{
   
   const [accountNumber, setAccountNumber] = useState('');
   const [ifsc, setIfsc] = useState('');
-  const [accountHolderName, setAccountHolderName] = useState('');
+  const [accountName, setAccountName] = useState('');
   const [bankName, setBankName] = useState('');
   
   // Ref to prevent re-renders during typing
@@ -58,7 +58,7 @@ const RedeemModalContent = React.memo<{
         setIsLoading(false);
         setAccountNumber('');
         setIfsc('');
-        setAccountHolderName('');
+        setAccountName('');
         setBankName('');
       }
     }
@@ -137,7 +137,7 @@ const RedeemModalContent = React.memo<{
       const amount = parseFloat(redeemAmount);
       const response = await redeemService.requestRedemption(amount, {
         accountNumber,
-        accountName: accountHolderName,
+        accountName,
         bankName,
         ifsc
       });
@@ -278,8 +278,8 @@ const RedeemModalContent = React.memo<{
                         <View style={styles.inputContainer}>
                           <TextInput
                             style={inputStyle}
-                            value={accountHolderName}
-                            onChangeText={setAccountHolderName}
+                            value={accountName}
+                            onChangeText={setAccountName}
                             placeholder="Enter account holder name"
                             placeholderTextColor={Theme.colors.mutedForeground}
                             autoCapitalize="words"

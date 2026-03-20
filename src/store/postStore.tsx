@@ -27,6 +27,7 @@ import {
   ShareListResponse,
 } from "../api/postApi";
 import { useUserStore } from "./userStore";
+import { useAuthStore } from "./authStore";
 
 interface PostState {
   feed: Post[];
@@ -210,15 +211,39 @@ export const usePostStore = create<PostState>((set, get) => ({
       }
       set({ error: null });
       
-      const res = await getFriendsFeedApi(page, limit);
-      const postsData = (res as any).data?.data || (res as any).data || res || [];
-      const hasMoreData = (res as any).data?.hasMore ?? (Array.isArray(postsData) && postsData.length === limit);
+      // Get current user ID from auth store
+      const { userId: currentUserId } = useAuthStore.getState();
+      
+      // Fetch friends feed (required)
+      const friendsRes = await getFriendsFeedApi(page, limit);
+      const friendsData = (friendsRes as any).data?.data || (friendsRes as any).data || friendsRes || [];
+      const hasMoreData = (friendsRes as any).data?.hasMore ?? (Array.isArray(friendsData) && friendsData.length === limit);
       
       // Filter out posts that have an eventId (those belong in Event Feed)
-      const friendsPosts = (Array.isArray(postsData) ? postsData : []).filter((post: Post) => !post.eventId);
+      const friendsPosts = (Array.isArray(friendsData) ? friendsData : []).filter((post: Post) => !post.eventId);
+      
+      // Try to fetch user's own posts (optional - may fail with 500)
+      let userPosts: Post[] = [];
+      if (currentUserId) {
+        try {
+          const userPostsRes = await getPostsByUserApi(currentUserId, page, limit);
+          const userPostsData = (userPostsRes as any).data?.data || (userPostsRes as any).data || userPostsRes || [];
+          userPosts = (Array.isArray(userPostsData) ? userPostsData : []).filter((post: Post) => !post.eventId);
+        } catch (userPostsErr) {
+          console.log("Failed to fetch user posts (optional):", userPostsErr);
+          // Continue without user posts - friends feed is the main data
+        }
+      }
+      
+      // Merge friends posts and user posts, then sort by createdAt (newest first)
+      const allPosts = [...friendsPosts, ...userPosts];
+      const uniquePosts = [...new Map(allPosts.map(p => [p.id, p])).values()];
+      const sortedPosts = uniquePosts.sort((a: Post, b: Post) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
       
       set({ 
-        friendsFeed: friendsPosts, 
+        friendsFeed: sortedPosts, 
         friendsHasMore: hasMoreData,
         friendsNextCursor: hasMoreData ? String(page + 1) : undefined,
         loading: false 
