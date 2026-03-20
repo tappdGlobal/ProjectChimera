@@ -25,6 +25,7 @@ interface Props {
 
 export function TicketDetailModal({ booking, onClose }: Props) {
   const { event, ticket } = booking;
+  console.log(ticket)
   const ticketRef = useRef<any>(null);
   const [showComingSoon, setShowComingSoon] = useState(false);
   const downloadTicket = async () => {
@@ -122,6 +123,7 @@ export function TicketDetailModal({ booking, onClose }: Props) {
                 value={new Date(event.eventDate).toLocaleDateString()}
               />
               <InfoRow label="Time:" value={event.eventTime} />
+              <InfoRow label="Ticket Description:" value={ticket.ticketType} />
               <InfoRow label="Ticket Type:" value={ticket.ticketLabel} />
             </View>
 

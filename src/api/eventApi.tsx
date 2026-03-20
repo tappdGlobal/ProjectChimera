@@ -59,16 +59,12 @@ const buildEventFormData = (
 
     if (key === "images") {
       const images = value as ImageFile[];
-      if (images.length === 0) {
-        console.warn("⚠️ No images provided in payload");
-      }
+      
       images.forEach((file, index) => {
-        console.log(`📎 Appending image ${index}:`, file.name, file.type);
         formData.append("images", file as any);
       });
     } else if (key === "tickets") {
       const ticketsJson = JSON.stringify(value);
-      console.log("🎟️ Tickets JSON:", ticketsJson);
       formData.append("tickets", ticketsJson);
     } else if (typeof value === "boolean") {
       formData.append(key, value ? "true" : "false");
@@ -77,7 +73,6 @@ const buildEventFormData = (
     }
   });
 
-  console.log("📋 FormData entries:");
   const entries: Record<string, any> = {};
   formData.forEach((value, key) => {
     if (key === "images") {
@@ -87,7 +82,6 @@ const buildEventFormData = (
       entries[key] = value;
     }
   });
-  console.log(JSON.stringify(entries, null, 2));
 
   return formData;
 };
@@ -132,10 +126,6 @@ export const eventApi = {
   getDraftEvents: async (): Promise<Event[]> => {
     const res = await apiClient.get("/events/drafts");
 
-    console.log(
-      "📦 getDraftEvents API raw response:",
-      JSON.stringify(res.data, null, 2)
-    );
 
     return Array.isArray(res.data) ? res.data : [];
   },

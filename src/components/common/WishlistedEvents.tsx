@@ -62,7 +62,6 @@ export function WishlistedEvents({
   }
 
   /* ================= RENDER ================= */
-  console.log("🖼 First wishlist image:", events[0]?.event?.images);
   return (
     <View style={styles.container}>
       <View style={styles.header}>

@@ -8,12 +8,14 @@ import {
   Image,
   Dimensions,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBookingStore } from "../store/bookingStore";
 import { LinearGradient } from "expo-linear-gradient";
 import { GRADIENT_COLORS } from "../styles/Theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Alert, Linking } from "react-native";
 import { usePaymentStore } from "../store/paymentStore";
+import { Modal } from "react-native";
 // Razorpay is a native module - only available in dev builds, not Expo Go
 let RazorpayCheckout: any = null;
 try {
@@ -86,11 +88,38 @@ export function EventDetailsScreen() {
   const [activeTab, setActiveTab] = useState<
     "Availability" | "Details" | "Reviews"
   >("Details");
+  const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [priceModalVisible, setPriceModalVisible] = useState(false);
   const [bookingLoading, setBookingLoading] = useState<string | null>(null);
   const { width } = Dimensions.get("window");
   const { createBooking } = useBookingStore();
   const { createOrder, verifyPayment } = usePaymentStore();
+  const insets = useSafeAreaInsets();
 
+  const getPriceDetails = () => {
+    if (!selectedTicket) return null;
+
+    const qty = quantities[selectedTicket.id] || 0;
+
+    const base = selectedTicket.price * qty;
+
+    const platformFee = base * 0.0375;
+
+    // ✅ GST only on platform fee
+    const CGST = platformFee * 0.09;
+    const SGST = platformFee * 0.09;
+
+    const total = base + platformFee + CGST + SGST;
+
+    return {
+      qty,
+      base,
+      platformFee,
+      CGST,
+      SGST,
+      total,
+    };
+  };
 
   const handleBookNow = async (ticket: any) => {
     const qty = quantities[ticket.id] || 0;
@@ -132,6 +161,7 @@ export function EventDetailsScreen() {
       await createOrder(bookingId);
 
       const { order } = usePaymentStore.getState();
+      const razorpayOrder = order?.order;
 
       if (!order) {
         throw new Error("Order creation failed");
@@ -142,14 +172,13 @@ export function EventDetailsScreen() {
       }
 
       /* STEP 3 — RAZORPAY OPTIONS */
-
       const options = {
         key: "rzp_test_SNkYGFjypbxFU8",
-        amount: order.amount,
-        currency: order.currency,
+        amount: razorpayOrder?.amount,
+        currency: razorpayOrder?.currency,
         name: event.eventName,
         description: "Ticket Booking",
-        order_id: order.id,
+        order_id: razorpayOrder?.id,
         prefill: {
           email: "test@example.com",
           contact: "9999999999",
@@ -158,7 +187,8 @@ export function EventDetailsScreen() {
       };
 
 
-
+      console.log("Razorpay Options:", options);
+      console.log("Order from backend:", order);
       /* STEP 4 — OPEN RAZORPAY */
 
       if (!RazorpayCheckout) {
@@ -391,6 +421,7 @@ export function EventDetailsScreen() {
   const renderAvailability = () => (
     <View style={styles.tabContent}>
       {event.tickets.map((ticket, index) => {
+        console.log("Ticket:", ticket); 
         const available =
           ticket.quantityTotal - (ticket.quantitySold ?? 0);
 
@@ -444,7 +475,10 @@ export function EventDetailsScreen() {
                 <TouchableOpacity
                   disabled={qty === 0 || available === 0}
                   activeOpacity={0.9}
-                  onPress={() => handleBookNow(ticket)}
+                  onPress={() => {
+                    setSelectedTicket(ticket);
+                    setPriceModalVisible(true);
+                  }}
                   style={{ flex: 1 }}
                 >
                   <LinearGradient
@@ -608,6 +642,151 @@ export function EventDetailsScreen() {
           renderAvailability()}
         {activeTab === "Reviews" && renderReviews()}
       </ScrollView>
+      <Modal visible={priceModalVisible} transparent animationType="slide">
+        <SafeAreaView
+          style={{
+            flex: 1,
+            justifyContent: "flex-end",
+            backgroundColor: "rgba(0,0,0,0.6)",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: Theme.colors.card,
+              padding: Theme.spacing.m,
+              paddingBottom: insets.bottom + 16, // ✅ SAFE AREA FIX
+              borderTopLeftRadius: Theme.radius.xl,
+              borderTopRightRadius: Theme.radius.xl,
+              borderWidth: 1,
+              borderColor: Theme.colors.border,
+            }}
+          >
+            {/* TITLE */}
+            <Text
+              style={{
+                color: Theme.colors.foreground,
+                fontSize: 18,
+                fontWeight: "600",
+                marginBottom: Theme.spacing.m,
+              }}
+            >
+              Price Breakdown
+            </Text>
+
+            {(() => {
+              const data = getPriceDetails();
+              if (!data) return null;
+
+              return (
+                <>
+                  {/* INFO */}
+                  <Text style={{ color: Theme.colors.mutedForeground }}>
+                    Tickets: {data.qty}
+                  </Text>
+
+                  {/* BASE */}
+                  <Text style={{ color: Theme.colors.foreground, marginTop: 8 }}>
+                    Base Price: ₹{data.base.toFixed(2)}
+                  </Text>
+
+                  {/* PLATFORM FEE */}
+                  <Text style={{ color: Theme.colors.mutedForeground, marginTop: 4 }}>
+                    Platform Fee (3.75%): ₹{data.platformFee.toFixed(2)}
+                  </Text>
+
+                  {/* GST */}
+                  <Text style={{ color: Theme.colors.mutedForeground, marginTop: 4 }}>
+                    CGST (9%): ₹{data.CGST.toFixed(2)}
+                  </Text>
+
+                  <Text style={{ color: Theme.colors.mutedForeground, marginTop: 4 }}>
+                    SGST (9%): ₹{data.SGST.toFixed(2)}
+                  </Text>
+
+                  {/* DIVIDER */}
+                  <View
+                    style={{
+                      height: 1,
+                      backgroundColor: Theme.colors.border,
+                      marginVertical: Theme.spacing.m,
+                    }}
+                  />
+
+                  {/* TOTAL */}
+                  <Text
+                    style={{
+                      color: Theme.colors.primary,
+                      fontSize: 20,
+                      fontWeight: "700",
+                    }}
+                  >
+                    Total: ₹{data.total.toFixed(2)}
+                  </Text>
+                </>
+              );
+            })()}
+
+            {/* BUTTONS */}
+            <View
+              style={{
+                flexDirection: "row",
+                marginTop: Theme.spacing.l,
+                gap: 12,
+              }}
+            >
+              {/* CANCEL */}
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  padding: 14,
+                  borderRadius: Theme.radius.lg,
+                  backgroundColor: Theme.colors.muted,
+                  borderWidth: 1,
+                  borderColor: Theme.colors.border,
+                }}
+                onPress={() => setPriceModalVisible(false)}
+              >
+                <Text
+                  style={{
+                    color: Theme.colors.foreground,
+                    textAlign: "center",
+                    fontWeight: "500",
+                  }}
+                >
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              {/* PROCEED */}
+              <TouchableOpacity
+                style={{ flex: 1 }}
+                onPress={() => {
+                  setPriceModalVisible(false);
+                  handleBookNow(selectedTicket);
+                }}
+              >
+                <LinearGradient
+                  colors={GRADIENT_COLORS.primary}
+                  style={{
+                    padding: 14,
+                    borderRadius: Theme.radius.lg,
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: Theme.colors.primaryForeground,
+                      fontWeight: "600",
+                    }}
+                  >
+                    Proceed to Pay
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }

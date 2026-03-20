@@ -6,8 +6,6 @@ import { ApiResponse, User } from "../types/authTypes";
 export const getUserByIdApi = async (
   userId: string
 ): Promise<ApiResponse<User>> => {
-  console.log("📡 [API] getUserByIdApi called");
-  console.log("➡️ userId:", userId);
 
   try {
     const res = await apiClient.get(`/users/${userId}`);
@@ -16,8 +14,6 @@ export const getUserByIdApi = async (
 
     return res;
   } catch (error: any) {
-    console.log("❌ [API] getUserByIdApi failed");
-    console.log("🧨 error:", error?.response?.data || error.message || error);
     throw error;
   }
 };
