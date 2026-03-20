@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, IndianRupee, CheckCircle } from 'lucide-react-native';
 import { Theme } from '../../styles/Theme';
 import { redeemService } from '../../services/redeemService';
@@ -35,6 +36,11 @@ export const RedeemModalSimple: React.FC<RedeemModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
+  const [accountNumber, setAccountNumber] = useState('');
+  const [ifsc, setIfsc] = useState('');
+  const [accountHolderName, setAccountHolderName] = useState('');
+  const [bankName, setBankName] = useState('');
+
   // Reset form when modal opens/closes
   if (!visible) {
     // Reset state when modal is not visible
@@ -43,6 +49,10 @@ export const RedeemModalSimple: React.FC<RedeemModalProps> = ({
       setError('');
       setIsLoading(false);
       setIsSuccess(false);
+      setAccountNumber('');
+      setIfsc('');
+      setAccountHolderName('');
+      setBankName('');
     }
   }
 
@@ -73,21 +83,15 @@ export const RedeemModalSimple: React.FC<RedeemModalProps> = ({
   };
 
   const handleAmountChange = (text: string) => {
-    // Only allow numbers and decimal point
-    const cleanedText = text.replace(/[^0-9.]/g, '');
+    // Only allow numbers
+    const numericText = text.replace(/[^0-9]/g, '');
     
-    // Prevent multiple decimal points
-    const parts = cleanedText.split('.');
-    if (parts.length > 2) {
+    // Enforce max 18 digits
+    if (numericText.length > 18) {
       return;
     }
     
-    // Limit decimal places to 2
-    if (parts[1] && parts[1].length > 2) {
-      return;
-    }
-    
-    setRedeemAmount(cleanedText);
+    setRedeemAmount(numericText);
     
     // Clear error when user starts typing
     if (error) {
@@ -107,7 +111,12 @@ export const RedeemModalSimple: React.FC<RedeemModalProps> = ({
 
     try {
       const amount = parseFloat(redeemAmount);
-      const response = await redeemService.requestRedemption(amount);
+      const response = await redeemService.requestRedemption(amount, {
+        accountNumber,
+        accountName: accountHolderName,
+        bankName,
+        ifsc
+      });
       
       if (response.success) {
         setIsSuccess(true);
@@ -125,7 +134,7 @@ export const RedeemModalSimple: React.FC<RedeemModalProps> = ({
     }
   };
 
-  const isValid = !validateAmount(redeemAmount) && redeemAmount.trim() !== '';
+  const isValid = !validateAmount(redeemAmount) && redeemAmount.trim() !== '' && accountNumber.length >= 9 && accountNumber.length <= 18;
 
   if (!visible) return null;
 
@@ -136,75 +145,161 @@ export const RedeemModalSimple: React.FC<RedeemModalProps> = ({
       animationType="slide"
       statusBarTranslucent
     >
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <View style={styles.overlay}>
-          <View style={styles.modal}>
-            {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.title}>Redeem Earnings</Text>
-              <TouchableOpacity
-                onPress={onClose}
-                style={styles.closeButton}
-                disabled={isLoading || isSuccess}
-              >
-                <X size={24} color={Theme.colors.mutedForeground} />
-              </TouchableOpacity>
-            </View>
+      <SafeAreaView style={styles.container} edges={["top", "left", "right", "bottom"]}>
+        <KeyboardAvoidingView
+          style={styles.container}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.overlay}>
+            <View style={styles.modal}>
+              {/* Header - Fixed at top */}
+              <View style={styles.header}>
+                <Text style={styles.title}>Redeem Earnings</Text>
+                <TouchableOpacity
+                  onPress={onClose}
+                  style={styles.closeButton}
+                  disabled={isLoading || isSuccess}
+                >
+                  <X size={24} color={Theme.colors.mutedForeground} />
+                </TouchableOpacity>
+              </View>
 
-            {/* Content */}
-            {!isSuccess ? (
-              <>
-                {/* Available Balance */}
-                <View style={styles.balanceCard}>
-                  <Text style={styles.balanceLabel}>Available Balance</Text>
-                  <View style={styles.balanceRow}>
-                    <IndianRupee size={20} color={Theme.colors.primary} />
-                    <Text style={styles.balanceAmount}>
-                      {availableBalance.toLocaleString('en-IN', {
+              {/* Scrollable Content */}
+              <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={true}
+              >
+                {!isSuccess ? (
+                  <>
+                    {/* Available Balance */}
+                    <View style={styles.balanceCard}>
+                      <Text style={styles.balanceLabel}>Available Balance</Text>
+                      <View style={styles.balanceRow}>
+                        <IndianRupee size={20} color={Theme.colors.primary} />
+                        <Text style={styles.balanceAmount}>
+                          {availableBalance.toLocaleString('en-IN', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Amount Input */}
+                    <View style={styles.inputSection}>
+                      <Text style={styles.inputLabel}>Redeem Amount</Text>
+                      <View style={[
+                        styles.inputContainer,
+                        error && styles.inputError
+                      ]}>
+                        <IndianRupee size={20} color={Theme.colors.mutedForeground} />
+                        <TextInput
+                          style={styles.input}
+                          value={redeemAmount}
+                          onChangeText={handleAmountChange}
+                          placeholder="Enter amount to redeem"
+                          placeholderTextColor={Theme.colors.mutedForeground}
+                          keyboardType="numeric"
+                          editable={!isLoading}
+                          maxLength={10}
+                        />
+                      </View>
+                      
+                      {/* Bank Account Details */}
+                      <View style={{ marginTop: 16 }}>
+                        <Text style={styles.inputLabel}>Account Number</Text>
+                        <View style={styles.inputContainer}>
+                          <TextInput
+                            style={styles.input}
+                            value={accountNumber}
+                            onChangeText={setAccountNumber}
+                            placeholder="Enter account number"
+                            placeholderTextColor={Theme.colors.mutedForeground}
+                            keyboardType="number-pad"
+                            editable={!isLoading}
+                          />
+                        </View>
+
+                        <Text style={[styles.inputLabel, { marginTop: 12 }]}>IFSC Code</Text>
+                        <View style={styles.inputContainer}>
+                          <TextInput
+                            style={styles.input}
+                            value={ifsc}
+                            onChangeText={setIfsc}
+                            placeholder="Enter IFSC code"
+                            placeholderTextColor={Theme.colors.mutedForeground}
+                            autoCapitalize="characters"
+                            editable={!isLoading}
+                          />
+                        </View>
+
+                        <Text style={[styles.inputLabel, { marginTop: 12 }]}>Account Holder Name</Text>
+                        <View style={styles.inputContainer}>
+                          <TextInput
+                            style={styles.input}
+                            value={accountHolderName}
+                            onChangeText={setAccountHolderName}
+                            placeholder="Enter account holder name"
+                            placeholderTextColor={Theme.colors.mutedForeground}
+                            autoCapitalize="words"
+                            editable={!isLoading}
+                          />
+                        </View>
+
+                        <Text style={[styles.inputLabel, { marginTop: 12 }]}>Bank Name</Text>
+                        <View style={styles.inputContainer}>
+                          <TextInput
+                            style={styles.input}
+                            value={bankName}
+                            onChangeText={setBankName}
+                            placeholder="Enter bank name"
+                            placeholderTextColor={Theme.colors.mutedForeground}
+                            autoCapitalize="words"
+                            editable={!isLoading}
+                          />
+                        </View>
+                      </View>
+                      
+                      {/* Validation Info */}
+                      <View style={styles.validationInfo}>
+                        <Text style={styles.infoText}>
+                          Min: ₹{MIN_REDEEM_AMOUNT} | Max: ₹{MAX_REDEEM_AMOUNT.toLocaleString()}
+                        </Text>
+                        <Text style={[styles.infoText, { marginTop: 4 }]}>
+                          You can redeem only once every 7 days.
+                        </Text>
+                      </View>
+
+                      {/* Error Message */}
+                      {error && (
+                        <Text style={styles.errorText}>{error}</Text>
+                      )}
+                    </View>
+                  </>
+                ) : (
+                  /* Success State */
+                  <View style={styles.successContainer}>
+                    <View style={styles.successIcon}>
+                      <CheckCircle size={48} color="#22c55e" />
+                    </View>
+                    <Text style={styles.successTitle}>Redemption Request Sent!</Text>
+                    <Text style={styles.successMessage}>
+                      Your redemption request has been submitted successfully and will be processed within 24-48 hours.
+                    </Text>
+                    <Text style={styles.successAmount}>
+                      ₹{parseFloat(redeemAmount).toLocaleString('en-IN', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
                     </Text>
                   </View>
-                </View>
+                )}
+              </ScrollView>
 
-                {/* Amount Input */}
-                <View style={styles.inputSection}>
-                  <Text style={styles.inputLabel}>Redeem Amount</Text>
-                  <View style={[
-                    styles.inputContainer,
-                    error && styles.inputError
-                  ]}>
-                    <IndianRupee size={20} color={Theme.colors.mutedForeground} />
-                    <TextInput
-                      style={styles.input}
-                      value={redeemAmount}
-                      onChangeText={handleAmountChange}
-                      placeholder="Enter amount to redeem"
-                      placeholderTextColor={Theme.colors.mutedForeground}
-                      keyboardType="numeric"
-                      editable={!isLoading}
-                      maxLength={10}
-                    />
-                  </View>
-                  
-                  {/* Validation Info */}
-                  <View style={styles.validationInfo}>
-                    <Text style={styles.infoText}>
-                      Min: ₹{MIN_REDEEM_AMOUNT} | Max: ₹{MAX_REDEEM_AMOUNT.toLocaleString()}
-                    </Text>
-                  </View>
-
-                  {/* Error Message */}
-                  {error && (
-                    <Text style={styles.errorText}>{error}</Text>
-                  )}
-                </View>
-
-                {/* Action Buttons */}
+              {/* Action Buttons - Fixed at bottom */}
+              {!isSuccess && (
                 <View style={styles.buttonContainer}>
                   <TouchableOpacity
                     style={[styles.button, styles.cancelButton]}
@@ -238,29 +333,12 @@ export const RedeemModalSimple: React.FC<RedeemModalProps> = ({
                     )}
                   </TouchableOpacity>
                 </View>
-              </>
-            ) : (
-              /* Success State */
-              <View style={styles.successContainer}>
-                <View style={styles.successIcon}>
-                  <CheckCircle size={48} color="#22c55e" />
-                </View>
-                <Text style={styles.successTitle}>Redemption Request Sent!</Text>
-                <Text style={styles.successMessage}>
-                  Your redemption request has been submitted successfully and will be processed within 24-48 hours.
-                </Text>
-                <Text style={styles.successAmount}>
-                  ₹{parseFloat(redeemAmount).toLocaleString('en-IN', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                </Text>
-              </View>
-            )}
-          </View>
+              )}
+            </View>
         </View>
       </KeyboardAvoidingView>
-    </Modal>
+    </SafeAreaView>
+  </Modal>
   );
 };
 
@@ -270,15 +348,20 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: Theme.colors.background,
   },
   modal: {
+    flex: 1,
     backgroundColor: Theme.colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+  },
+  scrollView: {
+    maxHeight: '100%',
+    paddingHorizontal: 24,
+  },
+  scrollContent: {
+    paddingBottom: 16,
   },
   header: {
     flexDirection: 'row',
