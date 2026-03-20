@@ -230,9 +230,14 @@ export const deletePostApi = (
 /* ================= GET USER POSTS ================= */
 
 export const getPostsByUserApi = (
-  userId: string
+  userId: string,
+  page?: number,
+  limit?: number
 ): Promise<ApiResponse<Post[]>> => {
-  return apiClient.get(`/posts/user/${userId}`);
+  const params: { page?: number; limit?: number } = {};
+  if (page) params.page = page;
+  if (limit) params.limit = limit;
+  return apiClient.get(`/posts/user/${userId}`, { params });
 };
 
 /* ================= LIKE / UNLIKE ================= */

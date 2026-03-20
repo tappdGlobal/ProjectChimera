@@ -40,7 +40,7 @@ export const RedeemModal: React.FC<RedeemModalProps> = ({
 
   const [accountNumber, setAccountNumber] = useState('');
   const [ifsc, setIfsc] = useState('');
-  const [accountHolderName, setAccountHolderName] = useState('');
+  const [accountName, setAccountName] = useState('');
   const [bankName, setBankName] = useState('');
 
   // Reset form when modal opens/closes
@@ -128,7 +128,7 @@ export const RedeemModal: React.FC<RedeemModalProps> = ({
       const amount = parseFloat(redeemAmount);
       const response = await redeemService.requestRedemption(amount, {
         accountNumber,
-        accountName: accountHolderName,
+        accountName,
         bankName,
         ifsc
       });
