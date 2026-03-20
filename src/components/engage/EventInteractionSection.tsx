@@ -574,6 +574,13 @@ export function EventInteractionSection() {
 
   // Pick image from gallery
   const pickImage = async () => {
+    // Close modal first on iOS to prevent modal stacking issues
+    if (Platform.OS === 'ios') {
+      setShowMediaPickerModal(false);
+      // Small delay to let modal close before opening image picker
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please grant permission to access your photos');
@@ -585,6 +592,8 @@ export function EventInteractionSection() {
       allowsEditing: true,
       aspect: [9, 16],
       quality: 1,
+      videoMaxDuration: 60,
+      presentationStyle: Platform.OS === 'ios' ? ImagePicker.UIImagePickerPresentationStyle.FULL_SCREEN : undefined,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -593,16 +602,27 @@ export function EventInteractionSection() {
         uri: asset.uri,
         type: asset.type === 'video' ? 'video' : 'image',
       });
-      setShowMediaPickerModal(false);
       // Delay for iOS to ensure smooth modal transition after image picker closes
       setTimeout(() => {
         setShowCreateEventPostModal(true);
-      }, Platform.OS === 'ios' ? 300 : 100);
+      }, Platform.OS === 'ios' ? 500 : 100);
+    }
+    
+    // Close modal on Android after selection
+    if (Platform.OS !== 'ios') {
+      setShowMediaPickerModal(false);
     }
   };
 
   // Take photo with camera
   const takePhoto = async () => {
+    // Close modal first on iOS to prevent modal stacking issues
+    if (Platform.OS === 'ios') {
+      setShowMediaPickerModal(false);
+      // Small delay to let modal close before opening camera
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please grant permission to access your camera');
@@ -614,6 +634,7 @@ export function EventInteractionSection() {
       allowsEditing: true,
       aspect: [9, 16],
       quality: 1,
+      presentationStyle: Platform.OS === 'ios' ? ImagePicker.UIImagePickerPresentationStyle.FULL_SCREEN : undefined,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -622,11 +643,15 @@ export function EventInteractionSection() {
         uri: asset.uri,
         type: asset.type === 'video' ? 'video' : 'image',
       });
-      setShowMediaPickerModal(false);
       // Delay for iOS to ensure smooth modal transition after camera closes
       setTimeout(() => {
         setShowCreateEventPostModal(true);
-      }, Platform.OS === 'ios' ? 300 : 100);
+      }, Platform.OS === 'ios' ? 500 : 100);
+    }
+    
+    // Close modal on Android after selection
+    if (Platform.OS !== 'ios') {
+      setShowMediaPickerModal(false);
     }
   };
 

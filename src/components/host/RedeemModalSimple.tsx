@@ -51,7 +51,7 @@ export const RedeemModalSimple: React.FC<RedeemModalProps> = ({
       setIsSuccess(false);
       setAccountNumber('');
       setIfsc('');
-      setAccountHolderName('');
+      setAccountName('');
       setBankName('');
     }
   }
@@ -239,8 +239,8 @@ export const RedeemModalSimple: React.FC<RedeemModalProps> = ({
                         <View style={styles.inputContainer}>
                           <TextInput
                             style={styles.input}
-                            value={accountHolderName}
-                            onChangeText={setAccountHolderName}
+                            value={accountName}
+                            onChangeText={setAccountName}
                             placeholder="Enter account holder name"
                             placeholderTextColor={Theme.colors.mutedForeground}
                             autoCapitalize="words"

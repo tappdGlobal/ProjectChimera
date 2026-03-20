@@ -52,7 +52,7 @@ export const RedeemModal: React.FC<RedeemModalProps> = ({
       setIsFocused(false);
       setAccountNumber('');
       setIfsc('');
-      setAccountHolderName('');
+      setAccountName('');
       setBankName('');
     }
   }, [visible]);
@@ -94,8 +94,8 @@ export const RedeemModal: React.FC<RedeemModalProps> = ({
     
     setRedeemAmount(numericText);
     
-    // Only clear error when user actually types something new
-    if (numericText && error) {
+    // Clear error when user types anything new
+    if (error) {
       setError('');
     }
   }, [error]);
@@ -216,7 +216,11 @@ export const RedeemModal: React.FC<RedeemModalProps> = ({
                           ]}
                           value={redeemAmount}
                           onChangeText={handleAmountChange}
-                          onFocus={() => setIsFocused(true)}
+                          onFocus={() => {
+                            setIsFocused(true);
+                            // Clear error when user focuses on input
+                            if (error) setError('');
+                          }}
                           onBlur={() => setIsFocused(false)}
                           placeholder="Enter amount to redeem"
                           placeholderTextColor={Theme.colors.mutedForeground}
@@ -262,8 +266,8 @@ export const RedeemModal: React.FC<RedeemModalProps> = ({
                         <View style={styles.inputContainer}>
                           <TextInput
                             style={styles.input}
-                            value={accountHolderName}
-                            onChangeText={setAccountHolderName}
+                            value={accountName}
+                            onChangeText={setAccountName}
                             placeholder="Enter account holder name"
                             placeholderTextColor={Theme.colors.mutedForeground}
                             autoCapitalize="words"
