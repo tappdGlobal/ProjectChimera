@@ -147,7 +147,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         loading: false,
       });
     } catch (err: any) {
-      set({ loading: false, error: err.message || "Login failed" });
+      const statusCode = err?.response?.status;
+      let errorMessage = err.message || "Login failed";
+      
+      // Provide user-friendly error messages based on status code
+      if (statusCode === 401) {
+        errorMessage = "Wrong password";
+      } else if (statusCode === 404) {
+        errorMessage = "Email not found";
+      }
+      
+      set({ loading: false, error: errorMessage });
       throw err;
     }
   },
@@ -177,7 +187,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await forgotPasswordApi(email);
       set({ loading: false });
     } catch (err: any) {
-      set({ loading: false, error: err.message });
+      const statusCode = err?.response?.status;
+      let errorMessage;
+      
+      // Provide user-friendly error messages based on status code
+      if (statusCode === 404) {
+        errorMessage = "Email not found";
+      } else {
+        errorMessage = err?.response?.data?.message || err.message || "Failed to send OTP";
+      }
+      
+      set({ loading: false, error: errorMessage });
       throw err;
     }
   },

@@ -19,34 +19,43 @@ import { SCREEN_NAMES } from "../navigation/Routes";
 import { useAnalytics } from "../hooks/useAnalytics";
 import { ChangePasswordPopup } from "../components/profile/ChangePasswordPopup";
 import Toast from "react-native-toast-message";
-import {
-  GoogleSignin,
-  GoogleSigninButton,
-  statusCodes,
-} from "@react-native-google-signin/google-signin";
 
-// Configure Google Sign-In (only on native)
-if (Platform.OS !== 'web') {
-  GoogleSignin.configure({
-    webClientId:
-      "931740229699-3m651s5etkhke6bh3i7kba0ij1irq48g.apps.googleusercontent.com",
-    offlineAccess: false,
-  });
-}
 
 export const LoginScreen = ({ navigation }: any) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [forgotPasswordError, setForgotPasswordError] = useState("");
 
-  const { signin, googleSignin, forgotPassword, resetPassword, loading, error } = useAuthStore();
+  const { signin, forgotPassword, resetPassword, loading, error, clearError } = useAuthStore();
   const { trackEvent, trackButtonClick, trackFormSubmit, identifyUser } =
     useAnalytics("LoginScreen");
 
+  // Clear errors when user types
+  useEffect(() => {
+    if (email) setEmailError("");
+  }, [email]);
+
+  useEffect(() => {
+    if (password) setPasswordError("");
+  }, [password]);
+
   useEffect(() => {
     if (error) {
-      Alert.alert("Login Failed", error);
+      // Show inline errors based on error type
+      if (error === "Wrong password") {
+        setPasswordError("The password you entered is incorrect. Please try again.");
+      } else if (error === "Email not found") {
+        setEmailError("We couldn't find an account with this email address.");
+      } else {
+        // For other errors, show as email error
+        setEmailError(error);
+      }
+      // Clear the store error after displaying
+      clearError?.();
     }
   }, [error]);
 
@@ -81,65 +90,8 @@ export const LoginScreen = ({ navigation }: any) => {
         ],
       });
     } catch (err: any) {
-      trackFormSubmit("email_password_login", false, err.message);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    trackButtonClick("Continue with Google");
-
-    try {
-      await GoogleSignin.hasPlayServices();
-      const response = await GoogleSignin.signIn();
-
-      if (response.type === "success") {
-        const { data } = response;
-
-        // Send idToken to backend
-        await googleSignin({ idToken: data.idToken || "" });
-
-        // Identify user in PostHog
-        const { userId } = useAuthStore.getState();
-
-        if (userId) {
-          identifyUser(userId);
-        }
-
-
-        trackEvent("user_login", { method: "google" });
-
-        // Navigate to main screen on success
-        navigation.reset({
-          index: 0,
-          routes: [
-            {
-              name: SCREEN_NAMES.MAIN_TABS,
-              params: { screen: SCREEN_NAMES.ENGAGE },
-            },
-          ],
-        });
-      } else {
-        // User cancelled the sign-in
-        trackEvent("google_signin_cancelled");
-        console.log("Google Sign-In cancelled");
-      }
-    } catch (error: any) {
-      trackEvent("google_signin_error", {
-        error_code: error.code,
-        error_message: error.message,
-      });
-
-      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-        // User cancelled the login flow
-        console.log("User cancelled Google Sign-In");
-      } else if (error.code === statusCodes.IN_PROGRESS) {
-        // Operation already in progress
-        Alert.alert("Error", "Sign-in already in progress");
-      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        Alert.alert("Error", "Google Play Services not available");
-      } else {
-        Alert.alert("Google Sign-In Failed", error.message || "Unknown error");
-      }
+      // Error is already handled by useEffect via authStore error state
+      trackFormSubmit("email_password_login", false, err?.message || "Login failed");
     }
   };
 
@@ -179,7 +131,7 @@ export const LoginScreen = ({ navigation }: any) => {
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Email</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, emailError ? styles.inputError : null]}
                   placeholder="Enter your email"
                   placeholderTextColor="rgba(255,255,255,0.4)"
                   value={email}
@@ -187,11 +139,14 @@ export const LoginScreen = ({ navigation }: any) => {
                   autoCapitalize="none"
                   keyboardType="email-address"
                 />
+                {emailError ? (
+                  <Text style={styles.errorText}>{emailError}</Text>
+                ) : null}
               </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Password</Text>
-                <View style={styles.passwordContainer}>
+                <View style={[styles.passwordContainer, passwordError ? styles.inputError : null]}>
                   <TextInput
                     style={styles.passwordInput}
                     placeholder="Enter your password"
@@ -210,6 +165,9 @@ export const LoginScreen = ({ navigation }: any) => {
                     )}
                   </TouchableOpacity>
                 </View>
+                {passwordError ? (
+                  <Text style={styles.errorText}>{passwordError}</Text>
+                ) : null}
               </View>
 
               <TouchableOpacity 
@@ -241,23 +199,6 @@ export const LoginScreen = ({ navigation }: any) => {
                 </LinearGradient>
               </TouchableOpacity>
 
-              {/* Divider */}
-              <View style={styles.dividerContainer}>
-                <View style={styles.divider} />
-                <Text style={styles.dividerText}>OR</Text>
-                <View style={styles.divider} />
-              </View>
-
-              {/* Google Sign-In Button */}
-              <TouchableOpacity
-                style={styles.googleButton}
-                onPress={handleGoogleSignIn}
-                disabled={loading}
-              >
-                <Text style={styles.googleButtonText}>
-                  Continue with Google
-                </Text>
-              </TouchableOpacity>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -266,9 +207,19 @@ export const LoginScreen = ({ navigation }: any) => {
       {/* Forgot Password Popup */}
       <ChangePasswordPopup
         visible={showForgotPassword}
-        onClose={() => setShowForgotPassword(false)}
+        onClose={() => {
+          setShowForgotPassword(false);
+          setForgotPasswordError("");
+        }}
+        externalError={forgotPasswordError}
+        onSignUp={() => {
+          setShowForgotPassword(false);
+          setForgotPasswordError("");
+          navigation.navigate(SCREEN_NAMES.WELCOME);
+        }}
         onRequestOtp={async (email) => {
           try {
+            setForgotPasswordError("");
             await forgotPassword(email);
             Toast.show({
               type: "success",
@@ -276,11 +227,14 @@ export const LoginScreen = ({ navigation }: any) => {
               text2: "Please check your email for the OTP",
             });
           } catch (err: any) {
-            Toast.show({
-              type: "error",
-              text1: "Failed to Send OTP",
-              text2: err.message || "An error occurred",
-            });
+            const { error: storeError } = useAuthStore.getState();
+            
+            // Replace raw HTTP error with user-friendly message
+            if (storeError && storeError.includes("status code 404")) {
+              setForgotPasswordError("Email not found");
+            } else {
+              setForgotPasswordError(storeError || "Failed to send OTP. Please try again.");
+            }
             throw err;
           }
         }}
@@ -373,6 +327,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#FFFFFF",
   },
+  inputError: {
+    borderColor: "#EF4444",
+    borderWidth: 1,
+  },
+  errorText: {
+    color: "#EF4444",
+    fontSize: 12,
+    marginTop: 6,
+    marginLeft: 4,
+  },
   passwordContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -409,33 +373,5 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 18,
     fontWeight: "bold",
-  },
-  dividerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 24,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.2)",
-  },
-  dividerText: {
-    color: "rgba(255,255,255,0.4)",
-    fontSize: 14,
-    marginHorizontal: 16,
-  },
-  googleButton: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 28,
-    paddingVertical: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 8,
-  },
-  googleButtonText: {
-    color: "#1A1A3F",
-    fontSize: 16,
-    fontWeight: "600",
   },
 });
