@@ -22,6 +22,8 @@ interface ChangePasswordPopupProps {
     confirmPassword: string;
   }) => Promise<void>;
   loading?: boolean;
+  externalError?: string;
+  onSignUp?: () => void;
 }
 
 export const ChangePasswordPopup: React.FC<ChangePasswordPopupProps> = ({
@@ -30,6 +32,8 @@ export const ChangePasswordPopup: React.FC<ChangePasswordPopupProps> = ({
   onRequestOtp,
   onSubmit,
   loading = false,
+  externalError,
+  onSignUp,
 }) => {
   const [step, setStep] = useState<1 | 2>(1);
   const [localLoading, setLocalLoading] = useState(false);
@@ -73,7 +77,8 @@ export const ChangePasswordPopup: React.FC<ChangePasswordPopupProps> = ({
       await onRequestOtp(email.trim());
       setStep(2);
     } catch (err: any) {
-      setError(err.message || "Failed to send OTP");
+      // Error is handled by parent via externalError prop
+      // Don't set local error here to avoid duplicate messages
     } finally {
       setLocalLoading(false);
     }
@@ -151,9 +156,9 @@ export const ChangePasswordPopup: React.FC<ChangePasswordPopupProps> = ({
           </Text>
 
           {/* Error Message */}
-          {error ? (
+          {(error || externalError) ? (
             <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
+              <Text style={styles.errorText}>{error || externalError}</Text>
             </View>
           ) : null}
 
@@ -163,7 +168,7 @@ export const ChangePasswordPopup: React.FC<ChangePasswordPopupProps> = ({
               <TextInput
                 placeholder="Email address"
                 placeholderTextColor={Theme.colors.mutedForeground}
-                style={styles.input}
+                style={[styles.input, externalError ? styles.inputError : null]}
                 value={email}
                 onChangeText={(text) => {
                   setEmail(text);
@@ -188,6 +193,15 @@ export const ChangePasswordPopup: React.FC<ChangePasswordPopupProps> = ({
                   <Text style={styles.primaryText}>Send OTP</Text>
                 )}
               </TouchableOpacity>
+              
+              {/* Sign Up Link for Email Not Found */}
+              {externalError && onSignUp && (
+                <TouchableOpacity style={styles.signUpLink} onPress={onSignUp}>
+                  <Text style={styles.signUpText}>
+                    Don't have an account? <Text style={styles.signUpBold}>Sign Up</Text>
+                  </Text>
+                </TouchableOpacity>
+              )}
             </>
           )}
 
@@ -301,6 +315,12 @@ const styles = StyleSheet.create({
     color: Theme.colors.foreground,
     marginBottom: 12,
     fontSize: 15,
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  inputError: {
+    borderColor: "#EF4444",
+    borderWidth: 1,
   },
 
   primaryButton: {
@@ -322,14 +342,28 @@ const styles = StyleSheet.create({
   },
 
   errorContainer: {
-    backgroundColor: "#FEE2E2",
+    backgroundColor: "rgba(239, 68, 68, 0.15)",
     borderRadius: Theme.radius.md,
     padding: 10,
     marginBottom: Theme.spacing.m,
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.3)",
   },
 
   errorText: {
-    color: "#DC2626",
+    color: "#EF4444",
     fontSize: 13,
+  },
+  signUpLink: {
+    marginTop: 16,
+    alignItems: "center",
+  },
+  signUpText: {
+    color: Theme.colors.mutedForeground,
+    fontSize: 14,
+  },
+  signUpBold: {
+    color: Theme.colors.primary,
+    fontWeight: "600",
   },
 });
