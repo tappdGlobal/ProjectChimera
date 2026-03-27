@@ -5,7 +5,6 @@ import { Button } from "../components/ui/Button";
 import { Theme } from "../styles/Theme";
 
 // Engage Sections
-import { PreferableMatchSection } from "../components/engage/PreferableMatchSection";
 import { EventInteractionSection } from "../components/engage/EventInteractionSection";
 import { TapToConnectSection } from "../components/engage/TapToConnectSection";
 import { useAnalytics } from "../hooks/useAnalytics";
@@ -14,7 +13,7 @@ import { useNavigation } from "@react-navigation/native";
 import { SCREEN_NAMES } from "../navigation/Routes";
 import ChatListScreen from "../screens/ChatListScreen"; // Use the real screen, not the mock component
 
-type SectionType = "chat" | "match" | "interaction" | "connect";
+type SectionType = "chat" | "interaction" | "connect";
 
 export function EngageScreen() {
   const navigation = useNavigation<any>();
@@ -28,7 +27,6 @@ export function EngageScreen() {
 
   const menuItems: { id: SectionType; label: string }[] = [
     { id: "chat", label: "Chat" },
-    { id: "match", label: "Preferable Match" },
     { id: "interaction", label: "Event Interaction" },
     { id: "connect", label: "Tap to Connect" },
   ];
@@ -37,8 +35,6 @@ export function EngageScreen() {
     switch (activeSection) {
       case "chat":
         return <ChatListScreen embedded />; // Pass embedded prop to avoid nested SafeAreaView
-      case "match":
-        return <PreferableMatchSection />;
       case "interaction":
         return <EventInteractionSection />;
       case "connect":
