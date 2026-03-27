@@ -5,7 +5,7 @@
     "slug": "TappdApp",
     "version": "1.1.1",
     "scheme": "tappd",
-    "orientation": "portrait",
+    "orientation": ["portrait", "portraitUp", "portraitDown"],
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
@@ -18,7 +18,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.tappd.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "This app uses your location to show events near you.",
+        "NSLocationWhenInUseUsageDescription": "Tappd uses your location to show events happening near you and help you discover local experiences.",
+        "NSPhotoLibraryUsageDescription": "Tappd needs access to your photos so you can upload profile pictures, share event photos, and post updates with images.",
+        "NSCameraUsageDescription": "Tappd needs camera access so you can take photos for your profile, events, and posts directly within the app.",
+        "NSMicrophoneUsageDescription": "Tappd needs microphone access so you can record videos with audio for your posts and event shares.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
